@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 16px;
+      color: #1f1f1f;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 20px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    select, textarea, input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    textarea {
+      resize: none;
+      height: 96px;
+      background: #fafafa;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    button {
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: #d9ead3;
+      border: 1px solid #9bbb8f;
+    }
+
+    .secondary {
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 13px;
+      white-space: pre-line;
+    }
+
+    .error {
+      color: #b00020;
+    }
+
+    .success {
+      color: #1b5e20;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Generar alta de paciente</h2>
+
+<div class="field">
+  <label for="paciente">Paciente</label>
+  <select id="paciente" onchange="onPacienteChange()"></select>
+</div>
+
+<div class="field">
+  <label for="detallePaciente">Detalle paciente</label>
+  <textarea id="detallePaciente" readonly></textarea>
+</div>
+
+<div class="field">
+  <label for="fechaAlta">Fecha de alta</label>
+  <input id="fechaAlta" type="date">
+</div>
+
+<div class="field">
+  <label for="motivoAlta">Motivo de alta</label>
+  <select id="motivoAlta" onchange="onMotivoChange()"></select>
+</div>
+
+<div class="field">
+  <label for="comentarioAlta">Comentario</label>
+  <textarea id="comentarioAlta"></textarea>
+</div>
+
+<div class="field">
+  <label for="impactoAlta">Impacto de la alta</label>
+  <textarea id="impactoAlta" readonly></textarea>
+</div>
+
+<div class="actions">
+  <button id="btnGuardar" class="primary" onclick="guardar()">Guardar cambios</button>
+  <button class="secondary" onclick="volverPanel()">Volver al panel</button>
+  <button class="secondary" onclick="cerrar()">Cerrar</button>
+</div>
+
+<div id="status" class="status"></div>
+
+<script>
+  let pacientes = [];
+  let motivosAlta = [];
+  let detallePacienteActual = null;
+  const pacientePreseleccionadoId = '<?= typeof pacientePreseleccionadoId !== "undefined" ? pacientePreseleccionadoId : "" ?>';
+
+  function setStatus(message, type) {
+    const el = document.getElementById('status');
+    el.textContent = message || '';
+    el.className = 'status ' + (type || '');
+  }
+
+  function setGuardarEnabled(enabled) {
+    document.getElementById('btnGuardar').disabled = !enabled;
+  }
+
+  function cerrar() {
+    google.script.host.close();
+  }
+
+  function volverPanel() {
+    google.script.run
+      .withSuccessHandler(function() {
+        google.script.host.close();
+      })
+      .abrirHomeDashboardDesdePantalla();
+  }
+
+  function formatearFechaHoyInput() {
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    return yyyy + '-' + mm + '-' + dd;
+  }
+
+  function formatearFechaInputAEs(fechaIso) {
+    if (!fechaIso) return '';
+    const partes = String(fechaIso).split('-');
+    if (partes.length !== 3) return '';
+    return partes[2] + '/' + partes[1] + '/' + partes[0];
+  }
+
+  function limpiarDetallePaciente() {
+    detallePacienteActual = null;
+    document.getElementById('detallePaciente').value = '';
+    document.getElementById('impactoAlta').value = '';
+  }
+
+  function onMotivoChange() {
+    const codigo = Number(document.getElementById('motivoAlta').value || 0);
+    const comentario = document.getElementById('comentarioAlta');
+
+    if (codigo === 8) {
+      comentario.placeholder = 'Comentario obligatorio para "Otros"...';
+    } else {
+      comentario.placeholder = '';
+    }
+  }
+
+  function renderPacientes(data) {
+    pacientes = data || [];
+
+    const select = document.getElementById('paciente');
+    select.innerHTML = '';
+    select.disabled = false;
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = pacientes.length > 0
+      ? '-- Selecciona un paciente --'
+      : 'No hay pacientes elegibles para alta';
+    select.appendChild(placeholder);
+
+    pacientes.forEach(function(p) {
+      const option = document.createElement('option');
+      option.value = p.pacienteId;
+      option.textContent = p.label;
+      select.appendChild(option);
+    });
+
+    aplicarPacientePreseleccionadoSiExiste();
+  }
+
+  function aplicarPacientePreseleccionadoSiExiste() {
+    if (!pacientePreseleccionadoId) return;
+
+    const select = document.getElementById('paciente');
+    select.value = pacientePreseleccionadoId;
+
+    if (select.value === pacientePreseleccionadoId) {
+      select.disabled = true;
+      onPacienteChange();
+    }
+  }
+
+  function renderMotivosAlta(data) {
+    motivosAlta = data || [];
+
+    const select = document.getElementById('motivoAlta');
+    select.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- Selecciona motivo --';
+    select.appendChild(placeholder);
+
+    motivosAlta.forEach(function(m) {
+      const option = document.createElement('option');
+      option.value = String(m.codigo);
+      option.textContent = m.codigo + ' - ' + m.texto;
+      select.appendChild(option);
+    });
+  }
+
+  function onPacienteChange() {
+    const pacienteId = document.getElementById('paciente').value;
+
+    limpiarDetallePaciente();
+    setStatus('', '');
+
+    if (!pacienteId) {
+      setGuardarEnabled(false);
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(detalle) {
+        detallePacienteActual = detalle;
+
+        document.getElementById('detallePaciente').value =
+          'Nombre: ' + (detalle.nombre || '') + '\n' +
+          'Modalidad: ' + (detalle.modalidad || '') + '\n' +
+          'Estado: ' + (detalle.estadoPaciente || '') + '\n' +
+          'Fecha primera consulta: ' + (detalle.fechaPrimeraConsulta || '') + '\n' +
+          'Ciclo objetivo: ' + (detalle.cicloObjetivoId || '') + '\n' +
+          'Ciclo activo: ' + (detalle.cicloActivoId || '') + '\n' +
+          'Próxima sesión: ' + (detalle.proximaSesion || '') + '\n' +
+          'Sesiones pendientes: ' + (detalle.sesionesPendientes || 0);
+
+        const esGrupo =
+          detalle.modalidad === 'GRUPO_1' ||
+          detalle.modalidad === 'GRUPO_2' ||
+          detalle.modalidad === 'GRUPO_3';
+
+        document.getElementById('impactoAlta').value =
+          'Se pondrá el paciente en estado ALTA.\n' +
+          'Se eliminarán sus sesiones pendientes.\n' +
+          'Se limpiará su relación con ciclo activo/objetivo.\n' +
+          (esGrupo
+            ? 'Saldrá del grupo y se recalculará la ocupación del ciclo.\n'
+            : '') +
+          'La asignación a ciclo quedará FINALIZADA si existe.';
+
+        setGuardarEnabled(true);
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+        setGuardarEnabled(false);
+      })
+      .obtenerDetallePacienteAltaFormulario(pacienteId);
+  }
+
+  function guardar() {
+    const pacienteId = document.getElementById('paciente').value;
+    const fechaAltaIso = document.getElementById('fechaAlta').value;
+    const motivoCodigo = Number(document.getElementById('motivoAlta').value || 0);
+    const comentario = String(document.getElementById('comentarioAlta').value || '').trim();
+
+    if (!pacienteId) {
+      setStatus('Debes seleccionar un paciente.', 'error');
+      return;
+    }
+
+    if (!fechaAltaIso) {
+      setStatus('Debes indicar la fecha de alta.', 'error');
+      return;
+    }
+
+    if (!motivoCodigo) {
+      setStatus('Debes seleccionar un motivo de alta.', 'error');
+      return;
+    }
+
+    if (motivoCodigo === 8 && !comentario) {
+      setStatus('Debes indicar un comentario para "Otros".', 'error');
+      return;
+    }
+
+    const motivoSeleccionado = motivosAlta.find(function(m) {
+      return Number(m.codigo) === motivoCodigo;
+    });
+
+    setGuardarEnabled(false);
+    setStatus('', '');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setStatus((res && res.mensaje) || 'Alta generada correctamente.', 'success');
+        setGuardarEnabled(false);
+
+        setTimeout(function() {
+          if (pacientePreseleccionadoId) {
+            google.script.run
+              .withSuccessHandler(function() {
+                google.script.host.close();
+              })
+              .abrirPantallaPacientesDesdePantalla();
+          } else {
+            google.script.run
+              .withSuccessHandler(function() {
+                google.script.host.close();
+              })
+              .abrirHomeDashboardDesdePantalla();
+          }
+        }, 400);
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+        setGuardarEnabled(true);
+      })
+      .procesarAltaPacienteFormulario({
+        pacienteId: pacienteId,
+        fechaAlta: formatearFechaInputAEs(fechaAltaIso),
+        motivoCodigo: motivoCodigo,
+        motivoTexto: motivoSeleccionado ? motivoSeleccionado.texto : '',
+        comentario: comentario
+      });
+  }
+
+  function init() {
+    document.getElementById('fechaAlta').value = formatearFechaHoyInput();
+    setGuardarEnabled(false);
+
+    google.script.run
+      .withSuccessHandler(renderPacientes)
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerPacientesAltaFormulario();
+
+    google.script.run
+      .withSuccessHandler(renderMotivosAlta)
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerMotivosAltaFormulario();
+  }
+
+  init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; color: #1f1f1f; }
+    h2 { margin-top: 0; margin-bottom: 16px; font-size: 20px; }
+    .field { margin-bottom: 14px; }
+    label { display:block; font-weight:bold; margin-bottom:6px; }
+    input, select, textarea {
+      width:100%;
+      box-sizing:border-box;
+      padding:8px;
+      font-size:14px;
+    }
+    textarea { resize: vertical; min-height: 78px; }
+    .grid {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    .readonly-box {
+      background:#fafafa;
+    }
+    .actions {
+      display:flex;
+      gap:10px;
+      margin-top:18px;
+    }
+    button {
+      padding:10px 14px;
+      font-size:14px;
+      cursor:pointer;
+    }
+    .primary {
+      background:#d9ead3;
+      border:1px solid #9bbb8f;
+    }
+    .secondary {
+      background:#f3f3f3;
+      border:1px solid #cccccc;
+    }
+    .status {
+      margin-top:12px;
+      font-size:13px;
+      white-space:pre-line;
+    }
+    .error { color:#b00020; }
+    .success { color:#1b5e20; }
+  </style>
+</head>
+<body>
+
+<h2>Ficha clínica paciente</h2>
+
+<div class="field">
+  <label for="paciente">Paciente</label>
+  <select id="paciente" onchange="cargarFicha()"></select>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="nombre">Nombre</label>
+    <input id="nombre" type="text" class="readonly-box" readonly>
+  </div>
+  <div class="field">
+    <label for="nhc">NHC</label>
+    <input id="nhc" type="text">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="fechaAltaPrograma">Fecha alta programa</label>
+    <input id="fechaAltaPrograma" type="text" class="readonly-box" readonly>
+  </div>
+  <div class="field">
+    <label for="fechaPrimeraConsulta">Fecha primera consulta</label>
+    <input id="fechaPrimeraConsulta" type="text" class="readonly-box" readonly>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="fechaAltaEfectiva">Fecha alta efectiva</label>
+    <input id="fechaAltaEfectiva" type="text" class="readonly-box" readonly>
+  </div>
+  <div class="field">
+    <label for="estadoPacienteActual">Estado actual</label>
+    <input id="estadoPacienteActual" type="text" class="readonly-box" readonly>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="tipoIntervencionPrincipal">Tipo intervención principal</label>
+    <input id="tipoIntervencionPrincipal" type="text" class="readonly-box" readonly>
+  </div>
+  <div class="field">
+    <label for="finTratamientoTexto">Fin de tratamiento</label>
+    <input id="finTratamientoTexto" type="text" class="readonly-box" readonly>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="numeroSesionesTotal">Número sesiones total</label>
+    <input id="numeroSesionesTotal" type="text" class="readonly-box" readonly>
+  </div>
+  <div class="field">
+    <label for="tiempoEspera">Tiempo espera hasta 1ª consulta</label>
+    <input id="tiempoEspera" type="text" class="readonly-box" readonly>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="sexoGenero">Sexo / género</label>
+    <select id="sexoGenero"></select>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="edad">Edad</label>
+    <input id="edad" type="number" min="0">
+  </div>
+  <div class="field">
+    <label for="nivelEstudios">Nivel de estudios</label>
+    <select id="nivelEstudios"></select>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="motivoConsultaDiagnostico">Motivo consulta / diagnóstico</label>
+    <select id="motivoConsultaDiagnostico" onchange="actualizarOtros()"></select>
+  </div>
+  <div class="field">
+    <label for="comorbilidad">Comorbilidad</label>
+    <select id="comorbilidad"></select>
+  </div>
+</div>
+
+<div class="field">
+  <label for="motivoConsultaOtros">Motivo consulta / diagnóstico - otros</label>
+  <textarea id="motivoConsultaOtros"></textarea>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="antecedentesSM">Antecedentes SM</label>
+    <select id="antecedentesSM"></select>
+  </div>
+  <div class="field">
+    <label for="psicofarmacos">Psicofármacos</label>
+    <select id="psicofarmacos"></select>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="situacionLaboralPrevia">Situación laboral previa</label>
+    <select id="situacionLaboralPrevia"></select>
+  </div>
+  <div class="field">
+    <label for="cambioSituacionLaboralAlta">Cambio situación laboral al alta</label>
+    <select id="cambioSituacionLaboralAlta"></select>
+  </div>
+</div>
+
+<div class="field">
+  <label for="cambioFarmacologicoAlta">Cambio farmacológico al alta</label>
+  <select id="cambioFarmacologicoAlta"></select>
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="gad7Pre">GAD-7 PRE</label>
+    <input id="gad7Pre" type="number">
+  </div>
+  <div class="field">
+    <label for="phq9Pre">PHQ-9 PRE</label>
+    <input id="phq9Pre" type="number">
+  </div>
+</div>
+
+<div class="field">
+  <label for="whoqolPre">WHOQOL-BREF PRE</label>
+  <input id="whoqolPre" type="number">
+</div>
+
+<div class="grid">
+  <div class="field">
+    <label for="gad7Post">GAD-7 POST</label>
+    <input id="gad7Post" type="number">
+  </div>
+  <div class="field">
+    <label for="phq9Post">PHQ-9 POST</label>
+    <input id="phq9Post" type="number">
+  </div>
+</div>
+
+<div class="field">
+  <label for="whoqolPost">WHOQOL-BREF POST</label>
+  <input id="whoqolPost" type="number">
+</div>
+
+<div class="field">
+  <label for="escalaSatisfaccion">Escala satisfacción</label>
+  <select id="escalaSatisfaccion"></select>
+</div>
+
+<div class="actions">
+  <button class="primary" onclick="guardar()">Guardar cambios</button>
+  <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+  <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+</div>
+
+<div id="status" class="status"></div>
+
+<script>
+  let pacientes = [];
+  let catalogos = {};
+  let fichaActual = null;
+  const pacientePreseleccionadoId = '<?= typeof pacientePreseleccionadoId !== "undefined" ? pacientePreseleccionadoId : "" ?>';
+
+  function setStatus(message, type) {
+    const el = document.getElementById('status');
+    el.textContent = message || '';
+    el.className = 'status ' + (type || '');
+  }
+
+  function cargarSelect(selectId, valores) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- Selecciona --';
+    select.appendChild(placeholder);
+
+    (valores || []).forEach(function(valor) {
+      const option = document.createElement('option');
+      option.value = valor;
+      option.textContent = valor;
+      select.appendChild(option);
+    });
+  }
+
+  function cargarInicial() {
+    google.script.run
+      .withSuccessHandler(function(data) {
+        pacientes = data || [];
+
+        const select = document.getElementById('paciente');
+        select.innerHTML = '';
+        select.disabled = false;
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Selecciona un paciente --';
+        select.appendChild(placeholder);
+
+        pacientes.forEach(function(p) {
+          const option = document.createElement('option');
+          option.value = p.pacienteId;
+          option.textContent = p.label;
+          select.appendChild(option);
+        });
+
+        aplicarPacientePreseleccionadoSiExiste();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerPacientesFichaClinicaFormulario();
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        catalogos = data || {};
+
+        cargarSelect('sexoGenero', catalogos.sexoGenero);
+        cargarSelect('nivelEstudios', catalogos.nivelEstudios);
+        cargarSelect('motivoConsultaDiagnostico', catalogos.motivoConsultaDiagnostico);
+        cargarSelect('comorbilidad', catalogos.comorbilidad);
+        cargarSelect('antecedentesSM', catalogos.antecedentesSM);
+        cargarSelect('psicofarmacos', catalogos.psicofarmacos);
+        cargarSelect('situacionLaboralPrevia', catalogos.situacionLaboralPrevia);
+        cargarSelect('cambioSituacionLaboralAlta', catalogos.cambioSituacionLaboralAlta);
+        cargarSelect('cambioFarmacologicoAlta', catalogos.cambioFarmacologicoAlta);
+        cargarSelect('escalaSatisfaccion', catalogos.escalaSatisfaccion);
+
+        if (fichaActual) {
+          document.getElementById('sexoGenero').value = fichaActual.sexoGenero || '';
+          document.getElementById('nivelEstudios').value = fichaActual.nivelEstudios || '';
+          document.getElementById('motivoConsultaDiagnostico').value = fichaActual.motivoConsultaDiagnostico || '';
+          document.getElementById('comorbilidad').value = fichaActual.comorbilidad || '';
+          document.getElementById('antecedentesSM').value = fichaActual.antecedentesSM || '';
+          document.getElementById('psicofarmacos').value = fichaActual.psicofarmacos || '';
+          document.getElementById('situacionLaboralPrevia').value = fichaActual.situacionLaboralPrevia || '';
+          document.getElementById('cambioSituacionLaboralAlta').value = fichaActual.cambioSituacionLaboralAlta || '';
+          document.getElementById('cambioFarmacologicoAlta').value = fichaActual.cambioFarmacologicoAlta || '';
+          document.getElementById('escalaSatisfaccion').value = fichaActual.escalaSatisfaccion || '';
+          actualizarOtros();
+        }
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerCatalogosFichaClinicaFormulario();
+  }
+
+  function aplicarPacientePreseleccionadoSiExiste() {
+    if (!pacientePreseleccionadoId) return;
+
+    const select = document.getElementById('paciente');
+    select.value = pacientePreseleccionadoId;
+
+    if (select.value === pacientePreseleccionadoId) {
+      select.disabled = true;
+      cargarFicha();
+    }
+  }
+
+  function cargarFicha() {
+    const pacienteId = document.getElementById('paciente').value;
+    if (!pacienteId) return;
+
+    google.script.run
+      .withSuccessHandler(function(ficha) {
+        fichaActual = ficha;
+
+        document.getElementById('nombre').value = ficha.nombre || '';
+        document.getElementById('nhc').value = ficha.nhc || '';
+        document.getElementById('fechaAltaPrograma').value = ficha.fechaAltaPrograma || '';
+        document.getElementById('fechaPrimeraConsulta').value = ficha.fechaPrimeraConsulta || '';
+        document.getElementById('fechaAltaEfectiva').value = ficha.fechaAltaEfectiva || '';
+        document.getElementById('estadoPacienteActual').value = ficha.estadoPacienteActual || '';
+        document.getElementById('tipoIntervencionPrincipal').value = ficha.tipoIntervencionPrincipal || '';
+        document.getElementById('finTratamientoTexto').value = ficha.finTratamientoTexto || '';
+        document.getElementById('numeroSesionesTotal').value = ficha.numeroSesionesTotal || '';
+        document.getElementById('tiempoEspera').value = ficha.tiempoEsperaHastaPrimeraConsultaDias || '';
+        
+        document.getElementById('sexoGenero').value = ficha.sexoGenero || '';
+        document.getElementById('edad').value = ficha.edad || '';
+        document.getElementById('nivelEstudios').value = ficha.nivelEstudios || '';
+        document.getElementById('motivoConsultaDiagnostico').value = ficha.motivoConsultaDiagnostico || '';
+        document.getElementById('motivoConsultaOtros').value = ficha.motivoConsultaOtros || '';
+        document.getElementById('comorbilidad').value = ficha.comorbilidad || '';
+        document.getElementById('antecedentesSM').value = ficha.antecedentesSM || '';
+        document.getElementById('psicofarmacos').value = ficha.psicofarmacos || '';
+        document.getElementById('situacionLaboralPrevia').value = ficha.situacionLaboralPrevia || '';
+        document.getElementById('cambioSituacionLaboralAlta').value = ficha.cambioSituacionLaboralAlta || '';
+        document.getElementById('cambioFarmacologicoAlta').value = ficha.cambioFarmacologicoAlta || '';
+
+        document.getElementById('gad7Pre').value = ficha.gad7Pre || '';
+        document.getElementById('phq9Pre').value = ficha.phq9Pre || '';
+        document.getElementById('whoqolPre').value = ficha.whoqolPre || '';
+        document.getElementById('gad7Post').value = ficha.gad7Post || '';
+        document.getElementById('phq9Post').value = ficha.phq9Post || '';
+        document.getElementById('whoqolPost').value = ficha.whoqolPost || '';
+        document.getElementById('escalaSatisfaccion').value = ficha.escalaSatisfaccion || '';
+
+        if (catalogos && Object.keys(catalogos).length > 0) {
+          document.getElementById('sexoGenero').value = ficha.sexoGenero || '';
+          document.getElementById('nivelEstudios').value = ficha.nivelEstudios || '';
+          document.getElementById('motivoConsultaDiagnostico').value = ficha.motivoConsultaDiagnostico || '';
+          document.getElementById('comorbilidad').value = ficha.comorbilidad || '';
+          document.getElementById('antecedentesSM').value = ficha.antecedentesSM || '';
+          document.getElementById('psicofarmacos').value = ficha.psicofarmacos || '';
+          document.getElementById('situacionLaboralPrevia').value = ficha.situacionLaboralPrevia || '';
+          document.getElementById('cambioSituacionLaboralAlta').value = ficha.cambioSituacionLaboralAlta || '';
+          document.getElementById('cambioFarmacologicoAlta').value = ficha.cambioFarmacologicoAlta || '';
+          document.getElementById('escalaSatisfaccion').value = ficha.escalaSatisfaccion || '';
+        }
+
+        actualizarOtros();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerFichaClinicaPacienteFormulario(pacienteId);
+  }
+
+  function actualizarOtros() {
+    const motivo = document.getElementById('motivoConsultaDiagnostico').value;
+    const textarea = document.getElementById('motivoConsultaOtros');
+
+    textarea.disabled = motivo !== 'Otros';
+    if (motivo !== 'Otros') {
+      textarea.value = '';
+    }
+  }
+
+  function guardar() {
+    const pacienteId = document.getElementById('paciente').value;
+    if (!pacienteId) {
+      setStatus('Debes seleccionar un paciente.', 'error');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setStatus((res && res.mensaje) || 'Ficha clínica guardada correctamente.', 'success');
+
+        if (pacientePreseleccionadoId) {
+          setTimeout(function() {
+            google.script.run
+              .withSuccessHandler(function() {
+                google.script.host.close();
+              })
+              .withFailureHandler(function(error) {
+                alert(error.message || String(error));
+              })
+              .abrirPantallaPacientesDesdePantalla();
+          }, 400);
+          return;
+        }
+
+        cargarFicha();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .guardarFichaClinicaPacienteFormulario({
+        pacienteId: pacienteId,
+        nhc: document.getElementById('nhc').value,
+        sexoGenero: document.getElementById('sexoGenero').value,
+        edad: document.getElementById('edad').value,
+        nivelEstudios: document.getElementById('nivelEstudios').value,
+        motivoConsultaDiagnostico: document.getElementById('motivoConsultaDiagnostico').value,
+        motivoConsultaOtros: document.getElementById('motivoConsultaOtros').value,
+        comorbilidad: document.getElementById('comorbilidad').value,
+        antecedentesSM: document.getElementById('antecedentesSM').value,
+        psicofarmacos: document.getElementById('psicofarmacos').value,
+        situacionLaboralPrevia: document.getElementById('situacionLaboralPrevia').value,
+        cambioSituacionLaboralAlta: document.getElementById('cambioSituacionLaboralAlta').value,
+        cambioFarmacologicoAlta: document.getElementById('cambioFarmacologicoAlta').value,
+        gad7Pre: document.getElementById('gad7Pre').value,
+        phq9Pre: document.getElementById('phq9Pre').value,
+        whoqolPre: document.getElementById('whoqolPre').value,
+        gad7Post: document.getElementById('gad7Post').value,
+        phq9Post: document.getElementById('phq9Post').value,
+        whoqolPost: document.getElementById('whoqolPost').value,
+        escalaSatisfaccion: document.getElementById('escalaSatisfaccion').value
+      });
+  }
+
+  function volverAlPanel() {
+    google.script.run
+      .withSuccessHandler(function() {
+        google.script.host.close();
+      })
+      .withFailureHandler(function(error) {
+        alert(error.message || String(error));
+      })
+      .abrirHomeDashboardDesdePantalla();
+  }
+
+  cargarInicial();
+</script>
+
+</body>
+</html>

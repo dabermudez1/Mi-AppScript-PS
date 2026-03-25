@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #1f1f1f;
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+      }
+
+      .field {
+        margin-bottom: 14px;
+      }
+
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      input, select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: #d9ead3;
+        border: 1px solid #9bbb8f;
+      }
+
+      .secondary {
+        background: #f3f3f3;
+        border: 1px solid #cccccc;
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        white-space: pre-line;
+      }
+
+      .error {
+        color: #b00020;
+      }
+
+      .success {
+        color: #1b5e20;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Crear ciclo de grupo</h2>
+
+    <div class="field">
+      <label for="modalidad">Modalidad</label>
+      <select id="modalidad"></select>
+    </div>
+
+    <div class="field">
+      <label for="fechaInicio">Fecha primera sesión del ciclo</label>
+      <input id="fechaInicio" type="date" />
+    </div>
+
+    <div class="actions">
+  <button class="primary" onclick="guardar()">Guardar</button>
+  <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+  <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+</div>
+
+    <div id="status" class="status"></div>
+
+    <script>
+  function setStatus(message, type) {
+    const el = document.getElementById('status');
+    el.textContent = message || '';
+    el.className = 'status ' + (type || '');
+  }
+
+  function cargarOpcionesGrupo() {
+    google.script.run
+      .withSuccessHandler(function(opciones) {
+        const select = document.getElementById('modalidad');
+        select.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Selecciona una modalidad --';
+        select.appendChild(placeholder);
+
+        (opciones || []).forEach(function(op) {
+          const option = document.createElement('option');
+          option.value = op.value;
+          option.textContent = op.label;
+          select.appendChild(option);
+        });
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerOpcionesGrupoFormulario();
+  }
+
+  function guardar() {
+    const modalidad = document.getElementById('modalidad').value;
+    const fechaInicio = document.getElementById('fechaInicio').value;
+
+    if (!modalidad) {
+      setStatus('Debes seleccionar una modalidad.', 'error');
+      return;
+    }
+
+    if (!fechaInicio) {
+      setStatus('Debes seleccionar la fecha de inicio.', 'error');
+      return;
+    }
+
+    setStatus('Guardando...', '');
+
+    google.script.run
+      .withSuccessHandler(function(resultado) {
+        setStatus(resultado.mensaje || 'Ciclo creado correctamente.', 'success');
+        limpiarFormularioCrearCiclo();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .guardarCicloGrupoDesdeFormulario({
+        modalidad: modalidad,
+        fechaInicio: fechaInicio
+      });
+  }
+
+  function volverAlPanel() {
+    google.script.run
+      .withSuccessHandler(function() {
+        google.script.host.close();
+      })
+      .withFailureHandler(function(error) {
+        alert(error.message || String(error));
+      })
+      .abrirHomeDashboardDesdePantalla();
+  }
+
+  function limpiarFormularioCrearCiclo() {
+    document.getElementById('modalidad').selectedIndex = 0;
+    document.getElementById('fechaInicio').value = '';
+  }
+
+  cargarOpcionesGrupo();
+</script>
+  </body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 16px;
+      color: #1f1f1f;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 20px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    select, textarea, input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    textarea {
+      resize: none;
+      height: 72px;
+      background: #fafafa;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    button {
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: #d9ead3;
+      border: 1px solid #9bbb8f;
+    }
+
+    .secondary {
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 13px;
+      white-space: pre-line;
+    }
+
+    .error {
+      color: #b00020;
+    }
+
+    .success {
+      color: #1b5e20;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      font-size: 13px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f3f3f3;
+    }
+
+    .tabla-wrap {
+      max-height: 260px;
+      overflow-y: auto;
+      margin-top: 18px;
+    }
+
+    .fila-btn {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Gestión de días bloqueados</h2>
+
+<div class="field">
+  <label for="fechaDesde">Fecha desde</label>
+  <input id="fechaDesde" type="date">
+</div>
+
+<div class="field">
+  <label for="fechaHasta">Fecha hasta</label>
+  <input id="fechaHasta" type="date">
+</div>
+
+<div class="field">
+  <label for="motivo">Motivo</label>
+  <textarea id="motivo"></textarea>
+</div>
+
+<div class="actions">
+  <button id="btnGuardar" class="primary" onclick="guardar()">Guardar cambios</button>
+  <button class="secondary" onclick="volverPanel()">Volver al panel</button>
+  <button class="secondary" onclick="cerrar()">Cerrar</button>
+</div>
+
+<div id="status" class="status"></div>
+
+<div class="tabla-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Bloqueado</th>
+        <th>Motivo</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody id="tablaDias"></tbody>
+  </table>
+</div>
+
+<script>
+  function setStatus(message, type) {
+    const el = document.getElementById('status');
+    el.textContent = message || '';
+    el.className = 'status ' + (type || '');
+  }
+
+  function cerrar() {
+    google.script.host.close();
+  }
+
+  function volverPanel() {
+    google.script.run
+      .withSuccessHandler(function() {
+        google.script.host.close();
+      })
+      .abrirHomeDashboardDesdePantalla();
+  }
+
+  function formatearFechaInputAEs(fechaIso) {
+    if (!fechaIso) return '';
+    const partes = String(fechaIso).split('-');
+    if (partes.length !== 3) return '';
+    return partes[2] + '/' + partes[1] + '/' + partes[0];
+  }
+
+  function limpiarFormulario() {
+    document.getElementById('fechaDesde').value = '';
+    document.getElementById('fechaHasta').value = '';
+    document.getElementById('motivo').value = '';
+  }
+
+  function cargarDias() {
+    google.script.run
+      .withSuccessHandler(function(data) {
+        const tbody = document.getElementById('tablaDias');
+        tbody.innerHTML = '';
+
+        if (!data || data.length === 0) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td colspan="4">No hay días bloqueados.</td>';
+          tbody.appendChild(tr);
+          return;
+        }
+
+        data.forEach(function(item) {
+          const tr = document.createElement('tr');
+
+          const tdFecha = document.createElement('td');
+          tdFecha.textContent = item.fecha || '';
+
+          const tdBloqueado = document.createElement('td');
+          tdBloqueado.textContent = item.bloqueado ? 'Sí' : 'No';
+
+          const tdMotivo = document.createElement('td');
+          tdMotivo.textContent = item.motivo || '';
+
+          const tdAccion = document.createElement('td');
+          const btnEliminar = document.createElement('button');
+          btnEliminar.textContent = 'Eliminar';
+          btnEliminar.className = 'secondary fila-btn';
+          btnEliminar.onclick = function() {
+            eliminar(item.fecha);
+          };
+          tdAccion.appendChild(btnEliminar);
+
+          tr.appendChild(tdFecha);
+          tr.appendChild(tdBloqueado);
+          tr.appendChild(tdMotivo);
+          tr.appendChild(tdAccion);
+
+          tbody.appendChild(tr);
+        });
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerDiasBloqueadosFormulario();
+  }
+
+  function guardar() {
+    const fechaDesdeIso = document.getElementById('fechaDesde').value;
+    const fechaHastaIso = document.getElementById('fechaHasta').value;
+    const motivo = document.getElementById('motivo').value;
+
+    if (!fechaDesdeIso) {
+      setStatus('Debes indicar la fecha desde.', 'error');
+      return;
+    }
+
+    if (fechaHastaIso && fechaHastaIso < fechaDesdeIso) {
+      setStatus('La fecha hasta no puede ser anterior a la fecha desde.', 'error');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setStatus((res && res.mensaje) || 'Días bloqueados guardados correctamente.', 'success');
+        limpiarFormulario();
+        cargarDias();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .guardarDiaBloqueadoFormulario({
+        fechaDesde: formatearFechaInputAEs(fechaDesdeIso),
+        fechaHasta: fechaHastaIso ? formatearFechaInputAEs(fechaHastaIso) : '',
+        motivo: motivo
+      });
+  }
+
+  function eliminar(fechaTexto) {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setStatus((res && res.mensaje) || 'Día bloqueado eliminado correctamente.', 'success');
+        cargarDias();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .eliminarDiaBloqueadoFormulario(fechaTexto);
+  }
+
+  cargarDias();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #1f1f1f;
+        background: #f7f7f7;
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 18px;
+      }
+
+      .panel {
+        background: #fff;
+        border: 1px solid #d0d0d0;
+        border-radius: 10px;
+        padding: 14px;
+      }
+
+      .field {
+        margin-bottom: 14px;
+      }
+
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      input, select, textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 70px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .readonly {
+        background: #fafafa;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: #d9ead3;
+        border: 1px solid #9bbb8f;
+      }
+
+      .secondary {
+        background: #f3f3f3;
+        border: 1px solid #cccccc;
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        white-space: pre-line;
+      }
+
+      .error {
+        color: #b00020;
+      }
+
+      .success {
+        color: #1b5e20;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: #555;
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Configuración de modalidades</h2>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="field">
+          <label for="modalidad">Modalidad</label>
+          <select id="modalidad" onchange="cargarDetalleModalidad()"></select>
+        </div>
+
+        <div class="field">
+          <label for="tipoModalidad">Tipo modalidad</label>
+          <input id="tipoModalidad" type="text" class="readonly" readonly />
+        </div>
+
+        <div class="field">
+          <label for="activa">Activa</label>
+          <select id="activa">
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+
+        <div class="hint">
+          Modalidad y tipo son estructurales. Solo se editan los campos operativos.
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="grid">
+          <div class="field">
+            <label for="diaSemana">Día semana</label>
+            <select id="diaSemana"></select>
+          </div>
+
+          <div class="field">
+            <label for="frecuenciaDias" id="labelFrecuencia">Frecuencia (semanas en grupos / días en individual)</label>
+            <input id="frecuenciaDias" type="number" min="1" />
+            <div class="hint" id="hintFrecuencia">
+              En GRUPO se interpreta como semanas. En INDIVIDUAL se interpreta como días operativos.
+            </div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label for="fechaBase">Fecha base</label>
+            <input id="fechaBase" type="date" />
+            <div class="hint" id="hintFechaBase">
+              En modalidades de grupo, la fecha base debe caer exactamente en el día de la modalidad.
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="capacidadMaxima">Capacidad máxima</label>
+            <input id="capacidadMaxima" type="number" min="0" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="sesionesPorCiclo">Sesiones por ciclo</label>
+          <input id="sesionesPorCiclo" type="number" min="1" />
+        </div>
+
+        <div class="field">
+          <label for="notas">Notas</label>
+          <textarea id="notas"></textarea>
+        </div>
+
+        <div class="actions">
+  <button class="primary" id="btnGuardar" onclick="guardar()">Guardar cambios</button>
+  <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+  <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+</div>
+
+        <div id="status" class="status"></div>
+      </div>
+    </div>
+
+    <script>
+      let configData = [];
+      let catalogos = {
+        diasSemana: [],
+        tiposModalidad: [],
+        modalidades: []
+      };
+
+      function setStatus(message, type) {
+        const el = document.getElementById('status');
+        el.textContent = message || '';
+        el.className = 'status ' + (type || '');
+      }
+
+      function cargarSelect(selectId, valores, placeholder) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '';
+
+        const first = document.createElement('option');
+        first.value = '';
+        first.textContent = placeholder;
+        select.appendChild(first);
+
+        (valores || []).forEach(function(valor) {
+          const option = document.createElement('option');
+          option.value = valor;
+          option.textContent = valor;
+          select.appendChild(option);
+        });
+      }
+
+      function cargarDatos() {
+  cargarDatosConSeleccion('');
+}
+
+function cargarDatosConSeleccion(modalidadASeleccionar) {
+  google.script.run
+    .withSuccessHandler(function(resultado) {
+      configData = resultado.modalidades || [];
+      catalogos = resultado.catalogos || { diasSemana: [], tiposModalidad: [], modalidades: [] };
+
+      const selectModalidad = document.getElementById('modalidad');
+      selectModalidad.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '-- Selecciona una modalidad --';
+      selectModalidad.appendChild(placeholder);
+
+      configData.forEach(function(item) {
+        const option = document.createElement('option');
+        option.value = item.modalidad;
+        option.textContent = item.modalidad;
+        selectModalidad.appendChild(option);
+      });
+
+      cargarSelect('diaSemana', catalogos.diasSemana || [], '-- Sin día --');
+
+      if (modalidadASeleccionar) {
+        selectModalidad.value = modalidadASeleccionar;
+        cargarDetalleModalidad();
+      } else {
+        limpiarFormulario();
+      }
+    })
+    .withFailureHandler(function(error) {
+      setStatus(error.message || String(error), 'error');
+    })
+    .obtenerConfigModalidadesFormulario();
+}
+
+      function limpiarFormulario() {
+        document.getElementById('tipoModalidad').value = '';
+        document.getElementById('activa').value = 'true';
+        document.getElementById('diaSemana').value = '';
+        document.getElementById('frecuenciaDias').value = '';
+        document.getElementById('fechaBase').value = '';
+        document.getElementById('capacidadMaxima').value = '';
+        document.getElementById('sesionesPorCiclo').value = '';
+        document.getElementById('notas').value = '';
+        aplicarRestriccionesTipo('');
+      }
+
+      function cargarDetalleModalidad() {
+        const modalidad = document.getElementById('modalidad').value;
+
+        if (!modalidad) {
+          limpiarFormulario();
+          return;
+        }
+
+        const item = configData.find(x => String(x.modalidad) === String(modalidad));
+        if (!item) {
+          limpiarFormulario();
+          return;
+        }
+
+        document.getElementById('tipoModalidad').value = item.tipoModalidad || '';
+        document.getElementById('activa').value = item.activa ? 'true' : 'false';
+        document.getElementById('diaSemana').value = item.diaSemana || '';
+        document.getElementById('frecuenciaDias').value = item.frecuenciaDias || '';
+        document.getElementById('fechaBase').value = item.fechaBase || '';
+        document.getElementById('capacidadMaxima').value = item.capacidadMaxima || 0;
+        document.getElementById('sesionesPorCiclo').value = item.sesionesPorCiclo || 0;
+        document.getElementById('notas').value = item.notas || '';
+
+        aplicarRestriccionesTipo(item.tipoModalidad || '');
+      }
+
+      function aplicarRestriccionesTipo(tipoModalidad) {
+        const diaSemana = document.getElementById('diaSemana');
+        const fechaBase = document.getElementById('fechaBase');
+        const labelFrecuencia = document.getElementById('labelFrecuencia');
+        const hintFrecuencia = document.getElementById('hintFrecuencia');
+        const hintFechaBase = document.getElementById('hintFechaBase');
+
+        const esGrupo = tipoModalidad === 'GRUPO';
+
+        diaSemana.disabled = !esGrupo;
+        fechaBase.disabled = !esGrupo;
+
+        if (esGrupo) {
+          labelFrecuencia.textContent = 'Frecuencia (semanas)';
+          hintFrecuencia.textContent = 'En GRUPO se interpreta como número de semanas entre sesiones. Ejemplo: 2 = cada 2 semanas.';
+          hintFechaBase.textContent = 'La fecha base debe caer exactamente en el día de la modalidad (por ejemplo, MARTES para GRUPO_1).';
+        } else {
+          labelFrecuencia.textContent = 'Frecuencia (días)';
+          hintFrecuencia.textContent = 'En INDIVIDUAL se interpreta como días operativos.';
+          hintFechaBase.textContent = 'La fecha base no aplica en modalidades individuales.';
+        }
+
+        if (!esGrupo) {
+          diaSemana.value = '';
+          fechaBase.value = '';
+        }
+      }
+
+      function guardar() {
+        const modalidad = document.getElementById('modalidad').value;
+
+        if (!modalidad) {
+          setStatus('Debes seleccionar una modalidad.', 'error');
+          return;
+        }
+
+        const tipoModalidad = document.getElementById('tipoModalidad').value;
+        const diaSemana = document.getElementById('diaSemana').value;
+        const fechaBase = document.getElementById('fechaBase').value;
+        const frecuenciaDias = document.getElementById('frecuenciaDias').value;
+
+        if (!frecuenciaDias || Number(frecuenciaDias) < 1) {
+          setStatus('La frecuencia debe ser mayor o igual a 1.', 'error');
+          return;
+        }
+
+        if (tipoModalidad === 'GRUPO') {
+          if (!diaSemana) {
+            setStatus('Debes seleccionar el día de la modalidad para un grupo.', 'error');
+            return;
+          }
+
+          if (!fechaBase) {
+            setStatus('Debes indicar una fecha base para una modalidad de grupo.', 'error');
+            return;
+          }
+        }
+
+        setStatus('Guardando cambios...', '');
+
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            setStatus(resultado.mensaje || 'Configuración guardada correctamente.', 'success');
+            cargarDatosConSeleccion(modalidad);
+          })
+          .withFailureHandler(function(error) {
+            setStatus(error.message || String(error), 'error');
+          })
+          .guardarConfigModalidadFormulario({
+            modalidad: modalidad,
+            activa: document.getElementById('activa').value === 'true',
+            diaSemana: document.getElementById('diaSemana').value,
+            frecuenciaDias: document.getElementById('frecuenciaDias').value,
+            fechaBase: document.getElementById('fechaBase').value,
+            capacidadMaxima: document.getElementById('capacidadMaxima').value,
+            sesionesPorCiclo: document.getElementById('sesionesPorCiclo').value,
+            notas: document.getElementById('notas').value
+          });
+      }
+
+function volverAlPanel() {
+  google.script.run
+    .withSuccessHandler(function() {
+      google.script.host.close();
+    })
+    .withFailureHandler(function(error) {
+      alert(error.message || String(error));
+    })
+    .abrirHomeDashboardDesdePantalla();
+}
+
+      cargarDatos();
+    </script>
+  </body>
+</html>

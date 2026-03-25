@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #1f1f1f;
+        background: #f7f7f7;
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 14px;
+        font-size: 22px;
+      }
+
+      .filters {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr auto;
+        gap: 12px;
+        margin-bottom: 16px;
+        align-items: end;
+      }
+
+      .field label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      .summary {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      .card {
+        background: #ffffff;
+        border: 1px solid #d0d0d0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        min-width: 140px;
+      }
+
+      .card .label {
+        font-size: 12px;
+        color: #555;
+      }
+
+      .card .value {
+        font-size: 20px;
+        font-weight: bold;
+        margin-top: 4px;
+      }
+
+      .table-wrap {
+        background: #fff;
+        border: 1px solid #d0d0d0;
+        border-radius: 10px;
+        overflow: auto;
+        max-height: 500px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      thead th {
+        position: sticky;
+        top: 0;
+        background: #ececec;
+        border-bottom: 1px solid #d0d0d0;
+        padding: 10px 8px;
+        text-align: left;
+        z-index: 1;
+      }
+
+      tbody td {
+        border-top: 1px solid #eeeeee;
+        padding: 8px;
+        vertical-align: top;
+      }
+
+      tbody tr:hover {
+        background: #fafafa;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: bold;
+        background: #efefef;
+      }
+
+      .pill.PLANIFICADO { background: #fff2cc; }
+      .pill.EN_CURSO { background: #d9ead3; }
+      .pill.CERRADO { background: #d0e0e3; }
+      .pill.CANCELADO { background: #f4cccc; }
+
+      .muted {
+        color: #666;
+      }
+
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .secondary {
+        background: #f3f3f3;
+        border: 1px solid #cccccc;
+      }
+
+      .empty {
+        padding: 20px;
+        color: #666;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Pantalla de ciclos</h2>
+
+    <div class="filters">
+      <div class="field">
+        <label for="search">Buscar por ID o nº ciclo</label>
+        <input id="search" type="text" placeholder="Ej: CIC_ o 3" oninput="render()" />
+      </div>
+
+      <div class="field">
+        <label for="filtroModalidad">Modalidad</label>
+        <select id="filtroModalidad" onchange="render()"></select>
+      </div>
+
+      <div class="field">
+        <label for="filtroEstado">Estado</label>
+        <select id="filtroEstado" onchange="render()"></select>
+      </div>
+
+      <div class="field">
+        <button class="secondary" onclick="cargarDatos()">Refrescar</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="card">
+        <div class="label">Total ciclos</div>
+        <div class="value" id="sumTotal">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Planificados</div>
+        <div class="value" id="sumPlanificados">0</div>
+      </div>
+      <div class="card">
+        <div class="label">En curso</div>
+        <div class="value" id="sumEnCurso">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Cerrados</div>
+        <div class="value" id="sumCerrados">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Plazas libres totales</div>
+        <div class="value" id="sumLibres">0</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Modalidad</th>
+            <th>Ciclo</th>
+            <th>Estado</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Día</th>
+            <th>Freq.</th>
+            <th>Capacidad</th>
+            <th>Ocupadas</th>
+            <th>Libres</th>
+            <th>Notas</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyCiclos"></tbody>
+      </table>
+      <div id="emptyState" class="empty" style="display:none;">No hay ciclos que cumplan el filtro.</div>
+    </div>
+
+    <div class="actions">
+      
+      <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+      <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+    </div>
+
+    <script>
+      let ciclos = [];
+      let modalidades = [];
+      let estadosCiclo = [];
+
+      function cargarSelect(selectId, valores, placeholder) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '';
+
+        const optionAll = document.createElement('option');
+        optionAll.value = '';
+        optionAll.textContent = placeholder;
+        select.appendChild(optionAll);
+
+        (valores || []).forEach(function(valor) {
+          const option = document.createElement('option');
+          option.value = valor;
+          option.textContent = valor;
+          select.appendChild(option);
+        });
+      }
+
+      function cargarDatos() {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            ciclos = data.ciclos || [];
+            modalidades = data.modalidades || [];
+            estadosCiclo = data.estadosCiclo || [];
+
+            cargarSelect('filtroModalidad', modalidades, 'Todas las modalidades');
+            cargarSelect('filtroEstado', estadosCiclo, 'Todos los estados');
+
+            render();
+          })
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .obtenerDatosPantallaCiclos();
+      }
+
+      function getCiclosFiltrados() {
+        const search = (document.getElementById('search').value || '').trim().toLowerCase();
+        const filtroModalidad = document.getElementById('filtroModalidad').value;
+        const filtroEstado = document.getElementById('filtroEstado').value;
+
+        return ciclos.filter(function(c) {
+          const matchSearch =
+            !search ||
+            (c.cicloId || '').toLowerCase().includes(search) ||
+            String(c.numeroCiclo || '').includes(search);
+
+          const matchModalidad = !filtroModalidad || c.modalidad === filtroModalidad;
+          const matchEstado = !filtroEstado || c.estadoCiclo === filtroEstado;
+
+          return matchSearch && matchModalidad && matchEstado;
+        });
+      }
+
+      function renderSummary(lista) {
+        document.getElementById('sumTotal').textContent = lista.length;
+        document.getElementById('sumPlanificados').textContent =
+          lista.filter(c => c.estadoCiclo === 'PLANIFICADO').length;
+        document.getElementById('sumEnCurso').textContent =
+          lista.filter(c => c.estadoCiclo === 'EN_CURSO').length;
+        document.getElementById('sumCerrados').textContent =
+          lista.filter(c => c.estadoCiclo === 'CERRADO').length;
+        document.getElementById('sumLibres').textContent =
+          lista.reduce((acc, c) => acc + Number(c.plazasLibres || 0), 0);
+      }
+
+      function render() {
+        const lista = getCiclosFiltrados()
+          .slice()
+          .sort(function(a, b) {
+            if ((a.modalidad || '') !== (b.modalidad || '')) {
+              return (a.modalidad || '').localeCompare(b.modalidad || '');
+            }
+            return Number(a.numeroCiclo || 0) - Number(b.numeroCiclo || 0);
+          });
+
+        renderSummary(lista);
+
+        const tbody = document.getElementById('tbodyCiclos');
+        const empty = document.getElementById('emptyState');
+        tbody.innerHTML = '';
+
+        if (lista.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+
+        empty.style.display = 'none';
+
+        lista.forEach(function(c) {
+          const tr = document.createElement('tr');
+          const estadoClass = 'pill ' + (c.estadoCiclo || '');
+
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(c.modalidad || '')}</strong><br><span class="muted">${escapeHtml(c.cicloId || '')}</span></td>
+            <td>${Number(c.numeroCiclo || 0)}</td>
+            <td><span class="${estadoClass}">${escapeHtml(c.estadoCiclo || '')}</span></td>
+            <td>${escapeHtml(c.fechaInicioCiclo || '')}</td>
+            <td>${escapeHtml(c.fechaFinCiclo || '')}</td>
+            <td>${escapeHtml(c.diaSemana || '')}</td>
+            <td>${Number(c.frecuenciaDias || 0)}</td>
+            <td>${Number(c.capacidadMaxima || 0)}</td>
+            <td>${Number(c.plazasOcupadas || 0)}</td>
+            <td>${Number(c.plazasLibres || 0)}</td>
+            <td>${escapeHtml(c.notas || '')}</td>
+          `;
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function escapeHtml(text) {
+        return String(text || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+function volverAlPanel() {
+  google.script.run
+    .withSuccessHandler(function() {
+      google.script.host.close();
+    })
+    .withFailureHandler(function(error) {
+      alert(error.message || String(error));
+    })
+    .abrirHomeDashboardDesdePantalla();
+}
+      cargarDatos();
+    </script>
+  </body>
+</html>

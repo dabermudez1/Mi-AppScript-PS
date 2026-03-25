@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 16px;
+      color: #1f1f1f;
+      background: #f7f7f7;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-size: 22px;
+    }
+
+    .table-wrap {
+      background: #fff;
+      border: 1px solid #d0d0d0;
+      border-radius: 10px;
+      overflow: auto;
+      max-height: 560px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #ececec;
+      border-bottom: 1px solid #d0d0d0;
+      padding: 10px 8px;
+      text-align: left;
+      z-index: 1;
+    }
+
+    tbody td {
+      border-top: 1px solid #eeeeee;
+      padding: 8px;
+      vertical-align: top;
+    }
+
+    tbody tr:hover {
+      background: #fafafa;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .secondary {
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .empty {
+      padding: 20px;
+      color: #666;
+      font-style: italic;
+      background: #fff;
+      border: 1px solid #d0d0d0;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Incidencias de calendario</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Paciente</th>
+          <th>Modalidad</th>
+          <th>Sesión</th>
+          <th>Estado</th>
+          <th>Bloqueo</th>
+          <th>Motivo</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="tbodyIncidencias"></tbody>
+    </table>
+  </div>
+
+  <div id="emptyState" class="empty" style="display:none;">No hay incidencias de calendario.</div>
+
+  <div class="actions">
+    <button class="secondary" onclick="volverPanel()">Volver al panel</button>
+    <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+  </div>
+
+  <script>
+    function cargarDatos() {
+      google.script.run
+        .withSuccessHandler(function(lista) {
+          const tbody = document.getElementById('tbodyIncidencias');
+          const empty = document.getElementById('emptyState');
+          tbody.innerHTML = '';
+
+          if (!lista || lista.length === 0) {
+            empty.style.display = 'block';
+            return;
+          }
+
+          empty.style.display = 'none';
+
+          lista.forEach(function(item) {
+            const tr = document.createElement('tr');
+
+            const botonReprogramar =
+              `<button class="secondary" onclick="reprogramar('${escapeHtml(item.sesionId || '')}')">Reprogramar</button>`;
+
+            tr.innerHTML = `
+              <td>${escapeHtml(item.fechaSesion || '')}</td>
+              <td><strong>${escapeHtml(item.nombrePaciente || '')}</strong><br><span style="color:#666;">${escapeHtml(item.pacienteId || '')}</span></td>
+              <td>${escapeHtml(item.modalidad || '')}</td>
+              <td>${Number(item.numeroSesion || 0)}</td>
+              <td>${escapeHtml(item.estadoSesion || '')}</td>
+              <td>${escapeHtml(item.tipoBloqueo || '')}</td>
+              <td>${escapeHtml(item.motivoBloqueo || '')}</td>
+              <td><div class="row-actions">${botonReprogramar}</div></td>
+            `;
+
+            tbody.appendChild(tr);
+          });
+        })
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .obtenerIncidenciasCalendarioFormulario();
+    }
+
+    function reprogramar(sesionId) {
+      google.script.run
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .abrirReprogramarSesionDesdeIncidencia(sesionId);
+    }
+
+    function volverPanel() {
+      google.script.run
+        .withSuccessHandler(function() {
+          google.script.host.close();
+        })
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .abrirHomeDashboardDesdePantalla();
+    }
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>

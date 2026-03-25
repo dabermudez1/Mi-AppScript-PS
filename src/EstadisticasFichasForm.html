@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 16px;
+      color: #1f1f1f;
+      background: #f7f7f7;
+    }
+    
+    h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-size: 22px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1fr auto;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: end;
+    }
+
+    .field label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .field input, .field select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+
+    .card .label {
+      font-size: 12px;
+      color: #555;
+    }
+
+    .card .value {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+
+    .table-wrap {
+      background: #fff;
+      border: 1px solid #d0d0d0;
+      border-radius: 10px;
+      overflow: auto;
+      max-height: 560px;
+    }
+
+    table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #ececec;
+      border-bottom: 1px solid #d0d0d0;
+      padding: 10px 8px;
+      text-align: left;
+      z-index: 1;
+    }
+
+    tbody td {
+      border-top: 1px solid #eeeeee;
+      padding: 8px;
+      vertical-align: top;
+    }
+
+    tbody tr:hover {
+      background: #fafafa;
+    }
+
+    .actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #cccccc;
+      background: #f3f3f3;
+    }
+
+    .empty {
+      padding: 20px;
+      color: #666;
+      font-style: italic;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>Estadísticas fichas pacientes</h2>
+
+  <div class="filters">
+    <div class="field">
+      <label for="search">Buscar por nombre / NHC</label>
+      <input id="search" type="text" oninput="render()" placeholder="Nombre o NHC">
+    </div>
+
+    <div class="field">
+      <label for="filtroEstado">Estado</label>
+      <select id="filtroEstado" onchange="render()">
+        <option value="">Todos</option>
+        <option value="ACTIVO">ACTIVO</option>
+        <option value="ALTA">ALTA</option>
+        <option value="ESPERA">ESPERA</option>
+        <option value="ACTIVO_PENDIENTE_INICIO">ACTIVO_PENDIENTE_INICIO</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="filtroSexo">Género</label>
+      <select id="filtroSexo" onchange="render()"></select>
+    </div>
+
+    <div class="field">
+      <label for="filtroMotivo">Motivo consulta</label>
+      <select id="filtroMotivo" onchange="render()"></select>
+    </div>
+
+    <div class="field">
+      <label for="filtroFin">Fin tratamiento</label>
+      <select id="filtroFin" onchange="render()"></select>
+    </div>
+
+    <div class="field">
+      <label for="filtroComparables">Comparables PRE/POST</label>
+      <select id="filtroComparables" onchange="render()">
+        <option value="">Todos</option>
+        <option value="SI">Sí</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <button onclick="cargarDatos()">Refrescar</button>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="card"><div class="label">Total fichas</div><div class="value" id="kpiTotal">0</div></div>
+    <div class="card"><div class="label">Con PRE</div><div class="value" id="kpiPre">0</div></div>
+    <div class="card"><div class="label">Con POST</div><div class="value" id="kpiPost">0</div></div>
+    <div class="card"><div class="label">Comparables</div><div class="value" id="kpiComparables">0</div></div>
+    <div class="card"><div class="label">Activos / Alta</div><div class="value" id="kpiEstados">0 / 0</div></div>
+  </div>
+
+  <div class="summary">
+    <div class="card"><div class="label">GAD PRE / POST / Δ</div><div class="value" id="kpiGad">-</div></div>
+    <div class="card"><div class="label">PHQ PRE / POST / Δ</div><div class="value" id="kpiPhq">-</div></div>
+    <div class="card"><div class="label">WHOQOL PRE / POST / Δ</div><div class="value" id="kpiWhoqol">-</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>NHC</th>
+          <th>Estado</th>
+          <th>Intervención</th>
+          <th>Fin</th>
+          <th>Sexo</th>
+          <th>Edad</th>
+          <th>Motivo</th>
+          <th>Sesiones</th>
+          <th>Espera</th>
+          <th>GAD PRE</th>
+          <th>GAD POST</th>
+          <th>Δ GAD</th>
+          <th>PHQ PRE</th>
+          <th>PHQ POST</th>
+          <th>Δ PHQ</th>
+          <th>WHOQOL PRE</th>
+          <th>WHOQOL POST</th>
+          <th>Δ WHOQOL</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbodyFichas"></tbody>
+    </table>
+    <div id="emptyState" class="empty" style="display:none;">No hay fichas que cumplan el filtro.</div>
+  </div>
+
+  <div class="actions">
+    <button onclick="volverPanel()">Volver al panel</button>
+    <button onclick="google.script.host.close()">Cerrar</button>
+  </div>
+
+  <script>
+    let filas = [];
+    let resumen = {};
+
+    function cargarDatos() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          filas = data.filas || [];
+          resumen = data.resumen || {};
+
+          cargarSelectDesdeDatos('filtroSexo', obtenerUnicos(filas.map(f => f.sexoGenero)));
+          cargarSelectDesdeDatos('filtroMotivo', obtenerUnicos(filas.map(f => f.motivoConsultaDiagnostico)));
+          cargarSelectDesdeDatos('filtroFin', obtenerUnicos(filas.map(f => f.finTratamientoTexto)));
+
+          renderResumen();
+          render();
+        })
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .obtenerDatosEstadisticasFichasFormulario();
+    }
+
+    function cargarSelectDesdeDatos(selectId, valores) {
+      const select = document.getElementById(selectId);
+      const actual = select.value;
+      select.innerHTML = '';
+
+      const optionAll = document.createElement('option');
+      optionAll.value = '';
+      optionAll.textContent = 'Todos';
+      select.appendChild(optionAll);
+
+      (valores || []).forEach(function(valor) {
+        const option = document.createElement('option');
+        option.value = valor;
+        option.textContent = valor;
+        select.appendChild(option);
+      });
+
+      select.value = actual;
+    }
+
+    function obtenerUnicos(lista) {
+      return Array.from(new Set((lista || []).filter(v => v))).sort();
+    }
+
+    function renderResumen() {
+      document.getElementById('kpiTotal').textContent = resumen.totalFichas || 0;
+      document.getElementById('kpiPre').textContent = resumen.conPre || 0;
+      document.getElementById('kpiPost').textContent = resumen.conPost || 0;
+      document.getElementById('kpiComparables').textContent = resumen.comparables || 0;
+      document.getElementById('kpiEstados').textContent = (resumen.activos || 0) + ' / ' + (resumen.alta || 0);
+
+      document.getElementById('kpiGad').textContent =
+        (resumen.mediaGadPre || 0) + ' / ' + (resumen.mediaGadPost || 0) + ' / ' + (resumen.deltaGad || 0);
+
+      document.getElementById('kpiPhq').textContent =
+        (resumen.mediaPhqPre || 0) + ' / ' + (resumen.mediaPhqPost || 0) + ' / ' + (resumen.deltaPhq || 0);
+
+      document.getElementById('kpiWhoqol').textContent =
+        (resumen.mediaWhoqolPre || 0) + ' / ' + (resumen.mediaWhoqolPost || 0) + ' / ' + (resumen.deltaWhoqol || 0);
+    }
+
+    function getFilasFiltradas() {
+      const search = (document.getElementById('search').value || '').trim().toLowerCase();
+      const filtroEstado = document.getElementById('filtroEstado').value;
+      const filtroSexo = document.getElementById('filtroSexo').value;
+      const filtroMotivo = document.getElementById('filtroMotivo').value;
+      const filtroFin = document.getElementById('filtroFin').value;
+      const filtroComparables = document.getElementById('filtroComparables').value;
+
+      return filas.filter(function(f) {
+        const matchSearch =
+          !search ||
+          (f.nombre || '').toLowerCase().includes(search) ||
+          (f.nhc || '').toLowerCase().includes(search);
+
+        const matchEstado = !filtroEstado || f.estadoPacienteActual === filtroEstado;
+        const matchSexo = !filtroSexo || f.sexoGenero === filtroSexo;
+        const matchMotivo = !filtroMotivo || f.motivoConsultaDiagnostico === filtroMotivo;
+        const matchFin = !filtroFin || f.finTratamientoTexto === filtroFin;
+
+        const comparable = (
+          (f.gad7Pre !== null && f.gad7Post !== null) ||
+          (f.phq9Pre !== null && f.phq9Post !== null) ||
+          (f.whoqolPre !== null && f.whoqolPost !== null)
+        );
+
+        const matchComparables = !filtroComparables || comparable;
+
+        return matchSearch && matchEstado && matchSexo && matchMotivo && matchFin && matchComparables;
+      });
+    }
+
+    function render() {
+      const lista = getFilasFiltradas()
+        .slice()
+        .sort(function(a, b) {
+          return (a.nombre || '').localeCompare(b.nombre || '');
+        });
+
+      const tbody = document.getElementById('tbodyFichas');
+      const empty = document.getElementById('emptyState');
+      tbody.innerHTML = '';
+
+      if (lista.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+
+      lista.forEach(function(f) {
+        const tr = document.createElement('tr');
+        const pacienteId = escapeHtml(f.pacienteId || '');
+        const botonFichaClinica = `<button onclick="abrirFichaClinicaFila('${pacienteId}')">Ficha clínica</button>`;
+
+        tr.innerHTML = `
+          <td>${escapeHtml(f.nombre || '')}</td>
+          <td>${escapeHtml(f.nhc || '')}</td>
+          <td>${escapeHtml(f.estadoPacienteActual || '')}</td>
+          <td>${escapeHtml(f.tipoIntervencionPrincipal || '')}</td>
+          <td>${escapeHtml(f.finTratamientoTexto || '')}</td>
+          <td>${escapeHtml(f.sexoGenero || '')}</td>
+          <td>${escapeHtml(f.edad || '')}</td>
+          <td>${escapeHtml(f.motivoConsultaDiagnostico || '')}</td>
+          <td>${valorTabla(f.numeroSesionesTotal)}</td>
+          <td>${valorTabla(f.tiempoEsperaHastaPrimeraConsultaDias)}</td>
+          <td>${valorTabla(f.gad7Pre)}</td>
+          <td>${valorTabla(f.gad7Post)}</td>
+          <td>${valorTabla(f.deltaGad7)}</td>
+          <td>${valorTabla(f.phq9Pre)}</td>
+          <td>${valorTabla(f.phq9Post)}</td>
+          <td>${valorTabla(f.deltaPhq9)}</td>
+          <td>${valorTabla(f.whoqolPre)}</td>
+          <td>${valorTabla(f.whoqolPost)}</td>
+          <td>${valorTabla(f.deltaWhoqol)}</td>
+          <td><div class="row-actions">${botonFichaClinica}</div></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function valorTabla(v) {
+      return (v === null || v === '' || v === undefined) ? '' : v;
+    }
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function abrirFichaClinicaFila(pacienteId) {
+      google.script.run
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .fichaClinicaPacienteDesdePaciente(pacienteId);
+    }
+
+    function volverPanel() {
+      google.script.run
+        .withSuccessHandler(function() {
+          google.script.host.close();
+        })
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .abrirHomeDashboardDesdePantalla();
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>

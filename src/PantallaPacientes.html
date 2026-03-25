@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #1f1f1f;
+        background: #f7f7f7;
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 14px;
+        font-size: 22px;
+      }
+
+      .filters {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr auto;
+        gap: 12px;
+        margin-bottom: 16px;
+        align-items: end;
+      }
+
+      .field label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      .summary {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      .card {
+        background: #ffffff;
+        border: 1px solid #d0d0d0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        min-width: 140px;
+      }
+
+      .card .label {
+        font-size: 12px;
+        color: #555;
+      }
+
+      .card .value {
+        font-size: 20px;
+        font-weight: bold;
+        margin-top: 4px;
+      }
+
+      .table-wrap {
+        background: #fff;
+        border: 1px solid #d0d0d0;
+        border-radius: 10px;
+        overflow: auto;
+        max-height: 460px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      thead th {
+        position: sticky;
+        top: 0;
+        background: #ececec;
+        border-bottom: 1px solid #d0d0d0;
+        padding: 10px 8px;
+        text-align: left;
+        z-index: 1;
+      }
+
+      tbody td {
+        border-top: 1px solid #eeeeee;
+        padding: 8px;
+        vertical-align: top;
+      }
+
+      tbody tr:hover {
+        background: #fafafa;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: bold;
+        background: #efefef;
+      }
+
+      .pill.ACTIVO { background: #d9ead3; }
+      .pill.ACTIVO_PENDIENTE_INICIO { background: #fff2cc; }
+      .pill.ESPERA { background: #fce5cd; }
+      .pill.ALTA { background: #d0e0e3; }
+
+      .muted {
+        color: #666;
+      }
+
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .secondary {
+        background: #f3f3f3;
+        border: 1px solid #cccccc;
+      }
+
+      .empty {
+        padding: 20px;
+        color: #666;
+        font-style: italic;
+      }
+
+      .row-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .row-actions button {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Pantalla de pacientes</h2>
+
+    <div class="filters">
+      <div class="field">
+        <label for="search">Buscar por nombre</label>
+        <input id="search" type="text" placeholder="Escribe parte del nombre..." oninput="render()" />
+      </div>
+
+      <div class="field">
+        <label for="filtroEstado">Estado</label>
+        <select id="filtroEstado" onchange="render()"></select>
+      </div>
+
+      <div class="field">
+        <label for="filtroModalidad">Modalidad</label>
+        <select id="filtroModalidad" onchange="render()"></select>
+      </div>
+
+      <div class="field">
+        <button class="secondary" onclick="cargarDatos()">Refrescar</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="card">
+        <div class="label">Total pacientes</div>
+        <div class="value" id="sumTotal">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Activos</div>
+        <div class="value" id="sumActivos">0</div>
+      </div>
+      <div class="card">
+        <div class="label">En espera</div>
+        <div class="value" id="sumEspera">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Alta</div>
+        <div class="value" id="sumAlta">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Pendiente inicio</div>
+        <div class="value" id="sumPendienteInicio">0</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Modalidad</th>
+            <th>Estado</th>
+            <th>1ª consulta</th>
+            <th>Próxima sesión</th>
+            <th>Ciclo</th>
+            <th>Hechas</th>
+            <th>Pendientes</th>
+            <th>Observaciones</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyPacientes"></tbody>
+      </table>
+      <div id="emptyState" class="empty" style="display:none;">No hay pacientes que cumplan el filtro.</div>
+    </div>
+
+    <div class="actions">
+      <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+      <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+    </div>
+
+    <script>
+      let pacientes = [];
+      let estadosPaciente = [];
+      let modalidades = [];
+
+      function cargarSelect(selectId, valores, placeholder) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '';
+
+        const optionAll = document.createElement('option');
+        optionAll.value = '';
+        optionAll.textContent = placeholder;
+        select.appendChild(optionAll);
+
+        (valores || []).forEach(function(valor) {
+          const option = document.createElement('option');
+          option.value = valor;
+          option.textContent = valor;
+          select.appendChild(option);
+        });
+      }
+
+      function altaPacienteFila(pacienteId) {
+        google.script.run
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .abrirAltaPacienteDesdePantalla(pacienteId);
+      }
+
+      function fichaClinicaPacienteFila(pacienteId) {
+        google.script.run
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .abrirFichaClinicaPacienteDesdePantalla(pacienteId);
+      }
+
+      function cargarDatos() {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            pacientes = data.pacientes || [];
+            estadosPaciente = data.estadosPaciente || [];
+            modalidades = data.modalidades || [];
+
+            cargarSelect('filtroEstado', estadosPaciente, 'Todos los estados');
+            cargarSelect('filtroModalidad', modalidades, 'Todas las modalidades');
+
+            render();
+          })
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .obtenerDatosPantallaPacientes();
+      }
+
+      function getPacientesFiltrados() {
+        const search = (document.getElementById('search').value || '').trim().toLowerCase();
+        const filtroEstado = document.getElementById('filtroEstado').value;
+        const filtroModalidad = document.getElementById('filtroModalidad').value;
+
+        return pacientes.filter(function(p) {
+          const matchNombre = !search || (p.nombre || '').toLowerCase().includes(search);
+          const matchEstado = !filtroEstado || p.estadoPaciente === filtroEstado;
+          const matchModalidad = !filtroModalidad || p.modalidad === filtroModalidad;
+
+          return matchNombre && matchEstado && matchModalidad;
+        });
+      }
+
+      function renderSummary(lista) {
+        document.getElementById('sumTotal').textContent = lista.length;
+        document.getElementById('sumActivos').textContent = lista.filter(p => p.estadoPaciente === 'ACTIVO').length;
+        document.getElementById('sumEspera').textContent = lista.filter(p => p.estadoPaciente === 'ESPERA').length;
+        document.getElementById('sumAlta').textContent = lista.filter(p => p.estadoPaciente === 'ALTA').length;
+        document.getElementById('sumPendienteInicio').textContent =
+          lista.filter(p => p.estadoPaciente === 'ACTIVO_PENDIENTE_INICIO').length;
+      }
+
+      function render() {
+        const lista = getPacientesFiltrados()
+          .slice()
+          .sort(function(a, b) {
+            return (a.nombre || '').localeCompare(b.nombre || '');
+          });
+
+        renderSummary(lista);
+
+        const tbody = document.getElementById('tbodyPacientes');
+        const empty = document.getElementById('emptyState');
+        tbody.innerHTML = '';
+
+        if (lista.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+
+        empty.style.display = 'none';
+
+        lista.forEach(function(p) {
+          const tr = document.createElement('tr');
+
+          const ciclo = p.cicloActivoId || p.cicloObjetivoId || '';
+          const observaciones = p.observaciones || '';
+          const estadoClass = 'pill ' + (p.estadoPaciente || '');
+
+          const pacienteId = escapeHtml(p.pacienteId || '');
+
+          const botonEditar = `<button class="secondary" onclick="editarPacienteFila('${pacienteId}')">Editar</button>`;
+
+          const botonAlta = p.estadoPaciente !== 'ALTA'
+            ? `<button class="secondary" onclick="altaPacienteFila('${pacienteId}')">Alta</button>`
+            : '';
+
+          const botonSesiones = `<button class="secondary" onclick="verSesionesPacienteFila('${pacienteId}')">Sesiones</button>`;
+
+          const botonFichaClinica = `<button class="secondary" onclick="fichaClinicaPacienteFila('${pacienteId}')">Ficha clínica</button>`;
+
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(p.nombre || '')}</strong><br><span class="muted">${pacienteId}</span></td>
+            <td>${escapeHtml(p.modalidad || '')}</td>
+            <td><span class="${estadoClass}">${escapeHtml(p.estadoPaciente || '')}</span></td>
+            <td>${escapeHtml(p.fechaPrimeraConsulta || '')}</td>
+            <td>${escapeHtml(p.proximaSesion || '')}</td>
+            <td>${escapeHtml(ciclo)}</td>
+            <td>${Number(p.sesionesCompletadas || 0)}</td>
+            <td>${Number(p.sesionesPendientes || 0)}</td>
+            <td>${escapeHtml(observaciones)}</td>
+            <td>
+              <div class="row-actions">
+                ${botonEditar}
+                ${botonAlta}
+                ${botonSesiones}
+                ${botonFichaClinica}
+              </div>
+            </td>
+          `;
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function editarPacienteFila(pacienteId) {
+        google.script.run
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .abrirEditarPacienteDesdePantalla(pacienteId);
+      }
+
+      function verSesionesPacienteFila(pacienteId) {
+        google.script.run
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .abrirSesionesPacienteDesdePantalla(pacienteId);
+      }
+
+      function escapeHtml(text) {
+        return String(text || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+      function volverAlPanel() {
+        google.script.run
+        .withSuccessHandler(function() {
+          google.script.host.close();
+        })
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .abrirHomeDashboardDesdePantalla();
+      }
+      cargarDatos();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #1f1f1f;
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+      }
+
+      .field {
+        margin-bottom: 14px;
+      }
+
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      input, select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: #d9ead3;
+        border: 1px solid #9bbb8f;
+      }
+
+      .secondary {
+        background: #f3f3f3;
+        border: 1px solid #cccccc;
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        white-space: pre-line;
+      }
+
+      .error {
+        color: #b00020;
+      }
+
+      .success {
+        color: #1b5e20;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Nuevo paciente</h2>
+
+    <div class="field">
+      <label for="nombre">Nombre</label>
+      <input id="nombre" type="text" maxlength="120" />
+    </div>
+
+    <div class="field">
+      <label for="nhc">NHC</label>
+      <input id="nhc" type="text" maxlength="50" />
+    </div>
+
+    <div class="field">
+      <label for="sexoGenero">Sexo / género</label>
+      <select id="sexoGenero">
+        <option value="">-- Selecciona --</option>
+        <option value="Varón">Varón</option>
+        <option value="Mujer">Mujer</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="motivoConsultaDiagnostico">Motivo consulta / diagnóstico</label>
+      <select id="motivoConsultaDiagnostico" onchange="actualizarMotivoOtros()">
+        <option value="">-- Selecciona --</option>
+        <option value="Trastorno adaptativo">Trastorno adaptativo</option>
+        <option value="Duelo">Duelo</option>
+        <option value="Episodio depresivo">Episodio depresivo</option>
+        <option value="Trastorno de ansiedad">Trastorno de ansiedad</option>
+        <option value="Trastorno de síntomas somáticos">Trastorno de síntomas somáticos</option>
+        <option value="Otros">Otros</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="motivoConsultaOtros">Motivo consulta / diagnóstico - otros</label>
+      <input id="motivoConsultaOtros" type="text" maxlength="150" />
+    </div>
+
+    <div class="field">
+      <label for="modalidad">Modalidad</label>
+      <select id="modalidad"></select>
+    </div>
+
+    <div class="field">
+      <label for="fechaPrimeraConsulta">Fecha primera consulta</label>
+      <input id="fechaPrimeraConsulta" type="date" />
+    </div>
+
+    <div class="actions">
+  <button class="primary" onclick="guardar()">Guardar</button>
+  <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+  <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+</div>
+
+    <div id="status" class="status"></div>
+
+    <script>
+    function setStatus(message, type) {
+    const el = document.getElementById('status');
+    el.textContent = message || '';
+    el.className = 'status ' + (type || '');
+  }
+
+  function cargarModalidades() {
+    google.script.run
+      .withSuccessHandler(function(opciones) {
+        const select = document.getElementById('modalidad');
+        select.innerHTML = '';
+
+        opciones.forEach(function(op) {
+          const option = document.createElement('option');
+          option.value = op.value;
+          option.textContent = op.label;
+          select.appendChild(option);
+        });
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerOpcionesModalidadFormulario();
+  }
+
+  function guardar() {
+    const nombre = document.getElementById('nombre').value.trim();
+    const nhc = document.getElementById('nhc').value.trim();
+    const sexoGenero = document.getElementById('sexoGenero').value;
+    const motivoConsultaDiagnostico = document.getElementById('motivoConsultaDiagnostico').value;
+    const motivoConsultaOtros = document.getElementById('motivoConsultaOtros').value.trim();
+    const modalidad = document.getElementById('modalidad').value;
+    const fechaPrimeraConsulta = document.getElementById('fechaPrimeraConsulta').value;
+
+    if (!nhc) {
+      setStatus('El NHC es obligatorio.', 'error');
+      return;
+    }
+
+    if (motivoConsultaDiagnostico === 'Otros' && !motivoConsultaOtros) {
+      setStatus('Debes indicar el motivo cuando eliges "Otros".', 'error');
+      return;
+    }
+
+    setStatus('Guardando...', '');
+
+    google.script.run
+      .withSuccessHandler(function(resultado) {
+        setStatus(resultado.mensaje || 'Paciente creado correctamente.', 'success');
+        limpiarFormularioNuevoPaciente();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .guardarNuevoPacienteDesdeFormulario({
+        nombre: nombre,
+        nhc: nhc,
+        sexoGenero: sexoGenero,
+        motivoConsultaDiagnostico: motivoConsultaDiagnostico,
+        motivoConsultaOtros: motivoConsultaOtros,
+        modalidad: modalidad,
+        fechaPrimeraConsulta: fechaPrimeraConsulta
+      });
+  }
+
+function volverAlPanel() {
+  google.script.run
+    .withSuccessHandler(function() {
+      google.script.host.close();
+    })
+    .withFailureHandler(function(error) {
+      alert(error.message || String(error));
+    })
+    .abrirHomeDashboardDesdePantalla();
+}
+
+function actualizarMotivoOtros() {
+  const motivo = document.getElementById('motivoConsultaDiagnostico').value;
+  const input = document.getElementById('motivoConsultaOtros');
+
+  input.disabled = motivo !== 'Otros';
+
+  if (motivo !== 'Otros') {
+    input.value = '';
+  }
+}
+
+function limpiarFormularioNuevoPaciente() {
+  document.getElementById('nombre').value = '';
+  document.getElementById('nhc').value = '';
+  document.getElementById('sexoGenero').selectedIndex = 0;
+  document.getElementById('motivoConsultaDiagnostico').selectedIndex = 0;
+  document.getElementById('motivoConsultaOtros').value = '';
+  document.getElementById('motivoConsultaOtros').disabled = true;
+  document.getElementById('modalidad').selectedIndex = 0;
+  document.getElementById('fechaPrimeraConsulta').value = '';
+}
+
+  actualizarMotivoOtros();
+  cargarModalidades();
+    </script>
+  </body>
+</html>

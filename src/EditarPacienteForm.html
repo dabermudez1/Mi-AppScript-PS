@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #1f1f1f;
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+      }
+
+      .field {
+        margin-bottom: 14px;
+      }
+
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      input, select, textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 84px;
+      }
+
+      .readonly-box {
+        background: #fafafa;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: #d9ead3;
+        border: 1px solid #9bbb8f;
+      }
+
+      .secondary {
+        background: #f3f3f3;
+        border: 1px solid #cccccc;
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        white-space: pre-line;
+      }
+
+      .error {
+        color: #b00020;
+      }
+
+      .success {
+        color: #1b5e20;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Editar paciente</h2>
+
+    <div class="field">
+      <label for="paciente">Paciente</label>
+      <select id="paciente" onchange="cargarDetallePaciente()"></select>
+    </div>
+
+    <div class="grid">
+      <div class="field">
+        <label for="nombre">Nombre</label>
+        <input id="nombre" type="text" maxlength="120" />
+      </div>
+
+      <div class="field">
+        <label for="modalidad">Modalidad</label>
+        <select id="modalidad"></select>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="field">
+        <label for="fechaPrimeraConsulta">Fecha primera consulta</label>
+        <input id="fechaPrimeraConsulta" type="date" />
+      </div>
+
+      <div class="field">
+        <label for="estadoPaciente">Estado</label>
+        <select id="estadoPaciente" class="readonly-box" disabled></select>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="field">
+        <label for="motivoEspera">Motivo espera</label>
+        <input id="motivoEspera" type="text" class="readonly-box" readonly />
+      </div>
+
+      <div class="field">
+        <label for="proximaSesion">Próxima sesión</label>
+        <input id="proximaSesion" type="text" class="readonly-box" readonly />
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="field">
+        <label for="cicloObjetivoId">Ciclo objetivo</label>
+        <input id="cicloObjetivoId" type="text" class="readonly-box" readonly />
+      </div>
+
+      <div class="field">
+        <label for="cicloActivoId">Ciclo activo</label>
+        <input id="cicloActivoId" type="text" class="readonly-box" readonly />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="observaciones">Observaciones</label>
+      <textarea id="observaciones"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="ayudaRestricciones">Restricciones de edición</label>
+      <textarea id="ayudaRestricciones" class="readonly-box" readonly></textarea>
+    </div>
+
+    <div class="actions">
+  <button class="primary" onclick="guardar()">Guardar cambios</button>
+  <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+  <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+</div>
+
+    <div id="status" class="status"></div>
+
+    <script>
+  let pacientes = [];
+  let detalleActual = null;
+  const pacientePreseleccionadoId = '<?= typeof pacientePreseleccionadoId !== "undefined" ? pacientePreseleccionadoId : "" ?>';
+  let catalogos = {
+    modalidades: [],
+    estadosPaciente: []
+  };
+
+  function setStatus(message, type) {
+    const el = document.getElementById('status');
+    el.textContent = message || '';
+    el.className = 'status ' + (type || '');
+  }
+
+  function setGuardarEnabled(enabled) {
+    const botones = document.querySelectorAll('.primary');
+    botones.forEach(btn => btn.disabled = !enabled);
+  }
+
+  function cargarCatalogos() {
+    google.script.run
+      .withSuccessHandler(function(resultado) {
+        catalogos = resultado || { modalidades: [], estadosPaciente: [] };
+        cargarModalidades();
+        cargarEstadosPaciente();
+        cargarPacientes();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerCatalogosFormularioEdicionPaciente();
+  }
+
+  function cargarModalidades() {
+    const select = document.getElementById('modalidad');
+    select.innerHTML = '';
+
+    (catalogos.modalidades || []).forEach(function(mod) {
+      const option = document.createElement('option');
+      option.value = mod;
+      option.textContent = mod;
+      select.appendChild(option);
+    });
+  }
+
+  function cargarEstadosPaciente() {
+    const select = document.getElementById('estadoPaciente');
+    select.innerHTML = '';
+
+    (catalogos.estadosPaciente || []).forEach(function(estado) {
+      const option = document.createElement('option');
+      option.value = estado;
+      option.textContent = estado;
+      select.appendChild(option);
+    });
+  }
+
+  function cargarPacientes() {
+    google.script.run
+      .withSuccessHandler(function(resultado) {
+        pacientes = resultado || [];
+
+        const select = document.getElementById('paciente');
+        select.innerHTML = '';
+        select.disabled = false;
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Selecciona un paciente --';
+        select.appendChild(placeholder);
+
+        if (pacientes.length === 0) {
+          limpiarFormulario();
+          setGuardarEnabled(false);
+          return;
+        }
+
+        pacientes.forEach(function(p) {
+          const option = document.createElement('option');
+          option.value = p.pacienteId;
+          option.textContent = p.label;
+          select.appendChild(option);
+        });
+
+        limpiarFormulario();
+        setGuardarEnabled(false);
+        aplicarPacientePreseleccionadoSiExiste();
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerPacientesFormularioEdicion();
+  }
+
+  function aplicarPacientePreseleccionadoSiExiste() {
+    if (!pacientePreseleccionadoId) return;
+
+    const select = document.getElementById('paciente');
+    select.value = pacientePreseleccionadoId;
+
+    if (select.value === pacientePreseleccionadoId) {
+      select.disabled = true;
+      cargarDetallePaciente();
+    }
+  }
+
+  function limpiarFormulario() {
+    detalleActual = null;
+    document.getElementById('nombre').value = '';
+    document.getElementById('modalidad').value = catalogos.modalidades[0] || '';
+    document.getElementById('fechaPrimeraConsulta').value = '';
+    document.getElementById('estadoPaciente').value = catalogos.estadosPaciente[0] || '';
+    document.getElementById('motivoEspera').value = '';
+    document.getElementById('proximaSesion').value = '';
+    document.getElementById('cicloObjetivoId').value = '';
+    document.getElementById('cicloActivoId').value = '';
+    document.getElementById('observaciones').value = '';
+    document.getElementById('ayudaRestricciones').value = '';
+  }
+
+  function cargarDetallePaciente() {
+    const pacienteId = document.getElementById('paciente').value;
+    if (!pacienteId) {
+      limpiarFormulario();
+      setGuardarEnabled(false);
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(detalle) {
+        detalleActual = detalle;
+
+        document.getElementById('nombre').value = detalle.nombre || '';
+        document.getElementById('modalidad').value = detalle.modalidad || '';
+        document.getElementById('fechaPrimeraConsulta').value = detalle.fechaPrimeraConsulta || '';
+        document.getElementById('estadoPaciente').value = detalle.estadoPaciente || '';
+        document.getElementById('motivoEspera').value = detalle.motivoEspera || '';
+        document.getElementById('proximaSesion').value = detalle.proximaSesion || '';
+        document.getElementById('cicloObjetivoId').value = detalle.cicloObjetivoId || '';
+        document.getElementById('cicloActivoId').value = detalle.cicloActivoId || '';
+        document.getElementById('observaciones').value = detalle.observaciones || '';
+
+        aplicarRestricciones(detalle.restricciones || {});
+        setGuardarEnabled(true);
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+        setGuardarEnabled(false);
+      })
+      .obtenerDetallePacienteParaEdicion(pacienteId);
+  }
+
+  function aplicarRestricciones(restricciones) {
+    const nombre = document.getElementById('nombre');
+    const modalidad = document.getElementById('modalidad');
+    const fecha = document.getElementById('fechaPrimeraConsulta');
+    const observaciones = document.getElementById('observaciones');
+    const estado = document.getElementById('estadoPaciente');
+    const ayuda = document.getElementById('ayudaRestricciones');
+
+    nombre.disabled = !restricciones.puedeEditarNombre;
+    modalidad.disabled = !restricciones.puedeEditarModalidad;
+    fecha.disabled = !restricciones.puedeEditarFechaConsulta;
+    observaciones.disabled = !restricciones.puedeEditarObservaciones;
+    estado.disabled = true;
+
+    const lineas = [];
+    lineas.push('Nombre: ' + (restricciones.puedeEditarNombre ? 'editable' : 'bloqueado'));
+    lineas.push('Modalidad: ' + (restricciones.puedeEditarModalidad ? 'editable' : 'bloqueado'));
+    lineas.push('Fecha primera consulta: ' + (restricciones.puedeEditarFechaConsulta ? 'editable' : 'bloqueado'));
+    lineas.push('Estado: bloqueado (solo visual)');
+    lineas.push('Observaciones: ' + (restricciones.puedeEditarObservaciones ? 'editable' : 'bloqueado'));
+
+    ayuda.value = lineas.join('\n');
+  }
+
+  function guardar() {
+    const pacienteId = document.getElementById('paciente').value;
+    const nombre = document.getElementById('nombre').value.trim();
+    const modalidad = document.getElementById('modalidad').value;
+    const fechaPrimeraConsulta = document.getElementById('fechaPrimeraConsulta').value;
+    const observaciones = document.getElementById('observaciones').value;
+
+    if (!pacienteId) {
+      setStatus('Debes seleccionar un paciente.', 'error');
+      return;
+    }
+
+    setStatus('Guardando cambios...', '');
+
+    google.script.run
+      .withSuccessHandler(function(resultado) {
+        setStatus(resultado.mensaje || 'Paciente actualizado correctamente.', 'success');
+
+        setTimeout(function() {
+          if (pacientePreseleccionadoId) {
+            google.script.run
+              .withSuccessHandler(function() {
+                google.script.host.close();
+              })
+              .abrirPantallaPacientesDesdePantalla();
+          } else {
+            google.script.run
+              .withSuccessHandler(function() {
+                google.script.host.close();
+              })
+              .abrirHomeDashboardDesdePantalla();
+          }
+        }, 400);
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .guardarEdicionPaciente({
+        pacienteId: pacienteId,
+        nombre: nombre,
+        modalidad: modalidad,
+        fechaPrimeraConsulta: fechaPrimeraConsulta,
+        observaciones: observaciones
+      });
+  }
+function volverAlPanel() {
+  google.script.run
+    .withSuccessHandler(function() {
+      google.script.host.close();
+    })
+    .withFailureHandler(function(error) {
+      alert(error.message || String(error));
+    })
+    .abrirHomeDashboardDesdePantalla();
+}
+  cargarCatalogos();
+</script>
+  </body>
+</html>

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial; padding: 16px; }
+    .field { margin-bottom: 12px; }
+    label { font-weight: bold; display:block; margin-bottom:4px; }
+    input, select { width:100%; padding:6px; }
+    button { margin-top:10px; padding:8px; }
+  </style>
+</head>
+<body>
+
+<h3>Reprogramar sesión</h3>
+
+<div class="field">
+  <label>Modalidad</label>
+  <select id="modalidad" onchange="cambiarModo()"></select>
+</div>
+
+<div id="bloqueIndividual">
+
+  <div class="field">
+    <label>Paciente</label>
+    <select id="paciente" onchange="cargarSesionesPendientesIndividual()"></select>
+  </div>
+
+  <div class="field">
+    <label>Sesión pendiente</label>
+    <select id="numeroSesionInd" onchange="mostrarFechaActualIndividual()"></select>
+  </div>
+
+  <div class="field">
+    <label>Fecha actual programada</label>
+    <input type="text" id="fechaActualInd" readonly>
+  </div>
+
+</div>
+
+<div id="bloqueGrupo" style="display:none;">
+
+  <div class="field">
+    <label>Ciclo</label>
+    <select id="ciclo" onchange="cargarSesionesPendientesGrupo()"></select>
+  </div>
+
+  <div class="field">
+    <label>Sesión pendiente del grupo</label>
+    <select id="numeroSesionGrp" onchange="mostrarFechaActualGrupo()"></select>
+  </div>
+
+  <div class="field">
+    <label>Fecha actual programada</label>
+    <input type="text" id="fechaActualGrp" readonly>
+  </div>
+
+</div>
+
+<div class="field">
+  <label>Nueva fecha</label>
+  <input type="date" id="fecha">
+</div>
+
+<div style="display:flex; gap:10px; margin-top:12px;">
+  <button onclick="guardar()">Guardar</button>
+  <button onclick="volverAlPanel()">Volver al panel</button>
+  <button onclick="google.script.host.close()">Cerrar</button>
+</div>
+
+<script>
+  let sesionesPendientesIndividual = [];
+  let sesionesPendientesGrupo = [];
+  const sesionPreseleccionadaId = '<?= typeof sesionPreseleccionadaId !== "undefined" ? sesionPreseleccionadaId : "" ?>';
+  const origenPantalla = '<?= typeof origenPantalla !== "undefined" ? origenPantalla : "" ?>';
+  let detalleSesionPreseleccionada = null;
+
+  function cargarDatos() {
+    google.script.run.withSuccessHandler(function(data) {
+      const mod = document.getElementById('modalidad');
+      mod.innerHTML = '';
+
+      data.modalidades.forEach(m => {
+        let o = document.createElement('option');
+        o.value = m;
+        o.textContent = m;
+        mod.appendChild(o);
+      });
+
+      const pac = document.getElementById('paciente');
+      pac.innerHTML = '';
+      data.pacientes.forEach(p => {
+        let o = document.createElement('option');
+        o.value = p.id;
+        o.textContent = p.nombre;
+        pac.appendChild(o);
+      });
+
+      const cic = document.getElementById('ciclo');
+      cic.innerHTML = '';
+      data.ciclos.forEach(c => {
+        let o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = c.label;
+        cic.appendChild(o);
+      });
+
+      cambiarModo();
+
+      if (pac.value) {
+        cargarSesionesPendientesIndividual();
+      }
+
+      if (cic.value) {
+        cargarSesionesPendientesGrupo();
+      }
+
+      if (sesionPreseleccionadaId) {
+        aplicarSesionPreseleccionada();
+      }
+
+    }).obtenerDatosReprogramacion();
+  }
+
+  function cambiarModo() {
+    const mod = document.getElementById('modalidad').value;
+
+    if (mod === 'INDIVIDUAL') {
+      document.getElementById('bloqueIndividual').style.display = 'block';
+      document.getElementById('bloqueGrupo').style.display = 'none';
+      cargarSesionesPendientesIndividual();
+    } else {
+      document.getElementById('bloqueIndividual').style.display = 'none';
+      document.getElementById('bloqueGrupo').style.display = 'block';
+      cargarSesionesPendientesGrupo();
+    }
+  }
+
+  function cargarSesionesPendientesIndividual() {
+    const pacienteId = document.getElementById('paciente').value;
+    const select = document.getElementById('numeroSesionInd');
+    const fechaActual = document.getElementById('fechaActualInd');
+
+    select.innerHTML = '';
+    fechaActual.value = '';
+    sesionesPendientesIndividual = [];
+
+    if (!pacienteId) return;
+
+    google.script.run
+      .withSuccessHandler(function(lista) {
+        sesionesPendientesIndividual = lista || [];
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Selecciona una sesión pendiente --';
+        select.appendChild(placeholder);
+
+        sesionesPendientesIndividual.forEach(function(s) {
+          const option = document.createElement('option');
+          option.value = s.numeroSesion;
+          option.textContent = s.label;
+          select.appendChild(option);
+        });
+
+        mostrarFechaActualIndividual();
+      })
+      .withFailureHandler(function(err) {
+        alert(err.message || String(err));
+      })
+      .obtenerSesionesPendientesIndividualFormulario(pacienteId);
+  }
+
+  function cargarSesionesPendientesGrupo() {
+    const cicloId = document.getElementById('ciclo').value;
+    const select = document.getElementById('numeroSesionGrp');
+    const fechaActual = document.getElementById('fechaActualGrp');
+
+    select.innerHTML = '';
+    fechaActual.value = '';
+    sesionesPendientesGrupo = [];
+
+    if (!cicloId) return;
+
+    google.script.run
+      .withSuccessHandler(function(lista) {
+        sesionesPendientesGrupo = lista || [];
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Selecciona una sesión pendiente --';
+        select.appendChild(placeholder);
+
+        sesionesPendientesGrupo.forEach(function(s) {
+          const option = document.createElement('option');
+          option.value = s.numeroSesion;
+          option.textContent = s.label;
+          select.appendChild(option);
+        });
+
+        mostrarFechaActualGrupo();
+      })
+      .withFailureHandler(function(err) {
+        alert(err.message || String(err));
+      })
+      .obtenerSesionesPendientesGrupoFormulario(cicloId);
+  }
+
+  function mostrarFechaActualIndividual() {
+    const numeroSesion = document.getElementById('numeroSesionInd').value;
+    const fechaActual = document.getElementById('fechaActualInd');
+
+    const sesion = sesionesPendientesIndividual.find(s => String(s.numeroSesion) === String(numeroSesion));
+    fechaActual.value = sesion ? sesion.fechaActual : '';
+  }
+
+  function mostrarFechaActualGrupo() {
+    const numeroSesion = document.getElementById('numeroSesionGrp').value;
+    const fechaActual = document.getElementById('fechaActualGrp');
+
+    const sesion = sesionesPendientesGrupo.find(s => String(s.numeroSesion) === String(numeroSesion));
+    fechaActual.value = sesion ? sesion.fechaActual : '';
+  }
+
+  function guardar() {
+    const modalidad = document.getElementById('modalidad').value;
+
+    const numeroSesion =
+      modalidad === 'INDIVIDUAL'
+        ? document.getElementById('numeroSesionInd').value
+        : document.getElementById('numeroSesionGrp').value;
+
+    const fecha = document.getElementById('fecha').value;
+
+    if (!modalidad) {
+      alert('Debes seleccionar una modalidad.');
+      return;
+    }
+
+    if (!numeroSesion) {
+      alert('Debes seleccionar una sesión pendiente.');
+      return;
+    }
+
+    if (!fecha) {
+      alert('Debes seleccionar la nueva fecha.');
+      return;
+    }
+
+    const data = {
+      modalidad: modalidad,
+      pacienteId: document.getElementById('paciente').value,
+      cicloId: document.getElementById('ciclo').value,
+      numeroSesion: numeroSesion,
+      fecha: fecha.split('-').reverse().join('/')
+    };
+
+    google.script.run
+    .withSuccessHandler(function(res) {
+      alert(res.mensaje);
+
+      if (origenPantalla === 'SESIONES') {
+        google.script.run
+          .withSuccessHandler(function() {
+            google.script.host.close();
+          })
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .abrirPantallaSesionesDesdePantalla();
+        return;
+      }
+
+      if (origenPantalla === 'INCIDENCIAS') {
+        google.script.run
+          .withSuccessHandler(function() {
+            google.script.host.close();
+          })
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .verIncidenciasCalendario();
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function() {
+          google.script.host.close();
+        })
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .abrirHomeDashboardDesdePantalla();
+    })
+    .withFailureHandler(function(err) {
+    alert(err.message || String(err));
+    })
+    .guardarReprogramacion(data);
+  }
+
+  function volverPanel() {
+    if (origenPantalla === 'SESIONES') {
+      google.script.run
+        .withSuccessHandler(function() {
+          google.script.host.close();
+        })
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .abrirPantallaSesionesDesdePantalla();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function() {
+        google.script.host.close();
+      })
+      .withFailureHandler(function(error) {
+        alert(error.message || String(error));
+      })
+      .abrirHomeDashboardDesdePantalla();
+  }
+
+  function aplicarSesionPreseleccionada() {
+    if (!sesionPreseleccionadaId) return;
+
+    google.script.run
+      .withSuccessHandler(function(detalle) {
+        detalleSesionPreseleccionada = detalle;
+
+        document.getElementById('modalidad').value = detalle.modalidad;
+        document.getElementById('modalidad').disabled = true;
+
+        cambiarModo();
+
+        if (detalle.modalidad === 'INDIVIDUAL') {
+          document.getElementById('paciente').value = detalle.pacienteId;
+          document.getElementById('paciente').disabled = true;
+
+          google.script.run
+            .withSuccessHandler(function(lista) {
+              sesionesPendientesIndividual = lista || [];
+              renderSesionesIndividual(lista);
+
+              document.getElementById('numeroSesionInd').value = String(detalle.numeroSesion);
+              document.getElementById('numeroSesionInd').disabled = true;
+              mostrarFechaActualIndividual();
+            })
+            .withFailureHandler(function(error) {
+              alert(error.message || String(error));
+            })
+            .obtenerSesionesPendientesIndividualFormulario(detalle.pacienteId);
+        } else {
+          document.getElementById('ciclo').value = detalle.cicloId;
+          document.getElementById('ciclo').disabled = true;
+
+          google.script.run
+            .withSuccessHandler(function(lista) {
+              sesionesPendientesGrupo = lista || [];
+              renderSesionesGrupo(lista);
+
+              document.getElementById('numeroSesionGrp').value = String(detalle.numeroSesion);
+              document.getElementById('numeroSesionGrp').disabled = true;
+              mostrarFechaActualGrupo();
+            })
+            .withFailureHandler(function(error) {
+              alert(error.message || String(error));
+            })
+            .obtenerSesionesPendientesGrupoFormulario(detalle.cicloId);
+        }
+
+        document.getElementById('fecha').value = convertirFechaEsAInput(detalle.fechaActual);
+      })
+      .withFailureHandler(function(error) {
+        alert(error.message || String(error));
+      })
+      .obtenerSesionParaReprogramacionFormulario(sesionPreseleccionadaId);
+  }
+
+  function convertirFechaEsAInput(fechaTexto) {
+    if (!fechaTexto) return '';
+    const partes = String(fechaTexto).split('/');
+    if (partes.length !== 3) return '';
+    return partes[2] + '-' + partes[1].padStart(2, '0') + '-' + partes[0].padStart(2, '0');
+  }
+
+  function renderSesionesIndividual(lista) {
+    const select = document.getElementById('numeroSesionInd');
+    select.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- Selecciona sesión --';
+    select.appendChild(placeholder);
+
+    (lista || []).forEach(function(s) {
+      const option = document.createElement('option');
+      option.value = String(s.numeroSesion);
+      option.textContent = s.label;
+      select.appendChild(option);
+    });
+  }
+
+  function renderSesionesGrupo(lista) {
+    const select = document.getElementById('numeroSesionGrp');
+    select.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- Selecciona sesión --';
+    select.appendChild(placeholder);
+
+    (lista || []).forEach(function(s) {
+      const option = document.createElement('option');
+      option.value = String(s.numeroSesion);
+      option.textContent = s.label;
+      select.appendChild(option);
+    });
+  }
+
+  function resetFormularioReprogramacion() {
+    document.getElementById('modalidad').disabled = false;
+    document.getElementById('modalidad').selectedIndex = 0;
+
+    document.getElementById('paciente').disabled = false;
+    document.getElementById('ciclo').disabled = false;
+    document.getElementById('numeroSesionInd').disabled = false;
+    document.getElementById('numeroSesionGrp').disabled = false;
+
+    document.getElementById('fecha').value = '';
+    document.getElementById('fechaActualInd').value = '';
+    document.getElementById('fechaActualGrp').value = '';
+
+    sesionesPendientesIndividual = [];
+    sesionesPendientesGrupo = [];
+
+    document.getElementById('numeroSesionInd').innerHTML = '';
+    document.getElementById('numeroSesionGrp').innerHTML = '';
+
+    detalleSesionPreseleccionada = null;
+
+    cambiarModo();
+  }
+
+  cargarDatos();
+</script>
+
+</body>
+</html>

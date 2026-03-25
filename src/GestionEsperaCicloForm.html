@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 16px;
+    color: #1f1f1f;
+  }
+
+  h2 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 20px;
+  }
+
+  .field {
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+
+  select, textarea, input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  textarea {
+    resize: none;
+    height: 96px;
+    background: #fafafa;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  button {
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .primary {
+    background: #d9ead3;
+    border: 1px solid #9bbb8f;
+  }
+
+  .secondary {
+    background: #f3f3f3;
+    border: 1px solid #cccccc;
+  }
+
+  .status {
+    margin-top: 12px;
+    font-size: 13px;
+    white-space: pre-line;
+  }
+
+  .error {
+    color: #b00020;
+  }
+
+  .success {
+    color: #1b5e20;
+  }
+  </style>
+</head>
+
+<body>
+
+<h2>Gestión de espera / reasignación</h2>
+
+<div class="field">
+  <label for="paciente">Paciente</label>
+  <select id="paciente" onchange="onPacienteChange()"></select>
+</div>
+
+<div class="field">
+  <label for="detallePaciente">Detalle paciente</label>
+  <textarea id="detallePaciente" readonly></textarea>
+</div>
+
+<div class="field">
+  <label for="tipoAccion">Acción</label>
+  <select id="tipoAccion" onchange="onTipoAccionChange()">
+    <option value="ASIGNAR">Asignar a grupo</option>
+    <option value="REASIGNAR">Cambiar de grupo</option>
+  </select>
+</div>
+
+<div class="field">
+  <label for="ciclo">Grupo destino</label>
+  <select id="ciclo" onchange="actualizarDetalleCiclo()"></select>
+</div>
+
+<div class="field">
+  <label for="detalleCiclo">Detalle grupo destino</label>
+  <textarea id="detalleCiclo" readonly></textarea>
+</div>
+
+<div class="actions">
+  <button id="btnGuardar" class="primary" onclick="guardar()" disabled>Guardar cambios</button>
+  <button class="secondary" onclick="volverPanel()">Volver al panel</button>
+  <button class="secondary" onclick="cerrar()">Cerrar</button>
+</div>
+
+<div id="status" class="status"></div>
+
+<script>
+  let pacientes = [];
+  let ciclos = [];
+  let estadoActual = {
+    paciente: null,
+    tipoAccion: null
+  };
+
+  function setStatus(message, type) {
+    const el = document.getElementById('status');
+    el.textContent = message || '';
+    el.className = 'status ' + (type || '');
+  }
+
+  function setGuardarEnabled(enabled) {
+    document.getElementById('btnGuardar').disabled = !enabled;
+  }
+
+  function cerrar() {
+    google.script.host.close();
+  }
+
+  function volverPanel() {
+  google.script.run
+    .withSuccessHandler(function() {
+      google.script.host.close();
+    })
+    .abrirHomeDashboardDesdePantalla();
+  }
+
+  function limpiarDetallePaciente() {
+  document.getElementById('detallePaciente').value = '';
+  document.getElementById('tipoAccion').value = 'ASIGNAR';
+  estadoActual.paciente = null;
+  estadoActual.tipoAccion = null;
+  }
+
+  function limpiarCiclos() {
+  ciclos = [];
+
+  const select = document.getElementById('ciclo');
+  select.innerHTML = '';
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '-- Selecciona un ciclo destino --';
+  select.appendChild(placeholder);
+
+  select.value = '';
+  document.getElementById('detalleCiclo').value = '';
+  }
+
+  function init() {
+  const select = document.getElementById('paciente');
+  select.innerHTML = '';
+
+  const cargando = document.createElement('option');
+  cargando.value = '';
+  cargando.textContent = 'Cargando pacientes...';
+  select.appendChild(cargando);
+
+  google.script.run
+    .withSuccessHandler(function(resultado) {
+      pacientes = resultado || [];
+      select.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = pacientes.length > 0
+        ? '-- Selecciona un paciente --'
+        : 'No hay pacientes disponibles';
+      select.appendChild(placeholder);
+
+      pacientes.forEach(function(p) {
+        const option = document.createElement('option');
+        option.value = p.pacienteId;
+        option.textContent = p.label || p.pacienteId || 'Paciente';
+        select.appendChild(option);
+      });
+
+      limpiarDetallePaciente();
+      limpiarCiclos();
+      setGuardarEnabled(false);
+      setStatus('', '');
+    })
+    .withFailureHandler(function(error) {
+      select.innerHTML = '';
+
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'Error al cargar pacientes';
+      select.appendChild(option);
+
+      setStatus(error && error.message ? error.message : String(error), 'error');
+    })
+    .obtenerPacientesGestionEsperaCicloFormulario();
+  }
+
+  function onPacienteChange() {
+    const pacienteId = document.getElementById('paciente').value;
+
+    limpiarDetallePaciente();
+    limpiarCiclos();
+    setGuardarEnabled(false);
+    setStatus('', '');
+
+    if (!pacienteId) return;
+
+    google.script.run
+      .withSuccessHandler(function(detalle) {
+        estadoActual.paciente = detalle;
+        estadoActual.tipoAccion = detalle.tipoAccion;
+
+        document.getElementById('detallePaciente').value =
+          'Nombre: ' + (detalle.nombre || '') + '\n' +
+          'Modalidad: ' + (detalle.modalidad || '') + '\n' +
+          'Estado: ' + (detalle.estadoPaciente || '') + '\n' +
+          'Primera consulta: ' + (detalle.fechaPrimeraConsulta || '') + '\n' +
+          'Motivo espera: ' + (detalle.motivoEspera || '') + '\n' +
+          'Ciclo objetivo: ' + (detalle.cicloObjetivoId || '') + '\n' +
+          'Ciclo activo: ' + (detalle.cicloActivoId || '') + '\n' +
+          'Próxima sesión: ' + (detalle.proximaSesion || '') + '\n' +
+          'Observaciones: ' + (detalle.observaciones || '');
+
+        document.getElementById('tipoAccion').value = detalle.tipoAccion || 'ASIGNAR';
+
+        cargarCiclosPaciente(pacienteId);
+      })
+      .withFailureHandler(function(error) {
+        setStatus(error.message || String(error), 'error');
+      })
+      .obtenerDetallePacienteGestionEsperaCicloFormulario(pacienteId);
+  }
+
+  function cargarCiclosPaciente(pacienteId) {
+  google.script.run
+    .withSuccessHandler(function(resultado) {
+      ciclos = resultado || [];
+      const select = document.getElementById('ciclo');
+      select.innerHTML = '';
+
+      const accion = document.getElementById('tipoAccion').value;
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = ciclos.length > 0
+        ? (
+            accion === 'REASIGNAR'
+              ? '-- Selecciona un nuevo grupo --'
+              : '-- Selecciona un grupo destino --'
+          )
+        : (
+            accion === 'REASIGNAR'
+              ? 'No hay otros grupos compatibles'
+              : 'No hay grupos compatibles'
+          );
+      select.appendChild(placeholder);
+
+      ciclos.forEach(function(c) {
+        const option = document.createElement('option');
+        option.value = c.cicloId;
+        option.textContent =
+          (c.modalidad || '') +
+          ' | Ciclo ' + (c.numeroCiclo || '') +
+          ' | Inicio ' + (c.fechaInicio || '');
+        select.appendChild(option);
+      });
+
+      actualizarDetalleCiclo();
+      setGuardarEnabled(ciclos.length > 0);
+    })
+    .withFailureHandler(function(error) {
+      setStatus(error.message || String(error), 'error');
+    })
+    .obtenerCiclosGestionEsperaCicloFormulario(
+      pacienteId,
+      document.getElementById('tipoAccion').value
+    );
+  }
+
+  function actualizarDetalleCiclo() {
+    const cicloId = document.getElementById('ciclo').value;
+    const detalle = document.getElementById('detalleCiclo');
+
+    const ciclo = ciclos.find(c => String(c.cicloId) === String(cicloId));
+
+    if (!ciclo) {
+      detalle.value = '';
+      return;
+    }
+
+    detalle.value =
+      'Modalidad: ' + (ciclo.modalidad || '') + '\n' +
+      'Número ciclo: ' + (ciclo.numeroCiclo || '') + '\n' +
+      'Estado: ' + (ciclo.estadoCiclo || '') + '\n' +
+      'Fecha inicio: ' + (ciclo.fechaInicio || '') + '\n' +
+      'Plazas libres: ' + (ciclo.plazasLibres || 0);
+  }
+
+  function guardar() {
+    const pacienteId = document.getElementById('paciente').value;
+    const cicloId = document.getElementById('ciclo').value;
+
+    if (!pacienteId || !cicloId) {
+      setStatus('Selecciona paciente y ciclo destino.', 'error');
+      return;
+    }
+
+    setGuardarEnabled(false);
+    setStatus('', '');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setStatus((res && res.mensaje) || 'Guardado correctamente.', 'success');
+      })
+      .withFailureHandler(function(err) {
+        setStatus(err.message || String(err), 'error');
+        setGuardarEnabled(true);
+      })
+      .confirmarGestionEsperaCicloFormulario({
+        pacienteId: pacienteId,
+        cicloId: cicloId,
+        tipoAccion: document.getElementById('tipoAccion').value
+      });
+  }
+
+  function onTipoAccionChange() {
+  const pacienteId = document.getElementById('paciente').value;
+  if (!pacienteId) return;
+
+  estadoActual.tipoAccion = document.getElementById('tipoAccion').value;
+
+  limpiarCiclos();
+  setGuardarEnabled(false);
+  setStatus('', '');
+
+  cargarCiclosPaciente(pacienteId);
+  }
+
+  init();
+</script>
+
+</body>
+</html>

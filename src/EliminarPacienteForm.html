@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #1f1f1f;
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+      }
+
+      .field {
+        margin-bottom: 14px;
+      }
+
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      select, textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      textarea {
+        resize: none;
+        height: 120px;
+        background: #fafafa;
+      }
+
+      .warning {
+        background: #fff3cd;
+        border: 1px solid #e0c97f;
+        padding: 10px;
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .danger {
+        background: #f4cccc;
+        border: 1px solid #d99999;
+      }
+
+      .secondary {
+        background: #f3f3f3;
+        border: 1px solid #cccccc;
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        white-space: pre-line;
+      }
+
+      .error {
+        color: #b00020;
+      }
+
+      .success {
+        color: #1b5e20;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Eliminar paciente por error</h2>
+
+    <div class="warning">
+      Esta acción elimina físicamente el paciente y sus datos relacionados.<br>
+      Solo está permitida para pacientes en ESPERA o ACTIVO_PENDIENTE_INICIO.
+    </div>
+
+    <div class="field">
+      <label for="paciente">Paciente eliminable</label>
+      <select id="paciente" onchange="cargarImpacto()"></select>
+    </div>
+
+    <div class="field">
+      <label for="impacto">Impacto del borrado</label>
+      <textarea id="impacto" readonly></textarea>
+    </div>
+
+    <div class="actions">
+  <button id="btnEliminar" class="danger" onclick="eliminarPaciente()" disabled>Eliminar definitivamente</button>
+  <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+  <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+</div>
+
+    <div id="status" class="status"></div>
+
+    <script>
+      function setStatus(message, type) {
+        const el = document.getElementById('status');
+        el.textContent = message || '';
+        el.className = 'status ' + (type || '');
+      }
+
+      function setEliminarEnabled(enabled) {
+        document.getElementById('btnEliminar').disabled = !enabled;
+      }
+
+      function cargarPacientes() {
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            const select = document.getElementById('paciente');
+            select.innerHTML = '';
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Selecciona un paciente --';
+            select.appendChild(placeholder);
+
+            (resultado || []).forEach(function(p) {
+              const option = document.createElement('option');
+              option.value = p.pacienteId;
+              option.textContent = p.label;
+              select.appendChild(option);
+            });
+
+            document.getElementById('impacto').value = '';
+            setEliminarEnabled(false);
+          })
+          .withFailureHandler(function(error) {
+            setStatus(error.message || String(error), 'error');
+          })
+          .obtenerPacientesEliminablesFormulario();
+      }
+
+      function cargarImpacto() {
+        const pacienteId = document.getElementById('paciente').value;
+        document.getElementById('impacto').value = '';
+        setEliminarEnabled(false);
+
+        if (!pacienteId) return;
+
+        google.script.run
+          .withSuccessHandler(function(info) {
+            document.getElementById('impacto').value =
+              'Paciente: ' + (info.nombre || '') + '\n' +
+              'Modalidad: ' + (info.modalidad || '') + '\n' +
+              'Estado: ' + (info.estado || '') + '\n' +
+              'Primera consulta: ' + (info.fechaPrimeraConsulta || '') + '\n' +
+              'Motivo espera: ' + (info.motivoEspera || '') + '\n' +
+              'Ciclo relacionado: ' + (info.cicloId || '') + '\n' +
+              'Asignaciones a borrar: ' + (info.asignaciones || 0) + '\n' +
+              'Sesiones a borrar: ' + (info.sesiones || 0) + '\n' +
+              'Libera plaza: ' + (info.liberaraPlaza ? 'Sí' : 'No');
+
+            setEliminarEnabled(true);
+          })
+          .withFailureHandler(function(error) {
+            setStatus(error.message || String(error), 'error');
+          })
+          .obtenerImpactoEliminacionPacienteFormulario(pacienteId);
+      }
+
+      function eliminarPaciente() {
+        const pacienteId = document.getElementById('paciente').value;
+
+        if (!pacienteId) {
+          setStatus('Debes seleccionar un paciente.', 'error');
+          return;
+        }
+
+        const confirmacion = confirm(
+          'Esta acción elimina el paciente definitivamente junto con sus asignaciones y sesiones relacionadas.\n\n¿Deseas continuar?'
+        );
+
+        if (!confirmacion) return;
+
+        setStatus('Eliminando...', '');
+
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+  setStatus(resultado.mensaje || 'Paciente eliminado correctamente.', 'success');
+  cargarPacientes();
+  document.getElementById('impacto').value = '';
+  setEliminarEnabled(false);
+})
+          .withFailureHandler(function(error) {
+            setStatus(error.message || String(error), 'error');
+          })
+          .confirmarEliminacionPacienteFormulario({
+            pacienteId: pacienteId
+          });
+      }
+      
+function volverAlPanel() {
+  google.script.run
+    .withSuccessHandler(function() {
+      google.script.host.close();
+    })
+    .withFailureHandler(function(error) {
+      alert(error.message || String(error));
+    })
+    .abrirHomeDashboardDesdePantalla();
+}
+
+      cargarPacientes();
+    </script>
+  </body>
+</html>

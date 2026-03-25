@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      .row-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .row-actions button {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #1f1f1f;
+        background: #f7f7f7;
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 14px;
+        font-size: 22px;
+      }
+
+      .filters {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto;
+        gap: 12px;
+        margin-bottom: 16px;
+        align-items: end;
+      }
+
+      .field label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      .summary {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      .card {
+        background: #ffffff;
+        border: 1px solid #d0d0d0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        min-width: 140px;
+      }
+
+      .card .label {
+        font-size: 12px;
+        color: #555;
+      }
+
+      .card .value {
+        font-size: 20px;
+        font-weight: bold;
+        margin-top: 4px;
+      }
+
+      .table-wrap {
+        background: #fff;
+        border: 1px solid #d0d0d0;
+        border-radius: 10px;
+        overflow: auto;
+        max-height: 520px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      thead th {
+        position: sticky;
+        top: 0;
+        background: #ececec;
+        border-bottom: 1px solid #d0d0d0;
+        padding: 10px 8px;
+        text-align: left;
+        z-index: 1;
+      }
+
+      tbody td {
+        border-top: 1px solid #eeeeee;
+        padding: 8px;
+        vertical-align: top;
+      }
+
+      tbody tr:hover {
+        background: #fafafa;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: bold;
+        background: #efefef;
+      }
+
+      .pill.PENDIENTE { background: #fff2cc; }
+      .pill.COMPLETADA_AUTO { background: #d9ead3; }
+      .pill.COMPLETADA_MANUAL { background: #b6d7a8; }
+      .pill.REPROGRAMADA { background: #cfe2f3; }
+      .pill.CANCELADA { background: #f4cccc; }
+
+      .sync-pill {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: bold;
+        background: #efefef;
+      }
+
+      .sync-pill.CREADO { background: #d9ead3; }
+      .sync-pill.RECREADO { background: #d9ead3; }
+      .sync-pill.ACTUALIZADO { background: #cfe2f3; }
+      .sync-pill.ERROR { background: #f4cccc; }
+      .sync-pill.PENDIENTE { background: #fff2cc; }
+
+      .muted {
+        color: #666;
+      }
+
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .secondary {
+        background: #f3f3f3;
+        border: 1px solid #cccccc;
+      }
+
+      .empty {
+        padding: 20px;
+        color: #666;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Pantalla de sesiones</h2>
+
+    <div id="contextoPaciente" class="empty" style="display:none; margin-bottom: 12px;"></div>
+
+    <div class="filters">
+  <div class="field">
+    <label for="search">Buscar por paciente</label>
+    <input id="search" type="text" placeholder="Escribe parte del nombre..." oninput="render()" />
+  </div>
+
+  <div class="field">
+    <label for="filtroModalidad">Modalidad</label>
+    <select id="filtroModalidad" onchange="render()"></select>
+  </div>
+
+  <div class="field">
+    <label for="filtroEstadoSesion">Estado sesión</label>
+    <select id="filtroEstadoSesion" onchange="render()"></select>
+  </div>
+
+  <div class="field">
+    <label for="filtroSync">Sync Calendar</label>
+    <select id="filtroSync" onchange="render()"></select>
+  </div>
+
+  <div class="field">
+    <label for="filtroFechaRapido">Filtro fecha</label>
+    <select id="filtroFechaRapido" onchange="render()">
+      <option value="">Todas</option>
+      <option value="HOY">Hoy</option>
+      <option value="PROX_7">Próximas 7 días</option>
+      <option value="PROX_30">Próximas 30 días</option>
+      <option value="VENCIDAS">Vencidas</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="fechaDesde">Fecha desde</label>
+    <input id="fechaDesde" type="date" onchange="render()" />
+  </div>
+
+  <div class="field">
+    <label for="fechaHasta">Fecha hasta</label>
+    <input id="fechaHasta" type="date" onchange="render()" />
+  </div>
+
+  <div class="field">
+    <button class="secondary" onclick="limpiarFiltrosFecha()">Limpiar fechas</button>
+  </div>
+
+  <div class="field">
+    <button class="secondary" onclick="cargarDatos()">Refrescar</button>
+  </div>
+</div>
+
+    <div class="summary">
+      <div class="card">
+        <div class="label">Total sesiones</div>
+        <div class="value" id="sumTotal">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Pendientes</div>
+        <div class="value" id="sumPendientes">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Completadas</div>
+        <div class="value" id="sumCompletadas">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Canceladas</div>
+        <div class="value" id="sumCanceladas">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Con sync ERROR</div>
+        <div class="value" id="sumErrorSync">0</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Paciente</th>
+            <th>Modalidad</th>
+            <th>Sesión</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Ciclo</th>
+            <th>Manual</th>
+            <th>Sync</th>
+            <th>Notas</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbodySesiones"></tbody>
+      </table>
+      <div id="emptyState" class="empty" style="display:none;">No hay sesiones que cumplan el filtro.</div>
+    </div>
+
+    <div class="actions">
+            <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+<button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+    </div>
+
+    <script>
+      let sesiones = [];
+      let modalidades = [];
+      let estadosSesion = [];
+      let estadosSync = [];
+      const pacientePreseleccionadoId = '<?= typeof pacientePreseleccionadoId !== "undefined" ? pacientePreseleccionadoId : "" ?>';
+
+      function cargarSelect(selectId, valores, placeholder) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '';
+
+        const optionAll = document.createElement('option');
+        optionAll.value = '';
+        optionAll.textContent = placeholder;
+        select.appendChild(optionAll);
+
+        (valores || []).forEach(function(valor) {
+          const option = document.createElement('option');
+          option.value = valor;
+          option.textContent = valor;
+          select.appendChild(option);
+        });
+      }
+
+      function cargarDatos() {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            sesiones = data.sesiones || [];
+            modalidades = data.modalidades || [];
+            estadosSesion = data.estadosSesion || [];
+            estadosSync = data.estadosSync || [];
+
+            cargarSelect('filtroModalidad', modalidades, 'Todas las modalidades');
+            cargarSelect('filtroEstadoSesion', estadosSesion, 'Todos los estados');
+            cargarSelect('filtroSync', estadosSync, 'Todos los estados sync');
+
+            aplicarContextoPacientePreseleccionado();
+            render();
+          })
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .obtenerDatosPantallaSesiones();
+      }
+
+      function aplicarContextoPacientePreseleccionado() {
+        const contexto = document.getElementById('contextoPaciente');
+        const inputSearch = document.getElementById('search');
+
+        if (!pacientePreseleccionadoId) {
+          contexto.style.display = 'none';
+          inputSearch.disabled = false;
+          inputSearch.placeholder = 'Escribe parte del nombre...';
+          return;
+        }
+
+        contexto.style.display = 'block';
+        contexto.textContent = 'Mostrando sesiones del paciente: ' + pacientePreseleccionadoId;
+
+        inputSearch.value = '';
+        inputSearch.disabled = true;
+        inputSearch.placeholder = 'Filtro deshabilitado por contexto de paciente';
+      }
+
+      function getSesionesFiltradas() {
+        const search = (document.getElementById('search').value || '').trim().toLowerCase();
+        const filtroModalidad = document.getElementById('filtroModalidad').value;
+        const filtroEstadoSesion = document.getElementById('filtroEstadoSesion').value;
+        const filtroSync = document.getElementById('filtroSync').value;
+        const filtroFechaRapido = document.getElementById('filtroFechaRapido').value;
+        const fechaDesde = document.getElementById('fechaDesde').value;
+        const fechaHasta = document.getElementById('fechaHasta').value;
+
+        const hoy = normalizarFechaJs(new Date());
+
+        return sesiones.filter(function(s) {
+          const matchPacientePreseleccionado =
+            !pacientePreseleccionadoId ||
+            String(s.pacienteId || '') === String(pacientePreseleccionadoId);
+
+          const matchNombre = !search || (s.nombrePaciente || '').toLowerCase().includes(search);
+          const matchModalidad = !filtroModalidad || s.modalidad === filtroModalidad;
+          const matchEstadoSesion = !filtroEstadoSesion || s.estadoSesion === filtroEstadoSesion;
+          const matchSync = !filtroSync || s.calendarSyncStatus === filtroSync;
+
+          const fechaSesion = parseFechaPantalla(s.fechaSesion);
+          let matchFecha = true;
+
+          if (fechaDesde) {
+            const desde = parseFechaISOInput(fechaDesde);
+            if (fechaSesion && desde) {
+              matchFecha = matchFecha && fechaSesion.getTime() >= desde.getTime();
+            }
+          }
+
+          if (fechaHasta) {
+            const hasta = parseFechaISOInput(fechaHasta);
+            if (fechaSesion && hasta) {
+              matchFecha = matchFecha && fechaSesion.getTime() <= hasta.getTime();
+            }
+          }
+
+          if (filtroFechaRapido && fechaSesion) {
+            const diffDias = diferenciaDias(hoy, fechaSesion);
+
+            if (filtroFechaRapido === 'HOY') {
+              matchFecha = matchFecha && fechaSesion.getTime() === hoy.getTime();
+            }
+
+            if (filtroFechaRapido === 'PROX_7') {
+              matchFecha = matchFecha && diffDias >= 0 && diffDias <= 7;
+            }
+
+            if (filtroFechaRapido === 'PROX_30') {
+              matchFecha = matchFecha && diffDias >= 0 && diffDias <= 30;
+            }
+
+            if (filtroFechaRapido === 'VENCIDAS') {
+              matchFecha = matchFecha && fechaSesion.getTime() < hoy.getTime();
+            }
+          }
+
+          return matchPacientePreseleccionado && matchNombre && matchModalidad && matchEstadoSesion && matchSync && matchFecha;
+        });
+      }
+
+      function renderSummary(lista) {
+        document.getElementById('sumTotal').textContent = lista.length;
+        document.getElementById('sumPendientes').textContent =
+          lista.filter(s => s.estadoSesion === 'PENDIENTE').length;
+
+        document.getElementById('sumCompletadas').textContent =
+          lista.filter(s =>
+            s.estadoSesion === 'COMPLETADA_AUTO' ||
+            s.estadoSesion === 'COMPLETADA_MANUAL'
+          ).length;
+
+        document.getElementById('sumCanceladas').textContent =
+          lista.filter(s => s.estadoSesion === 'CANCELADA').length;
+
+        document.getElementById('sumErrorSync').textContent =
+          lista.filter(s => s.calendarSyncStatus === 'ERROR').length;
+      }
+
+      function render() {
+        const lista = getSesionesFiltradas()
+          .slice()
+          .sort(function(a, b) {
+            if ((a.nombrePaciente || '') !== (b.nombrePaciente || '')) {
+              return (a.nombrePaciente || '').localeCompare(b.nombrePaciente || '');
+            }
+            return Number(a.numeroSesion || 0) - Number(b.numeroSesion || 0);
+          });
+
+        renderSummary(lista);
+
+        const tbody = document.getElementById('tbodySesiones');
+        const empty = document.getElementById('emptyState');
+        tbody.innerHTML = '';
+
+        if (lista.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+
+        empty.style.display = 'none';
+
+        lista.forEach(function(s) {
+          const tr = document.createElement('tr');
+          const estadoClass = 'pill ' + (s.estadoSesion || '');
+          const syncClass = 'sync-pill ' + (s.calendarSyncStatus || '');
+          const syncText = s.calendarSyncStatus || '';
+
+          const botonReprogramar = s.estadoSesion === 'PENDIENTE'
+            ? `<button class="secondary" onclick="reprogramarSesionFila('${escapeHtml(s.sesionId || '')}')">Reprogramar</button>`
+            : '';
+
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(s.nombrePaciente || '')}</strong><br><span class="muted">${escapeHtml(s.pacienteId || '')}</span></td>
+            <td>${escapeHtml(s.modalidad || '')}</td>
+            <td>${Number(s.numeroSesion || 0)}</td>
+            <td>${escapeHtml(s.fechaSesion || '')}</td>
+            <td><span class="${estadoClass}">${escapeHtml(s.estadoSesion || '')}</span></td>
+            <td>${escapeHtml(s.cicloId || '')}</td>
+            <td>${s.modificadaManual ? 'Sí' : 'No'}</td>
+            <td>${syncText ? `<span class="${syncClass}">${escapeHtml(syncText)}</span>` : ''}</td>
+            <td>${escapeHtml(s.notas || '')}</td>
+            <td><div class="row-actions">${botonReprogramar}</div></td>
+          `;
+
+          tbody.appendChild(tr);
+        });
+      }
+      
+      function reprogramarSesionFila(sesionId) {
+        google.script.run
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .abrirReprogramarSesionDesdeSesion(sesionId);
+      }
+
+      function escapeHtml(text) {
+        return String(text || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+      function parseFechaPantalla(texto) {
+  if (!texto) return null;
+
+  const partes = String(texto).split('/');
+  if (partes.length !== 3) return null;
+
+  const day = Number(partes[0]);
+  const month = Number(partes[1]) - 1;
+  const year = Number(partes[2]);
+
+  const fecha = new Date(year, month, day);
+  if (isNaN(fecha.getTime())) return null;
+
+  return normalizarFechaJs(fecha);
+}
+
+function parseFechaISOInput(texto) {
+  if (!texto) return null;
+
+  const partes = String(texto).split('-');
+  if (partes.length !== 3) return null;
+
+  const year = Number(partes[0]);
+  const month = Number(partes[1]) - 1;
+  const day = Number(partes[2]);
+
+  const fecha = new Date(year, month, day);
+  if (isNaN(fecha.getTime())) return null;
+
+  return normalizarFechaJs(fecha);
+}
+
+function normalizarFechaJs(fecha) {
+  return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+}
+
+function diferenciaDias(fechaA, fechaB) {
+  const msDia = 24 * 60 * 60 * 1000;
+  return Math.round((fechaB.getTime() - fechaA.getTime()) / msDia);
+}
+
+function limpiarFiltrosFecha() {
+  document.getElementById('filtroFechaRapido').value = '';
+  document.getElementById('fechaDesde').value = '';
+  document.getElementById('fechaHasta').value = '';
+  render();
+}
+
+function volverAlPanel() {
+  google.script.run
+    .withSuccessHandler(function() {
+      google.script.host.close();
+    })
+    .withFailureHandler(function(error) {
+      alert(error.message || String(error));
+    })
+    .abrirHomeDashboardDesdePantalla();
+}
+      cargarDatos();
+    </script>
+  </body>
+</html>
