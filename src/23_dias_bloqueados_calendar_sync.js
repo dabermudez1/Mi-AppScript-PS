@@ -39,8 +39,8 @@ function obtenerDiasBloqueados() {
   return diasBloqueados;
 }
 
-function sincronizarDiasBloqueadosAGoogleCalendar() {
-  const calendar = obtenerOCrearCalendarioConsulta_(); // Obtener o crear el calendario de Google
+function sincronizarDiasBloqueadosAGoogleCalendar(calendarParam) {
+  const calendar = calendarParam || obtenerOCrearCalendarioConsulta_(); 
   const diasBloqueados = obtenerDiasBloqueados(); // Obtener los días bloqueados desde Sheets
   if (!diasBloqueados || diasBloqueados.length === 0) return;
 

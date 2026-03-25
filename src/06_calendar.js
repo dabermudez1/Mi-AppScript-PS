@@ -15,9 +15,9 @@ function crearCalendarioConsulta() {
   }
 }
 
-function sincronizarSesionesAGoogleCalendar() {
+function sincronizarSesionesAGoogleCalendar(calendarParam) {
   const ui = SpreadsheetApp.getUi();
-  const calendar = obtenerOCrearCalendarioConsulta_(); // Obtiene o crea el calendario
+  const calendar = calendarParam || obtenerOCrearCalendarioConsulta_();
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
 
   if (!sheet) {
@@ -25,10 +25,7 @@ function sincronizarSesionesAGoogleCalendar() {
   }
 
   const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    ui.alert('No hay sesiones para sincronizar.');
-    return;
-  }
+  if (data.length < 2) return;
 
   const headers = data[0];
   const idx = indexByHeader_(headers);
@@ -256,7 +253,7 @@ function obtenerOCrearCalendarioConsulta_() {
  * No crea nada ni pregunta: se usa para mostrar botones en el panel.
  */
 function obtenerCalendarConsultaUrl_() {
-  const props = PropertiesService.getScriptProperties();
+  const props = PropertiesService.getUserProperties();
   const savedCalendarId = props.getProperty('CONSULTA_CALENDAR_ID');
 
   // Intento 1: por ID guardado
