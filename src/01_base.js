@@ -662,7 +662,17 @@ function moverASiguienteLaborable_(fecha) {
 }
 
 function parseFechaES_(texto) {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((texto || '').trim());
+  if (!texto) return null;
+  if (texto instanceof Date) return normalizarFecha_(texto);
+
+  // Soporte para formato ISO (yyyy-mm-dd) que viene de los inputs de HTML
+  if (texto.includes('-')) {
+    const partes = texto.split('-');
+    return normalizarFecha_(new Date(partes[0], partes[1] - 1, partes[2]));
+  }
+
+  // Soporte para formato dd/mm/yyyy
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(texto).trim());
   if (!m) return null;
 
   const day = Number(m[1]);

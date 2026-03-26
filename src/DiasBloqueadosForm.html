@@ -2,6 +2,7 @@
 <html>
 <head>
   <base target="_top">
+  <title>Gestión de Días Bloqueados</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -25,17 +26,11 @@
       margin-bottom: 6px;
     }
 
-    select, textarea, input {
+    input {
       width: 100%;
       box-sizing: border-box;
       padding: 8px;
       font-size: 14px;
-    }
-
-    textarea {
-      resize: none;
-      height: 72px;
-      background: #fafafa;
     }
 
     .actions {
@@ -48,16 +43,24 @@
       padding: 10px 14px;
       font-size: 14px;
       cursor: pointer;
+      border-radius: 2px;
     }
 
-    .primary {
-      background: #d9ead3;
-      border: 1px solid #9bbb8f;
+    button.primary {
+      background-color: #d9ead3 !important;
+      border: 1px solid #9bbb8f !important;
+      color: #1f1f1f !important;
     }
 
-    .secondary {
-      background: #f3f3f3;
-      border: 1px solid #cccccc;
+    button.secondary {
+      background-color: #f3f3f3 !important;
+      border: 1px solid #cccccc !important;
+      color: #1f1f1f !important;
+    }
+
+    .danger {
+      background: #f4cccc;
+      border: 1px solid #ea9999;
     }
 
     .status {
@@ -66,210 +69,173 @@
       white-space: pre-line;
     }
 
-    .error {
-      color: #b00020;
-    }
+    .error { color: #b00020; }
+    .success { color: #1b5e20; }
 
-    .success {
-      color: #1b5e20;
+    .table-wrapper {
+      margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #cccccc;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 16px;
-    }
-
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
       font-size: 13px;
-      text-align: left;
-      vertical-align: top;
     }
 
     th {
-      background: #f3f3f3;
+      background: #eeeeee;
+      text-align: left;
+      padding: 8px;
+      position: sticky;
+      top: 0;
     }
 
-    .tabla-wrap {
-      max-height: 260px;
-      overflow-y: auto;
-      margin-top: 18px;
+    td {
+      padding: 8px;
+      border-bottom: 1px solid #eeeeee;
     }
 
-    .fila-btn {
-      padding: 6px 10px;
-      font-size: 12px;
-    }
+    tr:hover { background: #f9f9f9; }
   </style>
 </head>
 <body>
+  <h2>Gestión de días bloqueados</h2>
 
-<h2>Gestión de días bloqueados</h2>
+  <div class="field">
+    <label for="fechaDesde">Fecha Desde</label>
+    <input type="date" id="fechaDesde">
+  </div>
 
-<div class="field">
-  <label for="fechaDesde">Fecha desde</label>
-  <input id="fechaDesde" type="date">
-</div>
+  <div class="field">
+    <label for="fechaHasta">Fecha Hasta</label>
+    <input type="date" id="fechaHasta">
+  </div>
 
-<div class="field">
-  <label for="fechaHasta">Fecha hasta</label>
-  <input id="fechaHasta" type="date">
-</div>
+  <div class="field">
+    <label for="motivo">Motivo del bloqueo</label>
+    <input type="text" id="motivo" placeholder="Ej: Festivo, Vacaciones...">
+  </div>
 
-<div class="field">
-  <label for="motivo">Motivo</label>
-  <textarea id="motivo"></textarea>
-</div>
+  <div class="actions">
+    <button class="primary" onclick="guardarDiaBloqueado()">Bloquear rango</button>
+    <button class="secondary" onclick="google.script.run.volverAlPanelDesdeDiasBloqueados()">Volver al panel</button>
+    <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+  </div>
 
-<div class="actions">
-  <button id="btnGuardar" class="primary" onclick="guardar()">Guardar cambios</button>
-  <button class="secondary" onclick="volverPanel()">Volver al panel</button>
-  <button class="secondary" onclick="cerrar()">Cerrar</button>
-</div>
+  <div id="status" class="status"></div>
 
-<div id="status" class="status"></div>
+  <div style="margin-top: 24px;">
+    <label>Días bloqueados registrados:</label>
+    <div id="loadingMessage" class="status">Cargando datos...</div>
+    
+    <div id="tableWrapper" class="table-wrapper" style="display: none;">
+      <table id="diasBloqueadosTable">
+        <thead>
+          <tr>
+            <th style="width: 30px;"><input type="checkbox" id="selectAll"></th>
+            <th style="width: 100px;">Fecha</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    
+    <div class="actions" id="deleteButtonGroup" style="display: none;">
+      <button class="danger" onclick="eliminarDiasSeleccionados()">Eliminar seleccionados</button>
+    </div>
+  </div>
 
-<div class="tabla-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Bloqueado</th>
-        <th>Motivo</th>
-        <th>Acción</th>
-      </tr>
-    </thead>
-    <tbody id="tablaDias"></tbody>
-  </table>
-</div>
+  <script>
+    document.addEventListener('DOMContentLoaded', cargarDiasBloqueados);
 
-<script>
-  function setStatus(message, type) {
-    const el = document.getElementById('status');
-    el.textContent = message || '';
-    el.className = 'status ' + (type || '');
-  }
+    function setStatus(msg, type) {
+      const el = document.getElementById('status');
+      el.textContent = msg || '';
+      el.className = 'status ' + (type || '');
+    }
 
-  function cerrar() {
-    google.script.host.close();
-  }
+    function cargarDiasBloqueados() {
+      const loading = document.getElementById('loadingMessage');
+      const wrapper = document.getElementById('tableWrapper');
+      loading.style.display = 'block';
+      wrapper.style.display = 'none';
+      document.getElementById('deleteButtonGroup').style.display = 'none';
+      google.script.run
+        .withSuccessHandler(displayDiasBloqueados)
+        .withFailureHandler(e => setStatus('Error al cargar: ' + e.message, 'error'))
+        .obtenerDiasBloqueadosFormulario();
+    }
 
-  function volverPanel() {
-    google.script.run
-      .withSuccessHandler(function() {
-        google.script.host.close();
-      })
-      .abrirHomeDashboardDesdePantalla();
-  }
-
-  function formatearFechaInputAEs(fechaIso) {
-    if (!fechaIso) return '';
-    const partes = String(fechaIso).split('-');
-    if (partes.length !== 3) return '';
-    return partes[2] + '/' + partes[1] + '/' + partes[0];
-  }
-
-  function limpiarFormulario() {
-    document.getElementById('fechaDesde').value = '';
-    document.getElementById('fechaHasta').value = '';
-    document.getElementById('motivo').value = '';
-  }
-
-  function cargarDias() {
-    google.script.run
-      .withSuccessHandler(function(data) {
-        const tbody = document.getElementById('tablaDias');
-        tbody.innerHTML = '';
-
-        if (!data || data.length === 0) {
-          const tr = document.createElement('tr');
-          tr.innerHTML = '<td colspan="4">No hay días bloqueados.</td>';
-          tbody.appendChild(tr);
-          return;
-        }
-
-        data.forEach(function(item) {
-          const tr = document.createElement('tr');
-
-          const tdFecha = document.createElement('td');
-          tdFecha.textContent = item.fecha || '';
-
-          const tdBloqueado = document.createElement('td');
-          tdBloqueado.textContent = item.bloqueado ? 'Sí' : 'No';
-
-          const tdMotivo = document.createElement('td');
-          tdMotivo.textContent = item.motivo || '';
-
-          const tdAccion = document.createElement('td');
-          const btnEliminar = document.createElement('button');
-          btnEliminar.textContent = 'Eliminar';
-          btnEliminar.className = 'secondary fila-btn';
-          btnEliminar.onclick = function() {
-            eliminar(item.fecha);
-          };
-          tdAccion.appendChild(btnEliminar);
-
-          tr.appendChild(tdFecha);
-          tr.appendChild(tdBloqueado);
-          tr.appendChild(tdMotivo);
-          tr.appendChild(tdAccion);
-
-          tbody.appendChild(tr);
+    function displayDiasBloqueados(dias) {
+      const tbody = document.querySelector('#diasBloqueadosTable tbody');
+      tbody.innerHTML = ''; // Limpiar tabla
+      if (dias.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay días bloqueados.</td></tr>';
+      } else {
+        dias.forEach(dia => {
+          const row = tbody.insertRow();
+          row.insertCell().innerHTML = '<input type="checkbox" class="day-checkbox" value="' + dia.fecha + '">';
+          row.insertCell().textContent = dia.fecha;
+          row.insertCell().textContent = dia.motivo;
         });
-      })
-      .withFailureHandler(function(error) {
-        setStatus(error.message || String(error), 'error');
-      })
-      .obtenerDiasBloqueadosFormulario();
-  }
-
-  function guardar() {
-    const fechaDesdeIso = document.getElementById('fechaDesde').value;
-    const fechaHastaIso = document.getElementById('fechaHasta').value;
-    const motivo = document.getElementById('motivo').value;
-
-    if (!fechaDesdeIso) {
-      setStatus('Debes indicar la fecha desde.', 'error');
-      return;
+      }
+      document.getElementById('loadingMessage').style.display = 'none';
+      document.getElementById('tableWrapper').style.display = 'block';
+      document.getElementById('deleteButtonGroup').style.display = 'block';
     }
 
-    if (fechaHastaIso && fechaHastaIso < fechaDesdeIso) {
-      setStatus('La fecha hasta no puede ser anterior a la fecha desde.', 'error');
-      return;
+    function guardarDiaBloqueado() {
+      setStatus('Guardando...', '');
+      const formData = {
+        fechaDesde: document.getElementById('fechaDesde').value,
+        fechaHasta: document.getElementById('fechaHasta').value,
+        motivo: document.getElementById('motivo').value
+      };
+      google.script.run
+        .withSuccessHandler(function(resp) {
+          setStatus(resp.mensaje, 'success');
+          limpiarFormulario();
+          cargarDiasBloqueados();
+        })
+        .withFailureHandler(e => setStatus('Error al guardar: ' + e.message, 'error'))
+        .guardarDiaBloqueadoFormulario(formData);
     }
 
-    google.script.run
-      .withSuccessHandler(function(res) {
-        setStatus((res && res.mensaje) || 'Días bloqueados guardados correctamente.', 'success');
-        limpiarFormulario();
-        cargarDias();
-      })
-      .withFailureHandler(function(error) {
-        setStatus(error.message || String(error), 'error');
-      })
-      .guardarDiaBloqueadoFormulario({
-        fechaDesde: formatearFechaInputAEs(fechaDesdeIso),
-        fechaHasta: fechaHastaIso ? formatearFechaInputAEs(fechaHastaIso) : '',
-        motivo: motivo
+    document.getElementById('selectAll').addEventListener('change', function() {
+      document.querySelectorAll('.day-checkbox').forEach(checkbox => {
+        checkbox.checked = this.checked;
       });
-  }
+    });
 
-  function eliminar(fechaTexto) {
-    google.script.run
-      .withSuccessHandler(function(res) {
-        setStatus((res && res.mensaje) || 'Día bloqueado eliminado correctamente.', 'success');
-        cargarDias();
-      })
-      .withFailureHandler(function(error) {
-        setStatus(error.message || String(error), 'error');
-      })
-      .eliminarDiaBloqueadoFormulario(fechaTexto);
-  }
+    function limpiarFormulario() {
+      document.getElementById('fechaDesde').value = '';
+      document.getElementById('fechaHasta').value = '';
+      document.getElementById('motivo').value = '';
+    }
 
-  cargarDias();
-</script>
-
+    function eliminarDiasSeleccionados() {
+      setStatus('Eliminando...', '');
+      const selectedDates = Array.from(document.querySelectorAll('.day-checkbox:checked'))
+                               .map(checkbox => checkbox.value);
+      if (selectedDates.length === 0) {
+        setStatus('Selecciona al menos un día.', 'error');
+        return;
+      }
+      if (!confirm('¿Seguro que deseas eliminar los ' + selectedDates.length + ' días seleccionados?')) {
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(function(resp) {
+          setStatus(resp.mensaje, 'success');
+          cargarDiasBloqueados();
+        })
+        .withFailureHandler(e => setStatus('Error al eliminar: ' + e.message, 'error'))
+        .eliminarLoteDiasBloqueadosFormulario(selectedDates);
+    }
+  </script>
 </body>
 </html>

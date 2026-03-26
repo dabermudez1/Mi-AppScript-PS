@@ -366,11 +366,10 @@ function homeGestionarConfigModalidades() { gestionarConfigModalidades(); }
 function homeGestionarCatalogos() { gestionarCatalogos(); }
 function homeGestionarDiasBloqueados() { gestionarDiasBloqueados(); }
 function homeSincronizarGoogleCalendar() {
-  // Sincronizamos tanto sesiones como días bloqueados para que el operador lo vea completo.
-  sincronizarSesionesAGoogleCalendar();
-  const calendar = obtenerOCrearCalendarioConsulta_();
+  const calendar = obtenerOCrearCalendarioConsulta_(); // Se crea uno por usuario
+  // Sincronizamos sesiones
+  sincronizarSesionesAGoogleCalendar(calendar);
   // Pasamos el calendar explícitamente para evitar ambigüedades de firma
-  // (hay funciones con el mismo nombre en distintos ficheros).
   sincronizarDiasBloqueadosAGoogleCalendar(calendar);
 }
 function homeActualizarEstadosAutomaticos() { actualizarEstadosAutomaticos(); }
@@ -383,4 +382,9 @@ function homeRecalcularEstadosAutomaticamente() { recalcularEstadosAutomaticamen
 function homeFichaClinicaPaciente() { fichaClinicaPaciente(); }
 function homeVerIncidenciasCalendario() { verIncidenciasCalendario(); }
 function homeObtenerResumenIncidenciasCalendario() { return obtenerResumenIncidenciasCalendario(); }
+function homeEstadisticasFichasPacientes() { estadisticasFichasPacientes(); }
+
+function volverAlPanelDesdeDiasBloqueados() {
+  abrirHomeDashboard(); // Re-abre el panel de control
+}
 function homeEstadisticasFichasPacientes() { estadisticasFichasPacientes(); }

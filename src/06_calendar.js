@@ -20,9 +20,7 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
   const calendar = calendarParam || obtenerOCrearCalendarioConsulta_();
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
 
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_SESIONES + '.');
-  }
+  if (!sheet) throw new Error('No existe la hoja ' + SHEET_SESIONES);
 
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return;
@@ -30,173 +28,91 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
   const headers = data[0];
   const idx = indexByHeader_(headers);
 
-  // Mapa PacienteID -> NHC (para que el operador vea NHC en el evento)
+  // 1) Cargar NHCs para la descripción
   const sheetPacientes = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
   let nhcByPacienteId = new Map();
   if (sheetPacientes) {
     const pacData = sheetPacientes.getDataRange().getValues();
-    if (pacData && pacData.length > 1) {
-      const pacIdx = indexByHeader_(pacData[0]);
-      const idCol = pacIdx.PacienteID;
-      const nhcCol = pacIdx.NHC;
-      if (idCol !== undefined && nhcCol !== undefined) {
-        nhcByPacienteId = new Map(
-          pacData.slice(1).map(row => [String(row[idCol]), String(row[nhcCol] || '')])
-        );
-      }
-    }
+    const pIdx = indexByHeader_(pacData[0]);
+    pacData.slice(1).forEach(r => nhcByPacienteId.set(String(r[pIdx.PacienteID]), String(r[pIdx.NHC] || '')));
   }
 
   function esEventoDiaBloqueado_(evento) {
     const titulo = String(evento && typeof evento.getTitle === 'function' ? evento.getTitle() : '');
-    const t = titulo.toLowerCase();
-    return t.includes('día bloqueado') || t.includes('dia bloqueado');
+    return titulo.toLowerCase().includes('bloqueado');
   }
 
-  // 1) BORRAR eventos que ya no existen en "base de datos"
-  // Set con todos los SesionID que existen en la hoja (equivale a "obtenerSesionDesdeBDPorId(...)" en boolean)
-  const sesionIdsBD = new Set(
-    data.slice(1).map(row => String(row[idx.SesionID]))
-  );
-
-  // Rango de fechas basado en la base de datos (acelera bastante si el calendario tiene muchos eventos antiguos)
+  // 2) Identificar rango de fechas y sesiones deseadas
+  const sesionesDeseadas = [];
   let minTime = null;
   let maxTime = null;
 
   for (let i = 1; i < data.length; i++) {
-    const fechaSesion = data[i][idx.FechaSesion];
-    const t = normalizarFecha_(new Date(fechaSesion)).getTime();
-    if (Number.isNaN(t)) continue;
+    const row = data[i];
+    const fecha = new Date(row[idx.FechaSesion]);
+    const t = normalizarFecha_(fecha).getTime();
+    if (isNaN(t)) continue;
+    
     if (minTime === null || t < minTime) minTime = t;
     if (maxTime === null || t > maxTime) maxTime = t;
-  }
 
-  const eventosGoogle =
-    minTime === null
-      ? []
-      : calendar.getEvents(new Date(minTime), new Date(maxTime));
-
-  let eventosBorrados = 0;
-  eventosGoogle.forEach(evento => {
-    // No tocamos los eventos de días bloqueados con la sincronización de sesiones.
-    if (esEventoDiaBloqueado_(evento)) return;
-
-    const existeSesion = sesionIdsBD.has(String(evento.getId()));
-    if (!existeSesion) {
-      evento.deleteEvent();
-      eventosBorrados++;
-      try { Logger.log('Evento eliminado: ' + evento.getTitle()); } catch (e) { /* opcional */ }
-    }
-  });
-
-  // 2) PREFETCH de eventos para evitar getEvents() por fila
-  // Mapa: dia(ms normalizado) => primer evento encontrado en ese día
-  const eventosPorFechaKey = new Map();
-
-  if (minTime !== null) {
-    const eventosEnRango = calendar.getEvents(new Date(minTime), new Date(maxTime));
-    eventosEnRango.forEach(evento => {
-      // Ignoramos eventos de "día bloqueado" al buscar el evento existente del día.
-      if (esEventoDiaBloqueado_(evento)) return;
-
-      let allDayStart = null;
-      if (typeof evento.getAllDayStartDate === 'function') {
-        try {
-          allDayStart = evento.getAllDayStartDate();
-        } catch (e) {
-          allDayStart = null;
-        }
-      }
-      const start = allDayStart instanceof Date ? allDayStart : evento.getStartTime();
-      const key = normalizarFecha_(start).getTime();
-      if (!eventosPorFechaKey.has(key)) {
-        eventosPorFechaKey.set(key, evento);
-      }
-    });
-  }
-
-  // 3) Actualizar/crear por fila como evento "1 día entero" (all-day)
-  data.slice(1).forEach(row => {
-    const pacienteId = row[idx.PacienteID];
-    const modalidad = row[idx.Modalidad];
-    const fechaSesion = row[idx.FechaSesion];
-
-    const fechaSesionDate = new Date(fechaSesion);
-    const fechaDia = normalizarFecha_(fechaSesionDate);
-    const diaKey = fechaDia.getTime();
-
-    const color = obtenerColorPorModalidad_(modalidad);
-    const sesion = {
-      SesionID: row[idx.SesionID],
-      PacienteID: pacienteId,
+    sesionesDeseadas.push({
+      fila: i + 1,
+      SesionID: String(row[idx.SesionID]),
+      CalendarEventId: String(row[idx.CalendarEventId] || ''),
       NombrePaciente: row[idx.NombrePaciente],
       NumeroSesion: row[idx.NumeroSesion],
-      Modalidad: modalidad,
+      Modalidad: row[idx.Modalidad],
       EstadoSesion: row[idx.EstadoSesion],
-      FechaSesion: fechaSesionDate,
+      FechaSesion: fecha,
       FechaOriginal: row[idx.FechaOriginal],
       CicloID: row[idx.CicloID],
       Notas: row[idx.Notas],
-      NHC: nhcByPacienteId.get(String(pacienteId)) || ''
-    };
+      NHC: nhcByPacienteId.get(String(row[idx.PacienteID])) || ''
+    });
+  }
 
+  // 3) Obtener eventos actuales en Google para mapear por ID
+  const buffer = 24 * 60 * 60 * 1000 * 2; // 2 días de margen
+  const eventosEnRango = minTime ? calendar.getEvents(new Date(minTime - buffer), new Date(maxTime + buffer)) : [];
+  const googleEventsMap = new Map();
+  eventosEnRango.forEach(ev => {
+    if (!esEventoDiaBloqueado_(ev)) googleEventsMap.set(ev.getId(), ev);
+  });
+
+  // 4) Procesar Sincronización
+  let actualizados = 0;
+  sesionesDeseadas.forEach(sesion => {
     const titulo = construirTituloEventoSesion_(sesion);
-    const descripcion = construirDescripcionEventoSesion_(sesion);
+    const desc = construirDescripcionEventoSesion_(sesion);
+    const color = obtenerColorPorModalidad_(sesion.Modalidad);
+    const fecha = normalizarFecha_(sesion.FechaSesion);
 
-    let eventoExistente;
-    if (Number.isNaN(diaKey)) {
-      // Mantener comportamiento "tal cual" para fechas inválidas (incluida posible respuesta/throw)
-      eventoExistente = calendar.getEvents(fechaSesionDate, fechaSesionDate)[0];
+    let ev = sesion.CalendarEventId ? googleEventsMap.get(sesion.CalendarEventId) : null;
+
+    if (ev) {
+      ev.setTitle(titulo);
+      ev.setDescription(desc);
+      try { ev.setColor(color); } catch(e){}
     } else {
-      eventoExistente = eventosPorFechaKey.get(diaKey);
+      const nuevoEv = calendar.createAllDayEvent(titulo, fecha, { description: desc });
+      try { nuevoEv.setColor(color); } catch(e){}
+      sheet.getRange(sesion.fila, idx.CalendarEventId + 1).setValue(nuevoEv.getId());
     }
+    actualizados++;
+  });
 
-    if (eventoExistente) {
-      const esAllDay =
-        (() => {
-          if (typeof eventoExistente.getAllDayStartDate !== 'function') return false;
-          try {
-            return !!eventoExistente.getAllDayStartDate();
-          } catch (e) {
-            return false;
-          }
-        })();
-
-      eventoExistente.setTitle(titulo);
-      eventoExistente.setDescription(descripcion);
-
-      if (typeof eventoExistente.setColor === 'function') {
-        try { eventoExistente.setColor(color); } catch (e) { /* ignorar si no soporta color */ }
-      }
-
-      // Cumplir requisito: todo debe quedar como evento all-day.
-      if (!esAllDay) {
-        eventoExistente.deleteEvent();
-        const nuevoEvento = calendar.createAllDayEvent(titulo, fechaDia, { description: descripcion });
-        if (typeof nuevoEvento.setColor === 'function') {
-          try { nuevoEvento.setColor(color); } catch (e) { /* ignorar */ }
-        }
-        if (!Number.isNaN(diaKey)) {
-          eventosPorFechaKey.set(diaKey, nuevoEvento);
-        }
-      }
-    } else {
-      const nuevoEvento = calendar.createAllDayEvent(titulo, fechaDia, { description: descripcion });
-      if (typeof nuevoEvento.setColor === 'function') {
-        try { nuevoEvento.setColor(color); } catch (e) { /* ignorar */ }
-      }
-
-      // Si hay más filas con la misma fecha, mantenemos el comportamiento previo: mapear al primer evento encontrado.
-      if (!Number.isNaN(diaKey)) {
-        eventosPorFechaKey.set(diaKey, nuevoEvento);
-      }
+  // 5) Limpiar eventos huérfanos en Google (opcional pero recomendado)
+  const idsValidos = new Set(sesionesDeseadas.map(s => s.CalendarEventId).filter(id => id));
+  let eliminados = 0;
+  googleEventsMap.forEach((ev, id) => {
+    if (!idsValidos.has(id)) {
+      ev.deleteEvent();
+      eliminados++;
     }
   });
 
-  ui.alert(
-    'Sincronización de Google Calendar completada.' +
-    (typeof eventosBorrados === 'number' && eventosBorrados > 0 ? ' (eventos eliminados: ' + eventosBorrados + ')' : '')
-  );
+  ui.alert(`Sincronización completada.\nActualizados/Creados: ${actualizados}\nEliminados: ${eliminados}`);
 }
 
 
@@ -205,7 +121,7 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
  ***************/
 function obtenerOCrearCalendarioConsulta_() {
   const ui = SpreadsheetApp.getUi();
-  const props = PropertiesService.getScriptProperties();
+  const props = PropertiesService.getUserProperties();
   const savedCalendarId = props.getProperty('CONSULTA_CALENDAR_ID');
 
   let calendar;
@@ -439,7 +355,7 @@ function verCalendarioConsultaActual() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    const props = PropertiesService.getScriptProperties();
+    const props = PropertiesService.getUserProperties();
     const savedCalendarId = props.getProperty('CONSULTA_CALENDAR_ID') || '(no guardado)';
     const calendar = obtenerOCrearCalendarioConsulta_();
 
@@ -459,7 +375,7 @@ function resetCalendarioConsultaVinculado() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    PropertiesService.getScriptProperties().deleteProperty('CONSULTA_CALENDAR_ID');
+    PropertiesService.getUserProperties().deleteProperty('CONSULTA_CALENDAR_ID');
     const calendar = obtenerOCrearCalendarioConsulta_();
 
     ui.alert(
@@ -519,111 +435,7 @@ function limpiarCamposSyncCalendarSesiones() {
   }
 }
 
-function crearTriggerAutomatico() {
-  ScriptApp.newTrigger('sincronizarDiasBloqueadosAGoogleCalendar')
-    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
-    .onEdit()  // Se activa cada vez que se edita el documento
-    .create();
-}
-
-function sincronizarCalendario() {
-  const calendar = CalendarApp.getCalendarById('your-calendar-id@group.calendar.google.com');
-  
-  // Este es un ejemplo de la lista de sesiones
-  const sesiones = obtenerSesionesParaSincronizar();  // Suponiendo que esta función ya existe y retorna las sesiones que quieres sincronizar.
-  
-  sesiones.forEach(function(sesion) {
-    let colorId;
-    let tituloEvento = 'Consulta Psicología';  // Por defecto, puedes cambiarlo si es necesario.
-
-    // Asignar color según la modalidad
-    switch (sesion.modalidad) {
-      case 'INDIVIDUAL':
-        colorId = 8;  // Violeta
-        tituloEvento = 'Consulta Psicología Individual';
-        break;
-      case 'GRUPO_1':
-        colorId = 6;  // Verde claro
-        tituloEvento = 'Consulta Psicología Grupo 1';
-        break;
-      case 'GRUPO_2':
-        colorId = 9;  // Azul claro
-        tituloEvento = 'Consulta Psicología Grupo 2';
-        break;
-      case 'GRUPO_3':
-        colorId = 1;  // Azul
-        tituloEvento = 'Consulta Psicología Grupo 3';
-        break;
-      default:
-        colorId = 1;  // Azul por defecto
-        break;
-    }
-
-    // Crear evento de todo el día
-    calendar.createAllDayEvent(tituloEvento, new Date(sesion.fecha), { 
-      description: sesion.descripcion || '', 
-      colorId: colorId  // Aplicar el color al evento
-    });
-  });
-}
-
-// Legacy/ejemplo: mantenido para referencia, pero RENOMBRADO para que no interfiera
-// con la sincronización real que vive en `23_dias_bloqueados_calendar_sync.js`.
-function sincronizarDiasBloqueadosAGoogleCalendarLegacy_(calendar) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DIAS_BLOQUEADOS);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_DIAS_BLOQUEADOS + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(data[0]);
-  
-  const eventosEnCalendar = calendar.getEvents(new Date(), new Date('2025-12-31')); // Obtener eventos del calendario
-
-  for (let i = 1; i < data.length; i++) {
-    const fechaBloqueada = data[i][idx.Fecha];
-    const motivo = data[i][idx.Motivo];
-    
-    if (!fechaBloqueada || !motivo) continue;
-
-    const eventoExistente = eventosEnCalendar.find(evento => evento.getTitle().includes(motivo));
-    
-    if (!eventoExistente) {
-      // Crear evento si no existe
-      calendar.createAllDayEvent(
-        'Día bloqueado: ' + motivo,
-        new Date(fechaBloqueada),
-        { description: 'Motivo: ' + motivo }
-      );
-    } else {
-      // Eliminar evento si está presente pero ya no es relevante
-      eventoExistente.deleteEvent();
-    }
-  }
-}
-
-function eliminarEventosAntiguos(calendar, eventosEnCalendar) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
-  const data = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(data[0]);
-
-  // Obtener todos los eventos existentes en Google Calendar
-  const eventIdsEnBaseDeDatos = data.slice(1).map(row => row[idx.CalendarEventId]);
-
-  // Eliminar eventos en el calendario que no están en la base de datos
-  eventosEnCalendar.forEach(event => {
-    if (!eventIdsEnBaseDeDatos.includes(event.getId())) {
-      event.deleteEvent();
-    }
-  });
-}
-
-function crearTriggerAutomatico() {
-  ScriptApp.newTrigger('sincronizarCalendario')
-    .timeBased()
-    .everyHours(1)  // Sincronización cada hora
-    .create();
-}
+// Eliminadas funciones duplicadas y legacy
 
 function eliminarEventosNoRepresentados(calendar) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);

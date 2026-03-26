@@ -23,25 +23,24 @@ function obtenerDiasBloqueadosFormulario() {
     return [];
   }
 
-  const idx = indexByHeader_(data[0]);
+  // Normalizamos encabezados a minúsculas para evitar errores de teclado
+  const headers = data[0].map(h => String(h).toLowerCase());
+  const colFecha = headers.indexOf('fecha');
+  const colBloqueado = headers.indexOf('bloqueado');
+  const colMotivo = headers.indexOf('motivo');
+
   const out = [];
 
-  // Obtener el primer y último día del próximo mes
-  const fechaHoy = new Date();
-  const primerDiaProximoMes = new Date(fechaHoy.getFullYear(), fechaHoy.getMonth() + 1, 1);
-  const ultimoDiaProximoMes = new Date(fechaHoy.getFullYear(), fechaHoy.getMonth() + 2, 0); // El 0 nos da el último día del mes anterior al mes siguiente
-
   for (let i = 1; i < data.length; i++) {
-    const fecha = new Date(data[i][idx.Fecha]); // Asegúrate de que la fecha esté en el formato adecuado
-    const bloqueado = data[i][idx.Bloqueado];
-    const motivo = data[i][idx.Motivo];
-
-    if (!fecha || fecha < primerDiaProximoMes || fecha > ultimoDiaProximoMes) continue; // Filtra los días fuera del rango del próximo mes
+    const valFecha = data[i][colFecha];
+    const fecha = valFecha instanceof Date ? valFecha : new Date(valFecha);
+    
+    if (!fecha || isNaN(fecha.getTime())) continue;
 
     out.push({
-      fecha: formatearFecha_(fecha),  // Asegúrate de que esta función esté bien implementada
-      bloqueado: esValorVerdadero_(bloqueado),
-      motivo: motivo || ''
+      fecha: formatearFecha_(fecha),
+      bloqueado: esValorVerdadero_(data[i][colBloqueado]),
+      motivo: data[i][colMotivo] || ''
     });
   }
 
@@ -133,40 +132,50 @@ function guardarDiaBloqueadoFormulario(formData) {
     mensaje += '\nFines de semana omitidos: ' + omitidosFinSemana;
   }
 
+  // Sincronizar con Google Calendar después de modificar los días bloqueados
+  sincronizarDiasBloqueadosAGoogleCalendar();
+
   return { mensaje: mensaje };
 }
 
-function eliminarDiaBloqueadoFormulario(fechaTexto) {
-  const fecha = parseFechaES_(fechaTexto);
-  if (!fecha) {
-    throw new Error('La fecha indicada no es válida.');
+function eliminarLoteDiasBloqueadosFormulario(fechasTexto) {
+  if (!Array.isArray(fechasTexto) || fechasTexto.length === 0) {
+    throw new Error('No se han seleccionado fechas para eliminar.');
   }
 
-  const claveObjetivo = obtenerClaveFecha_(fecha);
+  const clavesObjetivo = new Set(fechasTexto.map(f => {
+    const fObj = parseFechaES_(f);
+    if (!fObj) throw new Error('Fecha no válida: ' + f);
+    return obtenerClaveFecha_(fObj);
+  }));
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DIAS_BLOQUEADOS');
-  if (!sheet) {
-    throw new Error('No existe la hoja DIAS_BLOQUEADOS.');
-  }
+  if (!sheet) throw new Error('No existe la hoja DIAS_BLOQUEADOS.');
 
   const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('No hay días bloqueados para eliminar.');
-  }
+  if (data.length < 2) return { mensaje: 'No hay datos para eliminar.' };
 
   const idx = indexByHeader_(data[0]);
+  let eliminados = 0;
 
-  for (let i = 1; i < data.length; i++) {
+  // Recorremos de abajo hacia arriba para mantener la validez de los índices al borrar filas
+  for (let i = data.length - 1; i >= 1; i--) {
     const fechaFila = data[i][idx.Fecha];
     if (!fechaFila) continue;
 
     const claveFila = obtenerClaveFecha_(fechaFila);
-
-    if (claveFila === claveObjetivo) {
+    if (clavesObjetivo.has(claveFila)) {
       sheet.deleteRow(i + 1);
-      return { mensaje: 'Día bloqueado eliminado correctamente.' };
+      eliminados++;
     }
   }
 
-  throw new Error('No se encontró el día bloqueado indicado.');
+  // Sincronizar con Google Calendar después de modificar los días bloqueados
+  sincronizarDiasBloqueadosAGoogleCalendar();
+
+  return { mensaje: `Se han eliminado ${eliminados} días bloqueados correctamente.` };
+}
+
+function eliminarDiaBloqueadoFormulario(fechaTexto) {
+  return eliminarLoteDiasBloqueadosFormulario([fechaTexto]);
 }
