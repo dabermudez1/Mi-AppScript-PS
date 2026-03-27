@@ -58,16 +58,28 @@ function obtenerDatosHomeDashboard() {
 
   const hoy = normalizarFecha_(new Date());
 
+  // Optimizamos: Cálculo de métricas en un solo paso (Single-pass)
   const resumen = {
     totalPacientes: pacientes.length,
-    activos: pacientes.filter(p => p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO).length,
-    espera: pacientes.filter(p => p.estadoPaciente === ESTADOS_PACIENTE.ESPERA).length,
-    alta: pacientes.filter(p => p.estadoPaciente === ESTADOS_PACIENTE.ALTA).length,
-    pendienteInicio: pacientes.filter(p => p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO).length,
-    gruposEnCurso: ciclos.filter(c => c.estadoCiclo === ESTADOS_CICLO.EN_CURSO).length,
-    sesionesPendientes: sesiones.filter(s => s.estadoSesion === ESTADOS_SESION.PENDIENTE).length,
-    sesionesErrorSync: sesiones.filter(s => s.calendarSyncStatus === 'ERROR').length
+    activos: 0, espera: 0, alta: 0, pendienteInicio: 0,
+    gruposEnCurso: 0, sesionesPendientes: 0, sesionesErrorSync: 0
   };
+
+  pacientes.forEach(p => {
+    if (p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO) resumen.activos++;
+    else if (p.estadoPaciente === ESTADOS_PACIENTE.ESPERA) resumen.espera++;
+    else if (p.estadoPaciente === ESTADOS_PACIENTE.ALTA) resumen.alta++;
+    else if (p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO) resumen.pendienteInicio++;
+  });
+
+  ciclos.forEach(c => {
+    if (c.estadoCiclo === ESTADOS_CICLO.EN_CURSO) resumen.gruposEnCurso++;
+  });
+
+  sesiones.forEach(s => {
+    if (s.estadoSesion === ESTADOS_SESION.PENDIENTE) resumen.sesionesPendientes++;
+    if (s.calendarSyncStatus === 'ERROR') resumen.sesionesErrorSync++;
+  });
 
   const ocupacionPorModalidad = Object.values(MODALIDADES).map(modalidad => {
     if (modalidad === MODALIDADES.INDIVIDUAL) {

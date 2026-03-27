@@ -82,6 +82,7 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
 
   // 4) Procesar Sincronización
   let actualizados = 0;
+  const colEventId = idx.CalendarEventId;
   sesionesDeseadas.forEach(sesion => {
     const titulo = construirTituloEventoSesion_(sesion);
     const desc = construirDescripcionEventoSesion_(sesion);
@@ -97,10 +98,14 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
     } else {
       const nuevoEv = calendar.createAllDayEvent(titulo, fecha, { description: desc });
       try { nuevoEv.setColor(color); } catch(e){}
-      sheet.getRange(sesion.fila, idx.CalendarEventId + 1).setValue(nuevoEv.getId());
+      // Actualizamos el ID en el array de datos en memoria
+      data[sesion.fila - 1][colEventId] = nuevoEv.getId();
     }
     actualizados++;
   });
+
+  // Persistimos los nuevos IDs a la hoja en una sola llamada
+  sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
 
   // 5) Limpiar eventos huérfanos en Google (opcional pero recomendado)
   const idsValidos = new Set(sesionesDeseadas.map(s => s.CalendarEventId).filter(id => id));
@@ -420,12 +425,11 @@ function limpiarCamposSyncCalendarSesiones() {
       }
     });
 
-    for (let i = 1; i < data.length; i++) {
-      sheet.getRange(i + 1, idx.CalendarEventId + 1).setValue('');
-      sheet.getRange(i + 1, idx.CalendarSyncStatus + 1).setValue('');
-      sheet.getRange(i + 1, idx.CalendarLastSync + 1).setValue('');
-      sheet.getRange(i + 1, idx.CalendarEventTitle + 1).setValue('');
-      sheet.getRange(i + 1, idx.CalendarHash + 1).setValue('');
+    // Optimizamos: En lugar de bucle, limpiamos los rangos de las columnas afectadas
+    const maxRows = sheet.getLastRow() - 1;
+    if (maxRows > 0) {
+      const colIndices = [idx.CalendarEventId, idx.CalendarSyncStatus, idx.CalendarLastSync, idx.CalendarEventTitle, idx.CalendarHash];
+      colIndices.forEach(col => sheet.getRange(2, col + 1, maxRows, 1).clearContent());
     }
 
     ui.alert('Campos de sincronización limpiados en SESIONES.');

@@ -112,15 +112,23 @@ function guardarDiaBloqueadoFormulario(formData) {
 
     if (existentes[clave]) {
       const rowNum = existentes[clave];
-      sheet.getRange(rowNum, idx.Bloqueado + 1).setValue(true);
-      sheet.getRange(rowNum, idx.Motivo + 1).setValue(motivo);
+      data[rowNum - 1][idx.Bloqueado] = true;
+      data[rowNum - 1][idx.Motivo] = motivo;
       actualizados++;
     } else {
-      sheet.appendRow([fechaActual, true, motivo]);
+      const newRow = new Array(data[0].length).fill('');
+      newRow[idx.Fecha] = fechaActual;
+      newRow[idx.Bloqueado] = true;
+      newRow[idx.Motivo] = motivo;
+      data.push(newRow);
       insertados++;
     }
 
     actual = sumarDiasNaturales_(actual, 1);
+  }
+
+  if (insertados > 0 || actualizados > 0) {
+    sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
   }
 
   let mensaje =
@@ -158,16 +166,21 @@ function eliminarLoteDiasBloqueadosFormulario(fechasTexto) {
   const idx = indexByHeader_(data[0]);
   let eliminados = 0;
 
-  // Recorremos de abajo hacia arriba para mantener la validez de los índices al borrar filas
-  for (let i = data.length - 1; i >= 1; i--) {
+  // Optimizamos: Filtramos el array en memoria en lugar de borrar filas una a una
+  const newData = [data[0]]; // Encabezados
+  for (let i = 1; i < data.length; i++) {
     const fechaFila = data[i][idx.Fecha];
-    if (!fechaFila) continue;
-
-    const claveFila = obtenerClaveFecha_(fechaFila);
-    if (clavesObjetivo.has(claveFila)) {
-      sheet.deleteRow(i + 1);
+    const claveFila = fechaFila ? obtenerClaveFecha_(fechaFila) : null;
+    if (claveFila && clavesObjetivo.has(claveFila)) {
       eliminados++;
+    } else {
+      newData.push(data[i]);
     }
+  }
+
+  if (eliminados > 0) {
+    sheet.clearContents();
+    sheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
   }
 
   // Sincronizar con Google Calendar después de modificar los días bloqueados
