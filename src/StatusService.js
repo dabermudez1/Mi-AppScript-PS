@@ -19,6 +19,9 @@ class StatusService {
     // Al final, sincronizamos las métricas de todos los pacientes activos
     this.syncAllActivePatientMetrics();
     
+    // NUEVO: Sincronización con Google Calendar
+    CalendarService.syncAll();
+    
     return resultados;
   }
 

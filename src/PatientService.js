@@ -26,8 +26,7 @@ class PatientService {
 
     const sesionesPlanificadas = Number(config.SesionesPorCiclo || 7);
     
-    // Creamos el objeto entidad (POJO)
-    const nuevoPaciente = {
+    const nuevoPaciente = new PatientEntity({
       PacienteID: generarId_('PAC'),
       Nombre: formData.nombre,
       NHC: formData.nhc,
@@ -42,7 +41,10 @@ class PatientService {
       SesionesCompletadas: 0,
       SesionesPendientes: sesionesPlanificadas,
       RecalcularSecuencia: false
-    };
+    });
+
+    // Validación inmediata antes de cualquier lógica adicional
+    nuevoPaciente.validate();
 
     if (!tieneCapacidad) {
       nuevoPaciente.EstadoPaciente = ESTADOS_PACIENTE.ESPERA;
@@ -67,7 +69,7 @@ class PatientService {
     patientRepo.save(nuevoPaciente);
 
     // Invocamos la generación de sesiones (Bloque 4)
-    const resultadoSesiones = SessionService.generateForIndividual(nuevoPaciente.PacienteID);
+    const resultadoSesiones = generarSesionesPacienteIndividual_(nuevoPaciente.PacienteID);
 
     return {
       success: true,

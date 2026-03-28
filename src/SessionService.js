@@ -47,7 +47,7 @@ class SessionService {
    * @private
    */
   static _bulkCreate(patient, fechas, cicloId = '') {
-    const sessions = fechas.map((fecha, index) => ({
+    const sessions = fechas.map((fecha, index) => new SessionEntity({
       SesionID: generarId_('SES'),
       PacienteID: patient.PacienteID,
       CicloID: cicloId,

@@ -20,5 +20,8 @@ class PatientRepository extends BaseRepository {
   }
 }
 
-// Instancia única para ser usada en los servicios
-const patientRepo = new PatientRepository();
+// Usamos un getter para evitar problemas de orden de carga de BaseRepository
+var patientRepo;
+if (!patientRepo) {
+  patientRepo = new PatientRepository();
+}
