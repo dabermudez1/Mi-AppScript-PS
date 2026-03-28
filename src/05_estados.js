@@ -7,27 +7,8 @@ function actualizarEstadosAutomaticos() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    const resumen = {
-      ocupacionAntes: 0,
-      ciclosEnCurso: 0,
-      ciclosCerrados: 0,
-      asignacionesActivadas: 0,
-      asignacionesFinalizadas: 0,
-      pacientesActivados: 0,
-      sesionesAutoCompletadas: 0,
-      pacientesAlta: 0,
-      ocupacionDespues: 0
-    };
-
-    resumen.ocupacionAntes = recalcularOcupacionCiclosInterno_();
-    resumen.ciclosEnCurso = actualizarCiclosAEnCurso_();
-    resumen.ciclosCerrados = actualizarCiclosACerrado_();
-    resumen.asignacionesActivadas = actualizarAsignacionesAActivas_();
-    resumen.asignacionesFinalizadas = actualizarAsignacionesAFinalizadas_();
-    resumen.pacientesActivados = actualizarPacientesAPorInicioDeCiclo_();
-    resumen.sesionesAutoCompletadas = actualizarSesionesVencidas_();
-    resumen.pacientesAlta = actualizarPacientesAAlta_();
-    resumen.ocupacionDespues = recalcularOcupacionCiclosInterno_();
+    recalcularOcupacionCiclosInterno_();
+    const res = StatusService.runDailyUpdate();
 
     try {
       refrescarDashboard();
