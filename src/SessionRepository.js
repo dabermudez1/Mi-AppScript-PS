@@ -7,4 +7,7 @@ class SessionRepository extends BaseRepository {
     super(SHEET_SESIONES, 'SesionID');
   }
 }
-const sessionRepo = new SessionRepository();
+var sessionRepo;
+if (!sessionRepo) {
+  sessionRepo = new SessionRepository();
+}

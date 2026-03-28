@@ -18,15 +18,10 @@ function actualizarEstadosAutomaticos() {
 
     ui.alert(
       'Actualización completada.\n\n' +
-      'Ciclos recalculados (antes): ' + resumen.ocupacionAntes + '\n' +
-      'Ciclos → EN_CURSO: ' + resumen.ciclosEnCurso + '\n' +
-      'Ciclos → CERRADO: ' + resumen.ciclosCerrados + '\n' +
-      'Asignaciones → ACTIVO: ' + resumen.asignacionesActivadas + '\n' +
-      'Asignaciones → FINALIZADO: ' + resumen.asignacionesFinalizadas + '\n' +
-      'Pacientes → ACTIVO: ' + resumen.pacientesActivados + '\n' +
-      'Sesiones auto-completadas: ' + resumen.sesionesAutoCompletadas + '\n' +
-      'Pacientes → ALTA: ' + resumen.pacientesAlta + '\n' +
-      'Ciclos recalculados (después): ' + resumen.ocupacionDespues
+      'Ciclos actualizados (En curso/Cerrados): ' + (res.ciclos.aEnCurso + res.ciclos.aCerrado) + '\n' +
+      'Pacientes con cambio de estado: ' + res.pacientes + '\n' +
+      'Sesiones vencidas procesadas: ' + res.sesiones + '\n\n' +
+      'El calendario de Google ha sido sincronizado automáticamente.'
     );
 
   } catch (error) {

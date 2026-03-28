@@ -13,148 +13,65 @@ function abrirHomeDashboard() {
 }
 
 function obtenerDatosHomeDashboard() {
-  // `recalcularMetricasBasicas_()` puede ser costoso si hay muchas sesiones.
-  // Cacheamos el recálculo breve para que el panel sea fluido.
-  const cache = CacheService.getScriptCache();
-  const cacheKey = 'metricasBasicas_home_lastRun';
-  const ttlSeconds = 60;
-
-  const yaReciente = cache.get(cacheKey);
-  if (!yaReciente) {
-    const lock = LockService.getScriptLock();
-    if (lock.tryLock(1500)) {
-      try {
-        const yaReciente2 = cache.get(cacheKey);
-        if (!yaReciente2) {
-          recalcularMetricasBasicas_();
-          cache.put(cacheKey, '1', ttlSeconds);
-        }
-      } finally {
-        lock.releaseLock();
-      }
-    }
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetPac = ss.getSheetByName(SHEET_PACIENTES);
-  const sheetCic = ss.getSheetByName(SHEET_CICLOS);
-  const sheetSes = ss.getSheetByName(SHEET_SESIONES);
-  const sheetCfg = ss.getSheetByName(SHEET_CONFIG_MODALIDADES);
-
-  if (!sheetPac || !sheetCic || !sheetSes || !sheetCfg) {
-    throw new Error('Faltan hojas necesarias para construir el panel.');
-  }
-
-  const pacData = sheetPac.getDataRange().getValues();
-  const cicData = sheetCic.getDataRange().getValues();
-  const sesData = sheetSes.getDataRange().getValues();
-  const cfgData = sheetCfg.getDataRange().getValues();
-
-  const pacientes = mapHomePacientes_(pacData);
-  const ciclos = mapHomeCiclos_(cicData);
-  const sesiones = mapHomeSesiones_(sesData);
-  const config = mapHomeConfig_(cfgData);
-  const sesIdx = (sesData && sesData.length > 0) ? indexByHeader_(sesData[0]) : null;
-
+  // 1. Obtención de datos mediante Repositorios
+  const pacientes = patientRepo.findAll();
+  const ciclos = cycleRepo.findAll();
+  const sesiones = sessionRepo.findAll();
+  
   const hoy = normalizarFecha_(new Date());
 
-  // Optimizamos: Cálculo de métricas en un solo paso (Single-pass)
+  // 2. Cálculo de métricas generales (Single-pass sobre Entidades)
   const resumen = {
     totalPacientes: pacientes.length,
-    activos: 0, espera: 0, alta: 0, pendienteInicio: 0,
-    gruposEnCurso: 0, sesionesPendientes: 0, sesionesErrorSync: 0
+    activos: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO).length,
+    espera: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ESPERA).length,
+    alta: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ALTA).length,
+    pendienteInicio: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO).length,
+    gruposEnCurso: ciclos.filter(c => c.EstadoCiclo === ESTADOS_CICLO.EN_CURSO).length,
+    sesionesPendientes: sesiones.filter(s => s.EstadoSesion === ESTADOS_SESION.PENDIENTE).length,
+    sesionesErrorSync: sesiones.filter(s => s.CalendarSyncStatus === 'ERROR').length
   };
 
-  pacientes.forEach(p => {
-    if (p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO) resumen.activos++;
-    else if (p.estadoPaciente === ESTADOS_PACIENTE.ESPERA) resumen.espera++;
-    else if (p.estadoPaciente === ESTADOS_PACIENTE.ALTA) resumen.alta++;
-    else if (p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO) resumen.pendienteInicio++;
-  });
-
-  ciclos.forEach(c => {
-    if (c.estadoCiclo === ESTADOS_CICLO.EN_CURSO) resumen.gruposEnCurso++;
-  });
-
-  sesiones.forEach(s => {
-    if (s.estadoSesion === ESTADOS_SESION.PENDIENTE) resumen.sesionesPendientes++;
-    if (s.calendarSyncStatus === 'ERROR') resumen.sesionesErrorSync++;
-  });
-
+  // 3. Ocupación por modalidad
   const ocupacionPorModalidad = Object.values(MODALIDADES).map(modalidad => {
     if (modalidad === MODALIDADES.INDIVIDUAL) {
-      const capacidad = Number((config[modalidad] || {}).capacidadMaxima || 0);
+      const config = obtenerConfigModalidad_(modalidad);
+      const capacidad = Number(config.CapacidadMaxima || 0);
       const ocupadas = pacientes.filter(p =>
-        p.modalidad === modalidad &&
-        p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO
+        p.ModalidadSolicitada === modalidad &&
+        p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO
       ).length;
 
       return {
         modalidad,
         capacidad,
         ocupadas,
-        libres: Math.max(0, capacidad - ocupadas),
-        porcentaje: capacidad > 0 ? Math.round((ocupadas / capacidad) * 100) : 0
+        libres: Math.max(0, capacidad - ocupadas)
       };
     }
 
-    const ciclosVigentes = ciclos.filter(c =>
-      c.modalidad === modalidad &&
-      (c.estadoCiclo === ESTADOS_CICLO.PLANIFICADO || c.estadoCiclo === ESTADOS_CICLO.EN_CURSO)
-    );
-
-    if (ciclosVigentes.length === 0) {
-      return {
-        modalidad,
-        capacidad: 0,
-        ocupadas: 0,
-        libres: 0,
-        porcentaje: 0
-      };
-    }
-
-    const cicloReferencia = ciclosVigentes
-      .slice()
-      .sort((a, b) => compararFechas_(parseFechaHome_(a.fechaInicioCiclo), parseFechaHome_(b.fechaInicioCiclo)))[0];
-
-    const capacidad = Number(cicloReferencia.capacidadMaxima || 0);
-    const ocupadas = Number(cicloReferencia.plazasOcupadas || 0);
+    // Para grupos, buscamos el ciclo activo o el próximo planificado
+    const cicloRef = ciclos
+      .filter(c => c.Modalidad === modalidad && c.EstadoCiclo !== ESTADOS_CICLO.CERRADO)
+      .sort((a, b) => a.FechaInicioCiclo - b.FechaInicioCiclo)[0];
 
     return {
       modalidad,
-      capacidad,
-      ocupadas,
-      libres: Math.max(0, capacidad - ocupadas),
-      porcentaje: capacidad > 0 ? Math.round((ocupadas / capacidad) * 100) : 0
+      capacidad: cicloRef ? cicloRef.CapacidadMaxima : 0,
+      ocupadas: cicloRef ? cicloRef.PlazasOcupadas : 0,
+      libres: cicloRef ? cicloRef.PlazasLibres : 0
     };
   });
 
-  const estadoCiclos = {
-    planificados: ciclos.filter(c => c.estadoCiclo === ESTADOS_CICLO.PLANIFICADO).length,
-    enCurso: ciclos.filter(c => c.estadoCiclo === ESTADOS_CICLO.EN_CURSO).length,
-    cerrados: ciclos.filter(c => c.estadoCiclo === ESTADOS_CICLO.CERRADO).length,
-    cancelados: ciclos.filter(c => c.estadoCiclo === ESTADOS_CICLO.CANCELADO).length
-  };
-
-  const esperaPorModalidad = Object.values(MODALIDADES).map(mod => ({
-    modalidad: mod,
-    total: pacientes.filter(p =>
-      p.modalidad === mod &&
-      p.estadoPaciente === ESTADOS_PACIENTE.ESPERA
-    ).length
-  }));
-
+  // 4. Listados próximos
   const proximosCiclos = ciclos
-    .filter(c => c.estadoCiclo === ESTADOS_CICLO.PLANIFICADO)
-    .sort((a, b) => compararFechas_(parseFechaHome_(a.fechaInicioCiclo), parseFechaHome_(b.fechaInicioCiclo)))
+    .filter(c => c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO)
+    .sort((a, b) => a.FechaInicioCiclo - b.FechaInicioCiclo)
     .slice(0, 8);
 
   const proximosPacientes = pacientes
-    .filter(p =>
-      p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO ||
-      p.estadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO
-    )
-    .sort((a, b) => compararFechas_(parseFechaHome_(a.proximaSesion), parseFechaHome_(b.proximaSesion)))
+    .filter(p => p.EstadoPaciente !== ESTADOS_PACIENTE.ALTA && p.ProximaSesion)
+    .sort((a, b) => a.ProximaSesion - b.ProximaSesion)
     .slice(0, 10);
 
   const alertas = construirAlertasHome_(pacientes, ciclos, sesiones, hoy);
@@ -164,12 +81,9 @@ function obtenerDatosHomeDashboard() {
     fechaActualizacion: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm'),
     resumen,
     ocupacionPorModalidad,
-    estadoCiclos,
-    esperaPorModalidad,
     proximosCiclos,
     proximosPacientes,
-    resumenIncidenciasCalendario: obtenerResumenIncidenciasCalendario(sesData, sesIdx),
-    calendarUrl: (typeof obtenerCalendarConsultaUrl_ === 'function') ? obtenerCalendarConsultaUrl_() : null,
+    calendarUrl: CalendarService.getCalendar().getId(),
     alertas
   };
 }
@@ -178,86 +92,26 @@ function construirAlertasHome_(pacientes, ciclos, sesiones, hoy) {
   const alertas = [];
 
   const esperaSinCiclo = pacientes.filter(p =>
-    p.estadoPaciente === ESTADOS_PACIENTE.ESPERA &&
-    (!p.cicloObjetivoId && !p.cicloActivoId)
+    p.EstadoPaciente === ESTADOS_PACIENTE.ESPERA &&
+    (!p.CicloObjetivoID && !p.CicloActivoID)
   ).length;
 
   if (esperaSinCiclo > 0) {
     alertas.push({
       tipo: 'warning',
       titulo: 'Pacientes en espera sin ciclo asignado',
-      detalle: String(esperaSinCiclo)
+      detalle: `${esperaSinCiclo} pacientes`
     });
   }
 
-  const erroresSync = sesiones.filter(s => s.calendarSyncStatus === 'ERROR').length;
+  const erroresSync = sesiones.filter(s => s.CalendarSyncStatus === 'ERROR').length;
   if (erroresSync > 0) {
     alertas.push({
       tipo: 'danger',
       titulo: 'Sesiones con error de sincronización',
-      detalle: String(erroresSync)
+      detalle: `${erroresSync} sesiones`
     });
   }
-
-  const ciclosLlenos = ciclos.filter(c =>
-    (c.estadoCiclo === ESTADOS_CICLO.PLANIFICADO || c.estadoCiclo === ESTADOS_CICLO.EN_CURSO) &&
-    Number(c.plazasLibres || 0) <= 0
-  ).length;
-
-  if (ciclosLlenos > 0) {
-    alertas.push({
-      tipo: 'warning',
-      titulo: 'Ciclos sin plazas libres',
-      detalle: String(ciclosLlenos)
-    });
-  }
-
-  const grupos = [MODALIDADES.GRUPO_1, MODALIDADES.GRUPO_2, MODALIDADES.GRUPO_3];
-
-  grupos.forEach(mod => {
-    const tienePlanificado = ciclos.some(c =>
-      c.modalidad === mod &&
-      c.estadoCiclo === ESTADOS_CICLO.PLANIFICADO
-    );
-
-    const esperaMod = pacientes.filter(p =>
-      p.modalidad === mod &&
-      p.estadoPaciente === ESTADOS_PACIENTE.ESPERA
-    ).length;
-
-    if (esperaMod > 0 && !tienePlanificado) {
-      alertas.push({
-        tipo: 'warning',
-        titulo: 'Grupo con espera sin próximo ciclo',
-        detalle: mod + ' (' + esperaMod + ' en espera)'
-      });
-    }
-  });
-
-  const inicianPronto = pacientes.filter(p => {
-    if (p.estadoPaciente !== ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO) return false;
-    const fecha = parseFechaHome_(p.proximaSesion);
-    if (!fecha) return false;
-    const diff = Math.round((fecha.getTime() - hoy.getTime()) / (24 * 60 * 60 * 1000));
-    return diff >= 0 && diff <= 7;
-  }).length;
-
-  if (inicianPronto > 0) {
-    alertas.push({
-      tipo: 'info',
-      titulo: 'Pacientes que empiezan ciclo en 7 días',
-      detalle: String(inicianPronto)
-    });
-  }
-
-  if (alertas.length === 0) {
-    alertas.push({
-      tipo: 'ok',
-      titulo: 'Sin alertas relevantes',
-      detalle: 'Todo en orden'
-    });
-  }
-
   return alertas;
 }
 
