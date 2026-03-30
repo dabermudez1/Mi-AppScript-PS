@@ -18,61 +18,28 @@ function crearCalendarioConsulta() {
 function sincronizarSesionesAGoogleCalendar(calendarParam) {
   const ui = SpreadsheetApp.getUi();
   const calendar = calendarParam || obtenerOCrearCalendarioConsulta_();
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
-
-  if (!sheet) throw new Error('No existe la hoja ' + SHEET_SESIONES);
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return;
-
-  const headers = data[0];
-  const idx = indexByHeader_(headers);
+  
+  const sessionRepo = new SessionRepository();
+  const patientRepo = new PatientRepository();
 
   // 1) Cargar NHCs para la descripción
-  const sheetPacientes = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  let nhcByPacienteId = new Map();
-  if (sheetPacientes) {
-    const pacData = sheetPacientes.getDataRange().getValues();
-    const pIdx = indexByHeader_(pacData[0]);
-    pacData.slice(1).forEach(r => nhcByPacienteId.set(String(r[pIdx.PacienteID]), String(r[pIdx.NHC] || '')));
-  }
-
-  function esEventoDiaBloqueado_(evento) {
-    const titulo = String(evento && typeof evento.getTitle === 'function' ? evento.getTitle() : '');
-    return titulo.toLowerCase().includes('bloqueado');
-  }
+  const pacientes = patientRepo.findAll();
+  const nhcByPacienteId = new Map(pacientes.map(p => [String(p.PacienteID), String(p.NHC || '')]));
 
   // 2) Identificar rango de fechas y sesiones deseadas
-  const sesionesDeseadas = [];
-  let minTime = null;
-  let maxTime = null;
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const fecha = new Date(row[idx.FechaSesion]);
-    const t = normalizarFecha_(fecha).getTime();
-    if (isNaN(t)) continue;
-    
-    if (minTime === null || t < minTime) minTime = t;
-    if (maxTime === null || t > maxTime) maxTime = t;
-
-    sesionesDeseadas.push({
-      fila: i + 1,
-      SesionID: String(row[idx.SesionID]),
-      CalendarEventId: String(row[idx.CalendarEventId] || ''),
-      NombrePaciente: row[idx.NombrePaciente],
-      NumeroSesion: row[idx.NumeroSesion],
-      Modalidad: row[idx.Modalidad],
-      EstadoSesion: row[idx.EstadoSesion],
-      FechaSesion: fecha,
-      FechaOriginal: row[idx.FechaOriginal],
-      CicloID: row[idx.CicloID],
-      Notas: row[idx.Notas],
-      NHC: nhcByPacienteId.get(String(row[idx.PacienteID])) || ''
-    });
-  }
+  const todasLasSesiones = sessionRepo.findAll();
+  
+  const sesionesDeseadas = todasLasSesiones.map(s => ({
+    ...s,
+    NHC: nhcByPacienteId.get(String(s.PacienteID)) || ''
+  }));
+  
+  if (sesionesDeseadas.length === 0) return;
 
   // 3) Obtener eventos actuales en Google para mapear por ID
+  const fechas = sesionesDeseadas.map(s => new Date(s.FechaSesion).getTime());
+  const minTime = Math.min(...fechas);
+  const maxTime = Math.max(...fechas);
   const buffer = 24 * 60 * 60 * 1000 * 2; // 2 días de margen
   const eventosEnRango = minTime ? calendar.getEvents(new Date(minTime - buffer), new Date(maxTime + buffer)) : [];
   const googleEventsMap = new Map();
@@ -88,7 +55,9 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
     const color = obtenerColorPorModalidad_(sesion.Modalidad);
     const fecha = normalizarFecha_(sesion.FechaSesion);
 
-    let ev = sesion.CalendarEventId ? googleEventsMap.get(sesion.CalendarEventId) : null;
+    let ev = (sesion.CalendarEventId && sesion.CalendarEventId !== "") 
+      ? googleEventsMap.get(sesion.CalendarEventId) 
+      : null;
 
     if (ev) {
       ev.setTitle(titulo);
@@ -97,8 +66,11 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
     } else {
       const nuevoEv = calendar.createAllDayEvent(titulo, fecha, { description: desc });
       try { nuevoEv.setColor(color); } catch(e){}
-      sheet.getRange(sesion.fila, idx.CalendarEventId + 1).setValue(nuevoEv.getId());
+      sesion.CalendarEventId = nuevoEv.getId();
+      sesion.CalendarSyncStatus = 'CREADO';
     }
+    sesion.CalendarLastSync = new Date();
+    sessionRepo.save(sesion);
     actualizados++;
   });
 

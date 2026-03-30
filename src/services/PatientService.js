@@ -5,6 +5,9 @@ class PatientService {
   constructor() {
     this.patientRepo = new PatientRepository();
     this.configRepo = new ConfigRepository();
+    this.cicloRepo = new CicloRepository();
+    this.asignacionRepo = new AsignacionRepository();
+    this.sessionService = new SessionService();
   }
 
   /**
@@ -19,10 +22,111 @@ class PatientService {
     if (data.modalidad === MODALIDADES.INDIVIDUAL) {
       return this._processIndividualHigh(data, config);
     } else {
-      // Para grupos, de momento mantenemos la delegación al sistema anterior
-      // mientras terminamos de migrar la lógica de ciclos.
-      return null; 
+      return this._processGroupHigh(data, config);
     }
+  }
+
+  /**
+   * Procesa el alta médica (Bloque 17).
+   */
+  dischargePatient(pacienteId, data) {
+    const patient = this.patientRepo.findById(pacienteId);
+    if (!patient) throw new Error("Paciente no encontrado.");
+
+    // 1. Cancelar sesiones futuras
+    this.sessionService.cancelPendingSessions(pacienteId);
+
+    // 2. Finalizar asignaciones de ciclo si existen
+    const asignaciones = this.asignacionRepo.findAll().filter(a => 
+      String(a.PacienteID) === String(pacienteId) && 
+      (a.EstadoAsignacion === 'ACTIVO' || a.EstadoAsignacion === 'RESERVADO')
+    );
+    
+    asignaciones.forEach(a => {
+      a.EstadoAsignacion = 'FINALIZADO';
+      a.Observaciones = 'Alta paciente';
+      this.asignacionRepo.save(a);
+    });
+
+    // 3. Actualizar estado del paciente
+    patient.EstadoPaciente = ESTADOS_PACIENTE.ALTA;
+    patient.FechaCierre = data.fechaAlta;
+    patient.FechaAltaEfectiva = data.fechaAlta;
+    patient.MotivoAltaCodigo = data.motivoCodigo;
+    patient.MotivoAltaTexto = data.motivoTexto;
+    patient.ComentarioAlta = data.comentario;
+    patient.ProximaSesion = '';
+    patient.SesionesPendientes = 0;
+    patient.CicloObjetivoID = '';
+    patient.CicloActivoID = '';
+
+    this.patientRepo.save(patient);
+    return patient;
+  }
+
+  _processGroupHigh(data, config) {
+    const ciclo = this.cicloRepo.findNextAvailable(data.modalidad, data.fechaPrimeraConsulta);
+    
+    const patientData = {
+      PacienteID: generarId_('PAC'),
+      Nombre: data.nombre,
+      NHC: data.nhc,
+      SexoGenero: data.sexoGenero,
+      MotivoConsultaDiagnostico: data.motivoConsultaDiagnostico,
+      MotivoConsultaOtros: data.motivoConsultaOtros,
+      ModalidadSolicitada: data.modalidad,
+      FechaAlta: normalizarFecha_(new Date()),
+      FechaPrimeraConsulta: normalizarFecha_(data.fechaPrimeraConsulta),
+      SesionesCompletadas: 0,
+      RecalcularSecuencia: false
+    };
+
+    if (!ciclo) {
+      const motivo = this.cicloRepo.existsPlannedInFuture(data.modalidad, data.fechaPrimeraConsulta)
+        ? 'SIN_PLAZA_CICLO'
+        : 'SIN_CICLO_DISPONIBLE';
+
+      patientData.EstadoPaciente = ESTADOS_PACIENTE.ESPERA;
+      patientData.MotivoEspera = motivo;
+      patientData.SesionesPlanificadas = Number(config.SesionesPorCiclo || 7);
+      patientData.SesionesPendientes = patientData.SesionesPlanificadas;
+      
+      this.patientRepo.save(patientData);
+      return { pacienteId: patientData.PacienteID, status: 'WAITING', motivo };
+    }
+
+    // Intentar reservar plaza
+    ciclo.PlazasOcupadas = Number(ciclo.PlazasOcupadas) + 1;
+    ciclo.PlazasLibres = Number(ciclo.CapacidadMaxima) - ciclo.PlazasOcupadas;
+    this.cicloRepo.save(ciclo);
+
+    // Datos de paciente activo en ciclo
+    patientData.EstadoPaciente = ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO;
+    patientData.CicloObjetivoID = ciclo.CicloID;
+    patientData.FechaPrimeraSesionReal = ciclo.FechaInicioCiclo;
+    patientData.SesionesPlanificadas = Number(ciclo.SesionesPorCiclo || config.SesionesPorCiclo || 7);
+    patientData.SesionesPendientes = patientData.SesionesPlanificadas;
+    patientData.ProximaSesion = ciclo.FechaInicioCiclo;
+
+    this.patientRepo.save(patientData);
+
+    // Crear la asignación técnica
+    this.asignacionRepo.save({
+      AsignacionID: generarId_('ASI'),
+      PacienteID: patientData.PacienteID,
+      CicloID: ciclo.CicloID,
+      Modalidad: data.modalidad,
+      FechaAsignacion: normalizarFecha_(new Date()),
+      EstadoAsignacion: ESTADOS_ASIGNACION.RESERVADO
+    });
+
+    return {
+      pacienteId: patientData.PacienteID,
+      status: 'ACTIVE_PENDING',
+      cicloId: ciclo.CicloID,
+      numeroCiclo: ciclo.NumeroCiclo,
+      fechaInicio: ciclo.FechaInicioCiclo
+    };
   }
 
   _processIndividualHigh(data, config) {

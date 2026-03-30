@@ -1,601 +1,168 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <base target="_top">
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 18px;
-        background: #f4f6f8;
-        color: #1f1f1f;
-      }
-
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: end;
-        margin-bottom: 18px;
-      }
-
-      h1 {
-        margin: 0;
-        font-size: 26px;
-      }
-
-      .sub {
-        color: #666;
-        font-size: 13px;
-        margin-top: 6px;
-      }
-
-      .header-actions {
-        display: flex;
-        gap: 10px;
-      }
-
-      .layout {
-        display: grid;
-        grid-template-columns: 1.2fr 1fr;
-        gap: 18px;
-        margin-bottom: 18px;
-      }
-
-      .panel {
-        background: #fff;
-        border: 1px solid #d7dce1;
-        border-radius: 14px;
-        padding: 16px;
-      }
-
-      .panel h3 {
-        margin: 0 0 12px 0;
-        font-size: 18px;
-      }
-
-      .kpis {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-      }
-
-      .kpi {
-        background: #fafbfc;
-        border: 1px solid #e5e8eb;
-        border-radius: 12px;
-        padding: 12px;
-      }
-
-      .kpi .label {
-        font-size: 12px;
-        color: #666;
-      }
-
-      .kpi .value {
-        margin-top: 6px;
-        font-size: 26px;
-        font-weight: bold;
-      }
-
-      .bars {
-        display: grid;
-        gap: 12px;
-      }
-
-      .bar-row {
-        display: grid;
-        grid-template-columns: 130px 1fr 70px;
-        gap: 12px;
-        align-items: center;
-      }
-
-      .bar-track {
-        width: 100%;
-        height: 14px;
-        background: #eceff2;
-        border-radius: 999px;
-        overflow: hidden;
-      }
-
-      .bar-fill {
-        height: 100%;
-        background: #8799a8;
-        border-radius: 999px;
-      }
-
-      .state-bars {
-        display: grid;
-        gap: 10px;
-      }
-
-      .state-row {
-        display: grid;
-        grid-template-columns: 130px 1fr 50px;
-        gap: 12px;
-        align-items: center;
-      }
-
-      .state-track {
-        width: 100%;
-        height: 12px;
-        background: #eceff2;
-        border-radius: 999px;
-        overflow: hidden;
-      }
-
-      .state-fill {
-        height: 100%;
-        background: #5f7d95;
-        border-radius: 999px;
-      }
-
-      .alerts {
-        display: grid;
-        gap: 10px;
-      }
-
-      .alert {
-        border-radius: 10px;
-        padding: 12px;
-        border: 1px solid #d0d0d0;
-      }
-
-      .alert.ok { background: #eef7f0; }
-      .alert.info { background: #eef4fb; }
-      .alert.warning { background: #fff8e6; }
-      .alert.danger { background: #fdeeee; }
-
-      .alert-title {
-        font-weight: bold;
-        margin-bottom: 4px;
-      }
-
-      .bottom {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
-        margin-bottom: 18px;
-      }
-
-      .actions-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-      }
-
-      .action-section {
-        margin-bottom: 16px;
-      }
-
-      .action-section h4 {
-        margin: 0 0 8px 0;
-        font-size: 14px;
-        color: #444;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-      }
-
-      th, td {
-        padding: 8px;
-        border-top: 1px solid #eeeeee;
-        text-align: left;
-      }
-
-      th {
-        background: #eef1f4;
-        border-top: none;
-      }
-
-      .pill {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: bold;
-        background: #efefef;
-      }
-
-      button {
-        padding: 11px 14px;
-        font-size: 14px;
-        cursor: pointer;
-        border-radius: 10px;
-        border: 1px solid #c8d0d8;
-        background: #f7f8fa;
-      }
-
-      button.primary {
-        background: #e7f0e7;
-      }
-
-      .status {
-        margin-top: 10px;
-        font-size: 13px;
-        color: #444;
-        white-space: pre-line;
-      }
-
-      .muted {
-        color: #666;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="header">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .loading-spinner { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
+    @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans" x-data="dashboardData()" x-init="load()">
+  
+  <div class="max-w-7xl mx-auto p-6" x-cloak>
+    
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-8">
       <div>
-        <h1>Panel de control</h1>
-        <div class="sub">
-          Hoy: <span id="fechaHoy"></span> · Última actualización: <span id="fechaActualizacion"></span>
-        </div>
+        <h1 class="text-3xl font-bold text-indigo-700">Panel de Gestión Clínica</h1>
+        <p class="text-gray-500 text-sm">Actualizado el <span x-text="data.fechaActualizacion"></span></p>
       </div>
-      <div class="header-actions">
-        <button onclick="cargarHome()">Recargar panel</button>
-        <button onclick="google.script.host.close()">Cerrar</button>
+      <div class="flex space-x-3">
+        <button @click="callAction('homeActualizarEstadosAutomaticos')" class="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition">
+          🔄 Recalcular Estados
+        </button>
+        <button @click="load()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition">
+          Refrescar Panel
+        </button>
+      </div>
+    </header>
+
+    <!-- Alertas -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+      <template x-for="alerta in data.alertas" :key="alerta.titulo">
+        <div class="p-4 rounded-xl border flex flex-col" 
+             :class="{'bg-yellow-50 border-yellow-200 text-yellow-700': alerta.tipo === 'warning', 'bg-red-50 border-red-200 text-red-700': alerta.tipo === 'danger', 'bg-blue-50 border-blue-200 text-blue-700': alerta.tipo === 'info'}">
+          <span class="text-xs font-bold uppercase" x-text="alerta.titulo"></span>
+          <span class="text-2xl font-black mt-1" x-text="alerta.detalle"></span>
+        </div>
+      </template>
+    </div>
+
+    <!-- Estadísticas Rápidas -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <p class="text-sm text-gray-400 font-medium">Pacientes Activos</p>
+        <h3 class="text-3xl font-bold mt-1" x-text="data.resumen.activos"></h3>
+      </div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <p class="text-sm text-gray-400 font-medium">En Espera</p>
+        <h3 class="text-3xl font-bold mt-1" x-text="data.resumen.espera"></h3>
+      </div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <p class="text-sm text-gray-400 font-medium">Ciclos en Curso</p>
+        <h3 class="text-3xl font-bold mt-1 text-indigo-600" x-text="data.resumen.gruposEnCurso"></h3>
+      </div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <p class="text-sm text-gray-400 font-medium text-red-500">Incidencias Calendar</p>
+        <h3 class="text-3xl font-bold mt-1 text-red-600" x-text="data.resumenIncidenciasCalendario.cantidad"></h3>
       </div>
     </div>
 
-    <div class="layout">
-      <div class="panel">
-        <h3>Resumen general</h3>
-        <div class="kpis">
-          <div class="kpi"><div class="label">Total pacientes</div><div class="value" id="kpiTotal">0</div></div>
-          <div class="kpi"><div class="label">Activos</div><div class="value" id="kpiActivos">0</div></div>
-          <div class="kpi"><div class="label">En espera</div><div class="value" id="kpiEspera">0</div></div>
-          <div class="kpi"><div class="label">Alta</div><div class="value" id="kpiAlta">0</div></div>
-          <div class="kpi"><div class="label">Pendiente inicio</div><div class="value" id="kpiPendiente">0</div></div>
-          <div class="kpi"><div class="label">Grupos en curso</div><div class="value" id="kpiGrupos">0</div></div>
-          <div class="kpi"><div class="label">Sesiones pendientes</div><div class="value" id="kpiSesionesPend">0</div></div>
-          <div class="kpi"><div class="label">Errores sync</div><div class="value" id="kpiErroresSync">0</div></div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      
+      <!-- Próximos Pacientes -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <h4 class="font-bold text-gray-700">Agenda Próxima</h4>
+          <button @click="callAction('homeAbrirPantallaPacientes')" class="text-indigo-600 text-sm font-semibold hover:underline">Ver todos</button>
         </div>
-      </div>
-
-      <div class="panel">
-        <h3>Alertas y trabajo pendiente</h3>
-        <div id="alertas" class="alerts"></div>
-      </div>
-    </div>
-
-    <div id="alertaIncidenciasCalendario" style="display:none; margin: 12px 0; padding: 12px; border: 1px solid #e0b000; background: #fff7d6; border-radius: 8px;">
-      <strong>⚠ Incidencias de calendario detectadas</strong>
-      <div id="textoIncidenciasCalendario" style="margin-top: 6px;"></div>
-      <div style="margin-top: 10px;">
-        <button onclick="runAction('homeVerIncidenciasCalendario')">Revisar incidencias calendario</button>
-      </div>
-    </div>
-
-    <div class="bottom">
-      <div class="panel">
-        <h3>Ocupación por modalidad</h3>
-        <div id="ocupacionModalidades" class="bars"></div>
-      </div>
-
-      <div class="panel">
-        <h3>Estado de grupos</h3>
-        <div id="estadoCiclos" class="state-bars"></div>
-      </div>
-    </div>
-       
-    <div class="bottom">
-      <div class="panel">
-        <h3>Acciones rápidas</h3>
-
-        <div class="action-section">
-          <h4>Pacientes</h4>
-          <div class="actions-grid">
-            <button class="primary" onclick="runAction('homeNuevoPaciente')">Nuevo paciente</button>
-            <button onclick="runAction('homeEditarPaciente')">Editar paciente</button>
-            <button onclick="runAction('homeFichaClinicaPaciente')">Ficha clínica paciente</button>
-            <button onclick="runAction('homeAltaPaciente')">Dar de alta</button>
-            <button onclick="runAction('homeEliminarPacientePorError')">Eliminar por error</button>
-            <button onclick="runAction('homeAbrirPantallaPacientes')">Pantalla pacientes</button>
-            <button onclick="runAction('homeEstadisticasFichasPacientes')">Estadísticas fichas</button>
-          </div>
-        </div>
-
-        <div class="action-section">
-          <h4>Grupos y espera</h4>
-          <div class="actions-grid">
-            <button class="primary" onclick="runAction('homeCrearCicloGrupo')">Crear nuevo grupo</button>
-            <button onclick="runAction('homeGestionEsperaYCicloPaciente')">Gestionar espera / reasignación</button>
-            <button onclick="runAction('homeAbrirPantallaCiclos')">Pantalla de grupos</button>
-          </div>
-        </div>
-
-        <div class="action-section">
-          <h4>Sesiones y sistema</h4>
-          <div class="actions-grid">
-            <button onclick="runAction('homeAbrirPantallaSesiones')">Pantalla sesiones</button>
-            <button onclick="runAction('homeAbrirReprogramarSesion')">Reprogramar sesión</button>
-            <button onclick="runAction('homeRecalcularEstadosAutomaticamente')">Actualizar estados</button>
-            <button onclick="sincronizarGoogleCalendar()">Sync Google Calendar</button>
-            <div id="calendarQuickLink"></div>
-          </div>
-        </div>
-
-        <div class="action-section">
-          <h4>Configuración</h4>
-          <div class="actions-grid">
-            <button onclick="runAction('homeGestionarConfigModalidades')">Config modalidades</button>
-            <button onclick="runAction('homeGestionarCatalogos')">Catálogos</button>
-            <button onclick="runAction('homeGestionarDiasBloqueados')">Gestionar calendario y bloqueos</button>
-          </div>
-        </div>
-
-        <div id="status" class="status"></div>
-      </div>
-
-      <div class="panel">
-        <h3>Próximos grupos</h3>
-        <table>
+        <table class="w-full text-left text-sm">
           <thead>
-            <tr>
-              <th>Grupo</th>
-              <th>Ciclo</th>
-              <th>Inicio</th>
-              <th>Libres</th>
+            <tr class="text-gray-400">
+              <th class="px-5 py-3 font-medium">Paciente</th>
+              <th class="px-5 py-3 font-medium">Siguiente Cita</th>
+              <th class="px-5 py-3 font-medium">Estado</th>
             </tr>
           </thead>
-          <tbody id="tbodyCiclos"></tbody>
-        </table>
-
-        <h3 style="margin-top:18px;">Próximos pacientes</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Modalidad</th>
-              <th>Estado</th>
-              <th>Próxima sesión</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyPacientes"></tbody>
+          <tbody>
+            <template x-for="p in data.proximosPacientes" :key="p.PacienteID">
+              <tr class="border-t border-gray-50 hover:bg-gray-50">
+                <td class="px-5 py-3 font-semibold" x-text="p.Nombre"></td>
+                <td class="px-5 py-3" x-text="p.ProximaSesion"></td>
+                <td class="px-5 py-3">
+                  <span class="px-2 py-1 rounded-full text-xs font-bold"
+                        :class="p.EstadoPaciente === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'"
+                        x-text="p.EstadoPaciente"></span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
         </table>
       </div>
+
+      <!-- Acciones Rápidas -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h4 class="font-bold text-gray-700 mb-6">Operativa</h4>
+        <div class="grid grid-cols-2 gap-4">
+          <button @click="callAction('homeNuevoPaciente')" class="flex flex-col items-center justify-center p-6 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition border-2 border-transparent hover:border-indigo-200">
+            <span class="text-2xl mb-2">👤+</span>
+            <span class="text-indigo-700 font-bold text-sm">Nuevo Paciente</span>
+          </button>
+          <button @click="callAction('homeAbrirReprogramarSesion')" class="flex flex-col items-center justify-center p-6 bg-orange-50 rounded-xl hover:bg-orange-100 transition border-2 border-transparent hover:border-orange-200">
+            <span class="text-2xl mb-2">📅</span>
+            <span class="text-orange-700 font-bold text-sm">Reprogramar</span>
+          </button>
+          <button @click="callAction('homeAltaPaciente')" class="flex flex-col items-center justify-center p-6 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition border-2 border-transparent hover:border-emerald-200">
+            <span class="text-2xl mb-2">✅</span>
+            <span class="text-emerald-700 font-bold text-sm">Alta Médica</span>
+          </button>
+          <button @click="callAction('homeSincronizarGoogleCalendar')" class="flex flex-col items-center justify-center p-6 bg-blue-50 rounded-xl hover:bg-blue-100 transition border-2 border-transparent hover:border-blue-200">
+            <span class="text-2xl mb-2">☁️</span>
+            <span class="text-blue-700 font-bold text-sm">Sync Calendar</span>
+          </button>
+        </div>
+      </div>
+
     </div>
 
-    <script>
-      function setStatus(message) {
-        document.getElementById('status').textContent = message || '';
-      }
+  </div>
 
-      // Evita que el operador dispare varias recargas/acciones a la vez,
-      // lo que puede hacer que el panel se vuelva cada vez más “lento”.
-      let homeLoading = false;
-      let actionLoading = false;
-      let syncLoading = false;
-      
-      function cargarHome() {
-        if (homeLoading) return;
-        homeLoading = true;
-        setStatus('Actualizando panel...');
+  <!-- Pantalla de carga -->
+  <div x-show="loading" class="fixed inset-0 bg-white bg-opacity-80 flex flex-col items-center justify-center z-50">
+    <div class="loading-spinner h-16 w-16 border-4 border-gray-200 rounded-full mb-4"></div>
+    <p class="text-indigo-600 font-bold">Cargando datos...</p>
+  </div>
 
-        google.script.run
-          .withSuccessHandler(function(data) {
-            renderCabecera(data);
-            renderResumen(data.resumen || {});
-            renderAlertas(data.alertas || []);
-            renderOcupacion(data.ocupacionPorModalidad || []);
-            renderEstadoCiclos(data.estadoCiclos || {});
-            renderCiclos(data.proximosCiclos || []);
-            renderPacientes(data.proximosPacientes || []);
-            renderAlertaIncidenciasCalendario(data.resumenIncidenciasCalendario || { cantidad: 0 });
-            renderCalendarQuickLink(data.calendarUrl || null);
-            setStatus('');
-            homeLoading = false;
-          })
-          .withFailureHandler(function(error) {
-            setStatus(error.message || String(error));
-            homeLoading = false;
-          })
-          .obtenerDatosHomeDashboard();
-      }
-
-      function renderCabecera(data) {
-        document.getElementById('fechaHoy').textContent = data.fechaHoy || '';
-        document.getElementById('fechaActualizacion').textContent = data.fechaActualizacion || '';
-      }
-
-      function renderResumen(r) {
-        document.getElementById('kpiTotal').textContent = r.totalPacientes || 0;
-        document.getElementById('kpiActivos').textContent = r.activos || 0;
-        document.getElementById('kpiEspera').textContent = r.espera || 0;
-        document.getElementById('kpiAlta').textContent = r.alta || 0;
-        document.getElementById('kpiPendiente').textContent = r.pendienteInicio || 0;
-        document.getElementById('kpiGrupos').textContent = r.gruposEnCurso || 0;
-        document.getElementById('kpiSesionesPend').textContent = r.sesionesPendientes || 0;
-        document.getElementById('kpiErroresSync').textContent = r.sesionesErrorSync || 0;
-      }
-
-      function renderAlertas(alertas) {
-        const cont = document.getElementById('alertas');
-        cont.innerHTML = (alertas && alertas.length)
-          ? alertas.map(function(a) {
-              const tipo = a.tipo || 'info';
-              const titulo = escapeHtml(a.titulo || '');
-              const detalle = escapeHtml(a.detalle || '');
-              return `
-                <div class="alert ${escapeHtml(tipo)}">
-                  <div class="alert-title">${titulo}</div>
-                  <div>${detalle}</div>
-                </div>
-              `;
-            }).join('')
-          : '';
-      }
-
-      function renderOcupacion(lista) {
-        const cont = document.getElementById('ocupacionModalidades');
-        cont.innerHTML = (lista && lista.length)
-          ? lista.map(function(item) {
-              const modalidad = escapeHtml(item.modalidad || '');
-              const porcentaje = Math.max(0, Math.min(100, Number(item.porcentaje || 0)));
-              const ocupadas = Number(item.ocupadas || 0);
-              const capacidad = Number(item.capacidad || 0);
-              return `
-                <div class="bar-row">
-                  <div><strong>${modalidad}</strong></div>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width:${porcentaje}%"></div>
-                  </div>
-                  <div>${ocupadas}/${capacidad}</div>
-                </div>
-              `;
-            }).join('')
-          : '';
-      }
-
-      function renderEstadoCiclos(ec) {
-        const cont = document.getElementById('estadoCiclos');
-        if (!ec) {
-          cont.innerHTML = '';
-          return;
-        }
-
-        const total = Number(ec.planificados || 0) + Number(ec.enCurso || 0) + Number(ec.cerrados || 0) + Number(ec.cancelados || 0);
-
-        const rows = [
-          ['PLANIFICADO', Number(ec.planificados || 0)],
-          ['EN_CURSO', Number(ec.enCurso || 0)],
-          ['CERRADO', Number(ec.cerrados || 0)],
-          ['CANCELADO', Number(ec.cancelados || 0)]
-        ];
-
-        cont.innerHTML = rows.map(function(r) {
-          const porcentaje = total > 0 ? Math.round((r[1] / total) * 100) : 0;
-          return `
-            <div class="state-row">
-              <div><strong>${escapeHtml(r[0])}</strong></div>
-              <div class="state-track">
-                <div class="state-fill" style="width:${porcentaje}%"></div>
-              </div>
-              <div>${r[1]}</div>
-            </div>
-          `;
-        }).join('');
-      }
-
-      function renderCiclos(lista) {
-        const tbody = document.getElementById('tbodyCiclos');
-        if (!lista || !lista.length) {
-          tbody.innerHTML = `<tr><td colspan="4" class="muted">No hay ciclos planificados.</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = lista.map(function(c) {
-          return `
-            <tr>
-              <td>${escapeHtml(c.modalidad || '')}</td>
-              <td>${Number(c.numeroCiclo || 0)}</td>
-              <td>${escapeHtml(c.fechaInicioCiclo || '')}</td>
-              <td>${Number(c.plazasLibres || 0)}</td>
-            </tr>
-          `;
-        }).join('');
-      }
-
-      function renderPacientes(lista) {
-        const tbody = document.getElementById('tbodyPacientes');
-        if (!lista || !lista.length) {
-          tbody.innerHTML = `<tr><td colspan="4" class="muted">No hay pacientes activos o pendientes.</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = lista.map(function(p) {
-          return `
-            <tr>
-              <td>${escapeHtml(p.nombre || '')}</td>
-              <td>${escapeHtml(p.modalidad || '')}</td>
-              <td><span class="pill">${escapeHtml(p.estadoPaciente || '')}</span></td>
-              <td>${escapeHtml(p.proximaSesion || '')}</td>
-            </tr>
-          `;
-        }).join('');
-      }
-
-      function runAction(functionName) {
-        if (actionLoading) return;
-        actionLoading = true;
-        setStatus('Abriendo acción...');
-
-        google.script.run
-          .withSuccessHandler(function() {
-            setStatus('');
-            actionLoading = false;
-          })
-          .withFailureHandler(function(error) {
-            setStatus(error.message || String(error));
-            actionLoading = false;
-          })[functionName]();
-      }
-
-      function escapeHtml(text) {
-        return String(text || '')
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
-      }
-      
-      function renderAlertaIncidenciasCalendario(resumen) {
-        const box = document.getElementById('alertaIncidenciasCalendario');
-        const texto = document.getElementById('textoIncidenciasCalendario');
-
-        const cantidad = resumen && resumen.cantidad ? Number(resumen.cantidad) : 0;
-
-        if (cantidad > 0) {
-          texto.textContent = 'Hay ' + cantidad + ' sesión(es) programada(s) en días bloqueados.';
-          box.style.display = 'block';
-        } else {
-          texto.textContent = '';
-          box.style.display = 'none';
+  <script>
+    function dashboardData() {
+      return {
+        loading: true,
+        data: {
+          resumen: {},
+          alertas: [],
+          proximosPacientes: [],
+          fechaActualizacion: ''
+        },
+        load() {
+          this.loading = true;
+          google.script.run
+            .withSuccessHandler(res => {
+              this.data = res;
+              this.loading = false;
+            })
+            .withFailureHandler(err => {
+              alert("Error al cargar: " + err.message);
+              this.loading = false;
+            })
+            .obtenerDatosHomeDashboard();
+        },
+        callAction(fn) {
+          this.loading = true;
+          google.script.run
+            .withSuccessHandler(() => {
+              this.load();
+            })
+            .withFailureHandler(err => {
+              alert("Error: " + err.message);
+              this.loading = false;
+            })fn;
         }
       }
-
-      function renderCalendarQuickLink(calendarUrl) {
-        const cont = document.getElementById('calendarQuickLink');
-        if (!cont) return;
-        cont.innerHTML = '';
-
-        if (!calendarUrl) return;
-
-        const btn = document.createElement('button');
-        btn.textContent = 'Abrir calendario';
-        btn.onclick = function() {
-          window.open(calendarUrl, '_blank', 'noopener,noreferrer');
-        };
-        cont.appendChild(btn);
-      }
-
-      function formatearFechaCompacta(fecha) {
-          var opciones = { year: 'numeric', month: '2-digit', day: '2-digit' };
-          return fecha.toLocaleDateString('es-ES', opciones);  // Asegúrate de que está en formato dd/mm/yyyy
-      }
-
-      function sincronizarGoogleCalendar() {
-        if (syncLoading) return;
-        syncLoading = true;
-        setStatus('Iniciando sincronización de Google Calendar...');
-        google.script.run
-          .withSuccessHandler(function() {
-            setStatus('Sincronización de Google Calendar finalizada.');
-            syncLoading = false;
-            cargarHome(); // Refresca métricas del panel
-          })
-          .withFailureHandler(function(error) {
-            setStatus('Error sincronizando Google Calendar: ' + (error && error.message ? error.message : String(error)));
-            syncLoading = false;
-          })
-          // Función real que sincroniza sesiones (no la versión "ejemplo")
-          .homeSincronizarGoogleCalendar();
-      }     
-      
-
-      cargarHome();
-    </script>
-  </body>
+    }
+  </script>
+</body>
 </html>

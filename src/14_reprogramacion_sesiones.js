@@ -16,41 +16,19 @@ function abrirReprogramarSesion() {
  * DATOS FORMULARIO
  ***************/
 function obtenerDatosReprogramacion() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const patientRepo = new PatientRepository();
+  const cicloRepo = new CicloRepository();
 
-  const sheetPac = ss.getSheetByName(SHEET_PACIENTES);
-  const sheetCiclos = ss.getSheetByName(SHEET_CICLOS);
+  const pacientesIndividuales = patientRepo.findAll()
+    .filter(p => p.ModalidadSolicitada === MODALIDADES.INDIVIDUAL)
+    .map(p => ({ id: p.PacienteID, nombre: p.Nombre }));
 
-  const pacientesData = sheetPac.getDataRange().getValues();
-  const ciclosData = sheetCiclos.getDataRange().getValues();
-
-  const pIdx = indexByHeader_(pacientesData[0]);
-  const cIdx = indexByHeader_(ciclosData[0]);
-
-  const pacientesIndividuales = [];
-
-  for (let i = 1; i < pacientesData.length; i++) {
-    if (pacientesData[i][pIdx.ModalidadSolicitada] === MODALIDADES.INDIVIDUAL) {
-      pacientesIndividuales.push({
-        id: pacientesData[i][pIdx.PacienteID],
-        nombre: pacientesData[i][pIdx.Nombre]
-      });
-    }
-  }
-
-  const ciclosGrupo = [];
-
-  for (let i = 1; i < ciclosData.length; i++) {
-    if (ciclosData[i][cIdx.Modalidad] !== MODALIDADES.INDIVIDUAL) {
-      ciclosGrupo.push({
-        id: ciclosData[i][cIdx.CicloID],
-        label:
-          ciclosData[i][cIdx.Modalidad] +
-          ' | Ciclo ' +
-          ciclosData[i][cIdx.NumeroCiclo]
-      });
-    }
-  }
+  const ciclosGrupo = cicloRepo.findAll()
+    .filter(c => c.Modalidad !== MODALIDADES.INDIVIDUAL)
+    .map(c => ({
+      id: c.CicloID,
+      label: `${c.Modalidad} | Ciclo ${c.NumeroCiclo}`
+    }));
 
   return {
     modalidades: Object.values(MODALIDADES),
@@ -76,11 +54,7 @@ function guardarReprogramacion(data) {
  * INDIVIDUAL
  ***************/
 function reprogramarSesionIndividual_(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_SESIONES);
-
-  const sesData = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(sesData[0]);
+  const sessionService = new SessionService();
 
   const pacienteId = data.pacienteId;
   const numeroSesion = Number(data.numeroSesion);
@@ -91,29 +65,10 @@ function reprogramarSesionIndividual_(data) {
   }
 
   if (!esFechaOperativaValida_(nuevaFecha)) {
-  throw new Error(construirMensajeFechaNoOperativa_(nuevaFecha));
+    throw new Error(construirMensajeFechaNoOperativa_(nuevaFecha));
   }
 
-  let cambios = 0;
-
-  for (let i = 1; i < sesData.length; i++) {
-    if (
-      sesData[i][idx.PacienteID] === pacienteId &&
-      Number(sesData[i][idx.NumeroSesion]) === numeroSesion &&
-      sesData[i][idx.EstadoSesion] === ESTADOS_SESION.PENDIENTE
-    ) {
-      const fechaActual = sesData[i][idx.FechaSesion];
-
-      if (!sesData[i][idx.FechaOriginal]) {
-        sheet.getRange(i + 1, idx.FechaOriginal + 1).setValue(fechaActual);
-      }
-
-      sheet.getRange(i + 1, idx.FechaSesion + 1).setValue(nuevaFecha);
-      sheet.getRange(i + 1, idx.ModificadaManual + 1).setValue(true);
-
-      cambios++;
-    }
-  }
+  sessionService.rescheduleSession(pacienteId, numeroSesion, nuevaFecha);
 
   recalcularMetricasBasicas_();
 

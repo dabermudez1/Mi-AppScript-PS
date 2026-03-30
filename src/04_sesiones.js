@@ -7,7 +7,10 @@
  * ENTRY POINTS
  ***************/
 function generarSesionesPacienteIndividual_(pacienteId) {
-  const paciente = obtenerPacientePorId_(pacienteId);
+  const patientRepo = new PatientRepository();
+  const configRepo = new ConfigRepository();
+  const sessionService = new SessionService();
+  const paciente = patientRepo.findById(pacienteId);
 
   if (!paciente) {
     throw new Error('Paciente no encontrado: ' + pacienteId);
@@ -17,7 +20,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     return { avisos: [] };
   }
 
-  const config = obtenerConfigModalidadPorNombre_(paciente.ModalidadSolicitada);
+  const config = configRepo.findByModalidad(paciente.ModalidadSolicitada);
   const intervaloDias = Number(config.FrecuenciaDias || 0);
 
   if (intervaloDias <= 0) {
@@ -33,7 +36,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     sesiones: paciente.SesionesPlanificadas
   });
 
-  crearSesionesParaPaciente_(paciente, resultado.fechas);
+  sessionService.createInitialSessions(paciente, resultado.fechas);
 
   return {
     avisos: resultado.avisos || []
@@ -41,8 +44,11 @@ function generarSesionesPacienteIndividual_(pacienteId) {
 }
 
 function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
-  const paciente = obtenerPacientePorId_(pacienteId);
-  const ciclo = obtenerCicloPorId_(cicloId);
+  const patientRepo = new PatientRepository();
+  const cicloRepo = new CicloRepository();
+  const sessionService = new SessionService();
+  const paciente = patientRepo.findById(pacienteId);
+  const ciclo = cicloRepo.findOneBy('CicloID', cicloId);
 
   if (!paciente || !ciclo) {
     throw new Error('Paciente o ciclo no encontrado.');
@@ -55,67 +61,11 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
     sesiones: ciclo.SesionesPorCiclo
   });
 
-  crearSesionesParaPaciente_(paciente, resultado.fechas, cicloId);
+  sessionService.createInitialSessions(paciente, resultado.fechas, cicloId);
 
   return {
     avisos: resultado.avisos || []
   };
-}
-
-/***************
- * GENERADORES
- ***************/
-function generarFechasIndividual_(fechaInicio, totalSesiones) {
-  const fechas = [];
-
-  for (let i = 0; i < totalSesiones; i++) {
-    const base = sumarDiasNaturales_(fechaInicio, i * 15);
-    const ajustada = ajustarASiguienteFechaOperativa_(base);
-    fechas.push(ajustada);
-  }
-
-  return fechas;
-}
-
-/***************
- * CREACIÓN SESIONES
- ***************/
-function crearSesionesParaPaciente_(paciente, fechas, cicloId = '') {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
-
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_SESIONES);
-  }
-
-  const rows = [];
-
-  for (let i = 0; i < fechas.length; i++) {
-    const fecha = fechas[i];
-
-    rows.push([
-      generarId_('SES'),
-      paciente.PacienteID,
-      cicloId || '',
-      '', // AsignacionID (lo rellenaremos en siguiente mejora si queremos)
-      paciente.ModalidadSolicitada,
-      paciente.Nombre,
-      i + 1,
-      fecha,
-      ESTADOS_SESION.PENDIENTE,
-      fecha,
-      false,
-      '',
-      '',
-      'PENDIENTE',
-      '',
-      '',
-      ''
-    ]);
-  }
-
-  if (rows.length > 0) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
-  }
 }
 
 /***************
