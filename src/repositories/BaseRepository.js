@@ -1,0 +1,85 @@
+/**
+ * Clase Base para manejar la persistencia en Google Sheets.
+ * Implementa el mapeo automático entre Filas y Objetos.
+ */
+class BaseRepository {
+  constructor(sheetName, headers) {
+    this.sheetName = sheetName;
+    this.headers = headers;
+    this.ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+
+  getSheet() {
+    const sheet = this.ss.getSheetByName(this.sheetName);
+    if (!sheet) throw new Error(`Hoja ${this.sheetName} no encontrada.`);
+    return sheet;
+  }
+
+  /**
+   * Obtiene todos los registros como una lista de objetos.
+   */
+  findAll() {
+    const sheet = this.getSheet();
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return [];
+
+    const headerRow = data[0];
+    const idx = this._indexHeaders(headerRow);
+
+    return data.slice(1).map((row, i) => {
+      const obj = { _row: i + 2 }; // Guardamos la referencia a la fila física
+      this.headers.forEach(h => {
+        obj[h] = row[idx[h]];
+      });
+      return obj;
+    });
+  }
+
+  /**
+   * Busca un registro por una propiedad y valor específicos.
+   */
+  findOneBy(property, value) {
+    const all = this.findAll();
+    return all.find(item => String(item[property]) === String(value)) || null;
+  }
+
+  /**
+   * Crea o actualiza un registro a partir de un objeto.
+   */
+  save(obj, idPropertyName) {
+    const sheet = this.getSheet();
+    const data = sheet.getDataRange().getValues();
+    const headerRow = data[0];
+    const idx = this._indexHeaders(headerRow);
+
+    // Convertir objeto a array de fila respetando el orden de los headers reales
+    const rowValues = headerRow.map(h => (obj[h] !== undefined ? obj[h] : ""));
+
+    if (obj._row) {
+      // Actualización
+      sheet.getRange(obj._row, 1, 1, rowValues.length).setValues([rowValues]);
+    } else {
+      // Creación
+      sheet.appendRow(rowValues);
+      obj._row = sheet.getLastRow();
+      // Si el objeto no tiene ID, lo ideal es que se genere antes de llamar a save()
+    }
+    return obj;
+  }
+
+  /**
+   * Elimina un registro por su número de fila.
+   */
+  delete(obj) {
+    if (!obj._row) throw new Error("No se puede eliminar un objeto sin referencia a fila.");
+    this.getSheet().deleteRow(obj._row);
+  }
+
+  _indexHeaders(headerRow) {
+    const map = {};
+    headerRow.forEach((h, i) => {
+      map[h] = i;
+    });
+    return map;
+  }
+}

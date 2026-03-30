@@ -107,6 +107,10 @@ const HEADERS = {
   [SHEET_PACIENTES]: [
     'PacienteID',
     'Nombre',
+    'NHC',
+    'SexoGenero',
+    'MotivoConsultaDiagnostico',
+    'MotivoConsultaOtros',
     'ModalidadSolicitada',
     'FechaAlta',
     'FechaPrimeraConsulta',
@@ -120,6 +124,10 @@ const HEADERS = {
     'SesionesPendientes',
     'ProximaSesion',
     'FechaCierre',
+    'FechaAltaEfectiva',
+    'MotivoAltaCodigo',
+    'MotivoAltaTexto',
+    'ComentarioAlta',
     'Observaciones',
     'RecalcularSecuencia'
   ],

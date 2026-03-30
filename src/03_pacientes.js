@@ -63,128 +63,37 @@ function crearPacienteSegunModalidad_({
     modalidad,
     fechaPrimeraConsulta
   }) {
-  const config = obtenerConfigModalidad_(modalidad);
+  const service = new PatientService();
 
-  if (!config.Activa) {
-    throw new Error('La modalidad está inactiva: ' + modalidad);
-  }
-
-  if (modalidad === MODALIDADES.INDIVIDUAL) {
-    return procesarAltaIndividual_({
-      nombre,
-      nhc,
-      sexoGenero,
-      motivoConsultaDiagnostico,
-      motivoConsultaOtros,
-      modalidad,
-      fechaPrimeraConsulta,
-      config
-    });
-  }
-
-  return procesarAltaGrupo_({
-    nombre,
-    nhc,
-    sexoGenero,
-    motivoConsultaDiagnostico,
-    motivoConsultaOtros,
-    modalidad,
-    fechaPrimeraConsulta,
-    config
+  const result = service.createPatient({
+    nombre, nhc, sexoGenero, motivoConsultaDiagnostico, 
+    motivoConsultaOtros, modalidad, fechaPrimeraConsulta
   });
-}
 
-/***************
- * INDIVIDUAL
- ***************/
-function procesarAltaIndividual_({
-    nombre,
-    nhc,
-    sexoGenero,
-    motivoConsultaDiagnostico,
-    motivoConsultaOtros,
-    modalidad,
-    fechaPrimeraConsulta,
-    config
-  }) {
-  const tieneCapacidad = hayCapacidadIndividual_();
-
-  if (!tieneCapacidad) {
-    const pacienteId = crearPacienteEnSheet_({
-      nombre,
-      nhc,
-      sexoGenero,
-      motivoConsultaDiagnostico,
-      motivoConsultaOtros,
-      modalidadSolicitada: modalidad,
-      fechaPrimeraConsulta,
-      estadoPaciente: ESTADOS_PACIENTE.ESPERA,
-      motivoEspera: 'SIN_CAPACIDAD_INDIVIDUAL',
-      cicloObjetivoId: '',
-      cicloActivoId: '',
-      fechaPrimeraSesionReal: '',
-      sesionesPlanificadas: Number(config.SesionesPorCiclo || 7),
-      sesionesCompletadas: 0,
-      sesionesPendientes: Number(config.SesionesPorCiclo || 7),
-      proximaSesion: '',
-      fechaCierre: '',
-      observaciones: '',
-      recalcularSecuencia: false
-    });
-
+  if (result.status === 'ACTIVE') {
+    generarSesionesPacienteIndividual_(result.pacienteId);
     return {
-      pacienteId,
-      mensaje:
-        'Paciente creado en ESPERA.\n\n' +
-        'Nombre: ' + nombre + '\n' +
-        'Modalidad: ' + modalidad + '\n' +
-        'Motivo: SIN_CAPACIDAD_INDIVIDUAL'
+      pacienteId: result.pacienteId,
+      mensaje: `Paciente creado correctamente.\nEstado: ACTIVO\nPrimera sesión: ${formatearFecha_(result.firstSessionDate)}`
     };
   }
 
-  const fechaPrimeraSesionReal = calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad);
-  const totalSesiones = Number(config.SesionesPorCiclo || 7);
-
-  const pacienteId = crearPacienteEnSheet_({
-    nombre,
-    nhc,
-    sexoGenero,
-    motivoConsultaDiagnostico,
-    motivoConsultaOtros,
-    modalidadSolicitada: modalidad,
-    fechaPrimeraConsulta,
-    estadoPaciente: ESTADOS_PACIENTE.ACTIVO,
-    motivoEspera: '',
-    cicloObjetivoId: '',
-    cicloActivoId: '',
-    fechaPrimeraSesionReal,
-    sesionesPlanificadas: totalSesiones,
-    sesionesCompletadas: 0,
-    sesionesPendientes: totalSesiones,
-    proximaSesion: fechaPrimeraSesionReal,
-    fechaCierre: '',
-    observaciones: '',
-    recalcularSecuencia: false
-  });
-
-  const resultadoSesiones = generarSesionesPacienteIndividual_(pacienteId);
-  const avisos = (resultadoSesiones && resultadoSesiones.avisos) ? resultadoSesiones.avisos : [];
-
-  let mensaje =
-    'Paciente creado correctamente.\n\n' +
-    'Nombre: ' + nombre + '\n' +
-    'Modalidad: ' + modalidad + '\n' +
-    'Estado: ACTIVO\n' +
-    'Primera sesión real: ' + formatearFecha_(fechaPrimeraSesionReal);
-
-  if (avisos.length > 0) {
-    mensaje += '\n\nAvisos:\n- ' + avisos.join('\n- ');
+  if (result.status === 'ACTIVE_PENDING') {
+    generarSesionesPacienteGrupo_(result.pacienteId, result.cicloId);
+    return {
+      pacienteId: result.pacienteId,
+      mensaje: `Paciente asignado al ciclo ${result.numeroCiclo}.\nEstado: PENDIENTE INICIO\nInicio: ${formatearFecha_(result.fechaInicio)}`
+    };
   }
 
-  return {
-    pacienteId,
-    mensaje: mensaje
-  };
+  if (result.status === 'WAITING') {
+    return {
+      pacienteId: result.pacienteId,
+      mensaje: `Paciente en lista de ESPERA.\nMotivo: ${result.motivo}`
+    };
+  }
+
+  return result;
 }
 
 function calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad) {
