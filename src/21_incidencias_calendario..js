@@ -30,7 +30,7 @@ function obtenerCantidadSesionesAfectadasPorDiasBloqueados_(sesData) {
 
     if (fechaNormalizada.getTime() < hoy.getTime()) return;
 
-    if (estadoSesion !== 'PENDIENTE' && estadoSesion !== 'REPROGRAMADA') return;
+    if (estadoSesion !== ESTADOS_SESION.PENDIENTE && estadoSesion !== ESTADOS_SESION.REPROGRAMADA) return;
     const detalleBloqueo = obtenerDetalleBloqueoFechaConMapa_(fechaNormalizada, mapaDiasBloqueados);
     if (!detalleBloqueo.bloqueada) return;
 
@@ -65,14 +65,14 @@ function obtenerSesionesAfectadasPorDiasBloqueados_() {
     const fechaSesion = s.FechaSesion;
     const estadoSesion = s.EstadoSesion || '';
 
-    if (!fechaSesion || !(fechaSesion instanceof Date)) continue;
+    if (!fechaSesion || !(fechaSesion instanceof Date)) return;
 
     const fechaNormalizada = normalizarFecha_(fechaSesion);
-    if (fechaNormalizada.getTime() < hoy.getTime()) continue;
-    if (estadoSesion !== 'PENDIENTE' && estadoSesion !== 'REPROGRAMADA') continue;
+    if (fechaNormalizada.getTime() < hoy.getTime()) return;
+    if (estadoSesion !== ESTADOS_SESION.PENDIENTE && estadoSesion !== ESTADOS_SESION.REPROGRAMADA) return;
 
     const detalleBloqueo = obtenerDetalleBloqueoFechaConMapa_(fechaNormalizada, mapaDiasBloqueados);
-    if (!detalleBloqueo.bloqueada) continue;
+    if (!detalleBloqueo.bloqueada) return;
 
     out.push({
       sesionId: s.SesionID,
