@@ -159,7 +159,7 @@
             .withFailureHandler(err => {
               alert("Error: " + err.message);
               this.loading = false;
-            })fn;
+            })[fn]();
         }
       }
     }
