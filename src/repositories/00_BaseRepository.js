@@ -1,4 +1,5 @@
 /**
+ * 00_BaseRepository.js
  * Clase Base para manejar la persistencia en Google Sheets.
  * Implementa el mapeo automático entre Filas y Objetos.
  */
