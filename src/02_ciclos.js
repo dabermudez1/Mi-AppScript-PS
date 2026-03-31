@@ -12,52 +12,9 @@ function crearCicloGrupo() {
 }
 
 function obtenerConfigModalidad_(modalidad) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONFIG_MODALIDADES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_CONFIG_MODALIDADES + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('La hoja CONFIG_MODALIDADES no tiene datos.');
-  }
-
-  const headers = data[0];
-  const idx = indexByHeader_(headers);
-
-  const columnasNecesarias = [
-    'Modalidad',
-    'TipoModalidad',
-    'Activa',
-    'DiaSemana',
-    'FrecuenciaDias',
-    'FechaBase',
-    'CapacidadMaxima',
-    'SesionesPorCiclo'
-  ];
-
-  columnasNecesarias.forEach(col => {
-    if (idx[col] === undefined) {
-      throw new Error('Falta la columna "' + col + '" en ' + SHEET_CONFIG_MODALIDADES + '.');
-    }
-  });
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.Modalidad]) === String(modalidad)) {
-      return {
-        Modalidad: data[i][idx.Modalidad],
-        TipoModalidad: data[i][idx.TipoModalidad],
-        Activa: data[i][idx.Activa] === true,
-        DiaSemana: data[i][idx.DiaSemana],
-        FrecuenciaDias: Number(data[i][idx.FrecuenciaDias] || 0),
-        FechaBase: data[i][idx.FechaBase],
-        CapacidadMaxima: Number(data[i][idx.CapacidadMaxima] || 0),
-        SesionesPorCiclo: Number(data[i][idx.SesionesPorCiclo] || 0)
-      };
-    }
-  }
-
-  throw new Error('No existe configuración para la modalidad ' + modalidad + '.');
+  const config = new ConfigRepository().findByModalidad(modalidad);
+  if (!config) throw new Error('No existe configuración para la modalidad ' + modalidad + '.');
+  return config;
 }
 
 function validarConfigGrupo_(modalidad, config) {
@@ -112,42 +69,32 @@ function generarFechasCiclo_({ fechaInicio, diaSemana, frecuenciaDias, sesiones 
 }
 
 function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CICLOS);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_CICLOS + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 1) {
-    throw new Error('La hoja CICLOS no tiene encabezados.');
-  }
-
-  const headers = data[0];
-  const idx = indexByHeader_(headers);
-
-  const numeroCiclo = obtenerSiguienteNumeroCiclo_(modalidad, data, idx);
+  const cicloRepo = new CicloRepository();
+  const todos = cicloRepo.findAll();
+  
+  const numeroCiclo = obtenerSiguienteNumeroCiclo_(modalidad, todos);
   const cicloId = generarId_('CIC');
   const fechaFin = fechas[fechas.length - 1];
 
-  const row = [
-    cicloId,
-    modalidad,
-    numeroCiclo,
-    ESTADOS_CICLO.PLANIFICADO,
-    normalizarFecha_(fechaInicio),
-    normalizarFecha_(fechaFin),
-    normalizarFecha_(config.FechaBase),
-    config.DiaSemana,
-    config.FrecuenciaDias,
-    config.SesionesPorCiclo,
-    config.CapacidadMaxima,
-    0,
-    config.CapacidadMaxima,
-    true,
-    ''
-  ];
+  const nuevoCiclo = {
+    CicloID: cicloId,
+    Modalidad: modalidad,
+    NumeroCiclo: numeroCiclo,
+    EstadoCiclo: ESTADOS_CICLO.PLANIFICADO,
+    FechaInicioCiclo: normalizarFecha_(fechaInicio),
+    FechaFinCiclo: normalizarFecha_(fechaFin),
+    FechaBaseUsada: normalizarFecha_(config.FechaBase),
+    DiaSemana: config.DiaSemana,
+    FrecuenciaDias: config.FrecuenciaDias,
+    SesionesPorCiclo: config.SesionesPorCiclo,
+    CapacidadMaxima: config.CapacidadMaxima,
+    PlazasOcupadas: 0,
+    PlazasLibres: config.CapacidadMaxima,
+    GeneradoManual: true,
+    Notas: ''
+  };
 
-  sheet.appendRow(row);
+  cicloRepo.save(nuevoCiclo);
 
   return {
     cicloId,
@@ -155,18 +102,17 @@ function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {
   };
 }
 
-function obtenerSiguienteNumeroCiclo_(modalidad, data, idx) {
+function obtenerSiguienteNumeroCiclo_(modalidad, todosLosCiclos) {
   let maximo = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row[idx.Modalidad] === modalidad) {
-      const numero = Number(row[idx.NumeroCiclo] || 0);
+  todosLosCiclos.forEach(c => {
+    if (c.Modalidad === modalidad) {
+      const numero = Number(c.NumeroCiclo || 0);
       if (numero > maximo) {
         maximo = numero;
       }
     }
-  }
+  });
 
   return maximo + 1;
 }

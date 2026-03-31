@@ -33,141 +33,20 @@ function procesarAltaPacienteFormulario(formData) {
     throw new Error('Debes indicar un comentario para "Otros".');
   }
 
-  const paciente = obtenerPacienteCompletoPorId_(pacienteId);
-
-  if (!paciente) {
-    throw new Error('Paciente no encontrado.');
-  }
-
-  if (paciente.EstadoPaciente === ESTADOS_PACIENTE.ALTA) {
-    throw new Error('El paciente ya está en estado ALTA.');
-  }
-
-  // 1. Eliminar sesiones futuras
-  eliminarSesionesPendientesPaciente_(pacienteId);
-
-  // 2. Finalizar asignación de ciclo
-  finalizarAsignacionPaciente_(pacienteId);
-
-  // 3. Limpiar ciclo en paciente
-  const cicloId = paciente.CicloActivoID || paciente.CicloObjetivoID || '';
-
-  // 4. Actualizar paciente
-  actualizarPacienteAlta_(pacienteId, {
+  const service = new PatientService();
+  service.dischargePatient(pacienteId, {
     fechaAlta,
     motivoCodigo,
     motivoTexto,
     comentario
   });
 
-  // 5. Recalcular ciclo si aplica
-  if (cicloId) {
-    recalcularCiclo_(cicloId);
-  }
+  // Recalcular ocupación de ciclos de forma global tras el alta
+  new MaintenanceService().recalculateCycleOccupancy();
 
   return {
     mensaje: 'Alta generada correctamente.'
   };
-}
-
-function eliminarSesionesPendientesPaciente_(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
-  const data = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(data[0]);
-
-  for (let i = data.length - 1; i >= 1; i--) {
-    const row = data[i];
-
-    if (String(row[idx.PacienteID]) !== String(pacienteId)) continue;
-
-    const estado = row[idx.EstadoSesion];
-
-    if (
-      estado === ESTADOS_SESION.PENDIENTE ||
-      estado === ESTADOS_SESION.REPROGRAMADA
-    ) {
-      sheet.deleteRow(i + 1);
-    }
-  }
-}
-
-function finalizarAsignacionPaciente_(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ASIGNACIONES_CICLO);
-  const data = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(data[0]);
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.PacienteID]) !== String(pacienteId)) continue;
-
-    const estado = data[i][idx.EstadoAsignacion];
-
-    if (estado === 'ACTIVO' || estado === 'RESERVADO') {
-      sheet.getRange(i + 1, idx.EstadoAsignacion + 1).setValue('FINALIZADO');
-      sheet.getRange(i + 1, idx.Observaciones + 1).setValue('Alta paciente');
-    }
-  }
-}
-
-function actualizarPacienteAlta_(pacienteId, datos) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  const data = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(data[0]);
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.PacienteID]) !== String(pacienteId)) continue;
-
-    sheet.getRange(i + 1, idx.EstadoPaciente + 1).setValue(ESTADOS_PACIENTE.ALTA);
-    sheet.getRange(i + 1, idx.FechaCierre + 1).setValue(datos.fechaAlta);
-
-    sheet.getRange(i + 1, idx.FechaAltaEfectiva + 1).setValue(datos.fechaAlta);
-    sheet.getRange(i + 1, idx.MotivoAltaCodigo + 1).setValue(datos.motivoCodigo);
-    sheet.getRange(i + 1, idx.MotivoAltaTexto + 1).setValue(datos.motivoTexto);
-    sheet.getRange(i + 1, idx.ComentarioAlta + 1).setValue(datos.comentario);
-
-    sheet.getRange(i + 1, idx.ProximaSesion + 1).setValue('');
-    sheet.getRange(i + 1, idx.SesionesPendientes + 1).setValue(0);
-
-    sheet.getRange(i + 1, idx.CicloObjetivoID + 1).setValue('');
-    sheet.getRange(i + 1, idx.CicloActivoID + 1).setValue('');
-
-    return;
-  }
-
-  throw new Error('No se pudo actualizar el paciente.');
-}
-
-function recalcularCiclo_(cicloId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CICLOS);
-  const data = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(data[0]);
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.CicloID]) !== String(cicloId)) continue;
-
-    const capacidad = Number(data[i][idx.CapacidadMaxima] || 0);
-    let ocupadas = 0;
-
-    const asignaciones = SpreadsheetApp
-      .getActiveSpreadsheet()
-      .getSheetByName(SHEET_ASIGNACIONES_CICLO)
-      .getDataRange()
-      .getValues();
-
-    const aIdx = indexByHeader_(asignaciones[0]);
-
-    for (let j = 1; j < asignaciones.length; j++) {
-      if (String(asignaciones[j][aIdx.CicloID]) !== String(cicloId)) continue;
-
-      if (asignaciones[j][aIdx.EstadoAsignacion] === 'ACTIVO') {
-        ocupadas++;
-      }
-    }
-
-    sheet.getRange(i + 1, idx.PlazasOcupadas + 1).setValue(ocupadas);
-    sheet.getRange(i + 1, idx.PlazasLibres + 1).setValue(capacidad - ocupadas);
-
-    return;
-  }
 }
 
 function altaPaciente() {

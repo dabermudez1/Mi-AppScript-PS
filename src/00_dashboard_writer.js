@@ -1,11 +1,9 @@
 /***********************
- * BLOQUE 5B
+ * BLOQUE 00_DASHBOARD_WRITER
  * DASHBOARD REAL
  ***********************/
 
 function construirDashboardReal_() {
-  recalcularMetricasBasicas_();
-
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_DASHBOARD);
 
@@ -16,6 +14,9 @@ function construirDashboardReal_() {
   sheet.clear();
   sheet.clearFormats();
   sheet.setHiddenGridlines(true);
+
+  // Aseguramos que las métricas estén actualizadas antes de leer para el dashboard
+  new StateService().runAutomaticTransitions();
 
   const data = obtenerDatosDashboard_();
 
@@ -31,6 +32,10 @@ function construirDashboardReal_() {
 
   ajustarLayoutDashboard_(sheet);
 }
+
+// La función `recalcularMetricasBasicas_` ha sido eliminada ya que su lógica
+// está ahora integrada en `StateService.runAutomaticTransitions()`
+// y se llama antes de obtener los datos del dashboard.
 
 function obtenerDatosDashboard_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();

@@ -70,10 +70,10 @@ function reprogramarSesionIndividual_(data) {
 
   sessionService.rescheduleSession(pacienteId, numeroSesion, nuevaFecha);
 
-  recalcularMetricasBasicas_();
+  new StateService().refreshPatientMetrics(new PatientRepository().findById(pacienteId));
 
   return {
-    mensaje: 'Sesión individual reprogramada.\nCambios: ' + cambios
+    mensaje: 'Sesión individual reprogramada correctamente.'
   };
 }
 
@@ -81,11 +81,9 @@ function reprogramarSesionIndividual_(data) {
  * GRUPO
  ***************/
 function reprogramarSesionGrupo_(data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_SESIONES);
-
-  const sesData = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(sesData[0]);
+  const sessionRepo = new SessionRepository();
+  const patientRepo = new PatientRepository();
+  const stateService = new StateService();
 
   const cicloId = data.cicloId;
   const numeroSesion = Number(data.numeroSesion);
@@ -110,27 +108,25 @@ function reprogramarSesionGrupo_(data) {
   }
 
   let cambios = 0;
+  const sesiones = sessionRepo.findByCicloId(cicloId).filter(s => 
+    Number(s.NumeroSesion) === numeroSesion && 
+    s.EstadoSesion === ESTADOS_SESION.PENDIENTE
+  );
 
-  for (let i = 1; i < sesData.length; i++) {
-    if (
-      sesData[i][idx.CicloID] === cicloId &&
-      Number(sesData[i][idx.NumeroSesion]) === numeroSesion &&
-      sesData[i][idx.EstadoSesion] === ESTADOS_SESION.PENDIENTE
-    ) {
-      const fechaActual = sesData[i][idx.FechaSesion];
-
-      if (!sesData[i][idx.FechaOriginal]) {
-        sheet.getRange(i + 1, idx.FechaOriginal + 1).setValue(fechaActual);
-      }
-
-      sheet.getRange(i + 1, idx.FechaSesion + 1).setValue(nuevaFecha);
-      sheet.getRange(i + 1, idx.ModificadaManual + 1).setValue(true);
-
-      cambios++;
+  sesiones.forEach(sesion => {
+    if (!sesion.FechaOriginal) {
+      sesion.FechaOriginal = sesion.FechaSesion;
     }
-  }
-
-  recalcularMetricasBasicas_();
+    sesion.FechaSesion = nuevaFecha;
+    sesion.ModificadaManual = true;
+    sessionRepo.save(sesion);
+    
+    // Actualizar métricas del paciente afectado
+    const paciente = patientRepo.findById(sesion.PacienteID);
+    if (paciente) stateService.refreshPatientMetrics(paciente);
+    
+    cambios++;
+  });
 
   return {
     mensaje: 'Sesión grupal reprogramada.\nSesiones afectadas: ' + cambios
@@ -138,95 +134,34 @@ function reprogramarSesionGrupo_(data) {
 }
 
 function obtenerSesionesPendientesIndividualFormulario(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_SESIONES + '.');
-  }
+  const sessionRepo = new SessionRepository();
+  const sesiones = sessionRepo.findPendientesByPaciente(pacienteId);
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-
-  const idx = indexByHeader_(data[0]);
-  const sesionesMap = {};
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    if (
-      String(row[idx.PacienteID] || '') === String(pacienteId) &&
-      row[idx.EstadoSesion] === ESTADOS_SESION.PENDIENTE
-    ) {
-      const numeroSesion = Number(row[idx.NumeroSesion] || 0);
-      const fechaSesion = row[idx.FechaSesion];
-
-      if (!sesionesMap[numeroSesion]) {
-        sesionesMap[numeroSesion] = {
-          numeroSesion: numeroSesion,
-          fechaActual: formatearFecha_(fechaSesion),
-          label: 'Sesión ' + numeroSesion + ' | ' + formatearFecha_(fechaSesion)
-        };
-      }
-    }
-  }
-
-  return Object.values(sesionesMap).sort((a, b) => a.numeroSesion - b.numeroSesion);
+  return sesiones.map(s => ({
+    numeroSesion: s.NumeroSesion,
+    fechaActual: formatearFecha_(s.FechaSesion),
+    label: `Sesión ${s.NumeroSesion} | ${formatearFecha_(s.FechaSesion)}`
+  })).sort((a, b) => a.numeroSesion - b.numeroSesion);
 }
 
 function obtenerSesionesPendientesGrupoFormulario(cicloId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_SESIONES + '.');
-  }
+  const sessionRepo = new SessionRepository();
+  const sesiones = sessionRepo.findByCicloId(cicloId).filter(s => s.EstadoSesion === ESTADOS_SESION.PENDIENTE);
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
+  // Agrupar por número de sesión para el dropdown (ya que la sesión es común al grupo)
+  const unicas = [...new Map(sesiones.map(s => [s.NumeroSesion, s])).values()];
 
-  const idx = indexByHeader_(data[0]);
-  const sesionesMap = {};
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    if (
-      String(row[idx.CicloID] || '') === String(cicloId) &&
-      row[idx.EstadoSesion] === ESTADOS_SESION.PENDIENTE
-    ) {
-      const numeroSesion = Number(row[idx.NumeroSesion] || 0);
-      const fechaSesion = row[idx.FechaSesion];
-
-      if (!sesionesMap[numeroSesion]) {
-        sesionesMap[numeroSesion] = {
-          numeroSesion: numeroSesion,
-          fechaActual: formatearFecha_(fechaSesion),
-          label: 'Sesión ' + numeroSesion + ' | ' + formatearFecha_(fechaSesion)
-        };
-      }
-    }
-  }
-
-  return Object.values(sesionesMap).sort((a, b) => a.numeroSesion - b.numeroSesion);
+  return unicas.map(s => ({
+    numeroSesion: s.NumeroSesion,
+    fechaActual: formatearFecha_(s.FechaSesion),
+    label: `Sesión ${s.NumeroSesion} | ${formatearFecha_(s.FechaSesion)}`
+  })).sort((a, b) => a.numeroSesion - b.numeroSesion);
 }
 
 function obtenerDiaSemanaCiclo_(cicloId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CICLOS);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_CICLOS + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('No hay datos en la hoja ' + SHEET_CICLOS + '.');
-  }
-
-  const idx = indexByHeader_(data[0]);
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.CicloID]) === String(cicloId)) {
-      return data[i][idx.DiaSemana] || '';
-    }
-  }
-
-  throw new Error('No se encontró el ciclo indicado.');
+  const ciclo = new CicloRepository().findOneBy('CicloID', cicloId);
+  if (!ciclo) throw new Error('No se encontró el ciclo indicado.');
+  return ciclo.DiaSemana || '';
 }
 
 function abrirReprogramarSesionDesdeSesion(sesionId) {
@@ -264,38 +199,24 @@ function abrirReprogramarSesionDesdeIncidencia(sesionId) {
 }
 
 function obtenerSesionParaReprogramacionFormulario(sesionId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_SESIONES + '.');
+  const sessionRepo = new SessionRepository();
+  const sesion = sessionRepo.findOneBy('SesionID', sesionId);
+
+  if (!sesion) {
+    throw new Error('No se encontró la sesión indicada.');
   }
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('No hay sesiones registradas.');
+  if (sesion.EstadoSesion !== ESTADOS_SESION.PENDIENTE) {
+    throw new Error('Solo se pueden abrir para reprogramación sesiones en estado PENDIENTE.');
   }
 
-  const idx = indexByHeader_(data[0]);
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    if (String(row[idx.SesionID] || '') !== String(sesionId)) continue;
-
-    const estadoSesion = row[idx.EstadoSesion] || '';
-    if (estadoSesion !== ESTADOS_SESION.PENDIENTE) {
-      throw new Error('Solo se pueden abrir para reprogramación sesiones en estado PENDIENTE.');
-    }
-
-    return {
-      sesionId: row[idx.SesionID] || '',
-      modalidad: row[idx.Modalidad] || '',
-      pacienteId: row[idx.PacienteID] || '',
-      cicloId: row[idx.CicloID] || '',
-      numeroSesion: Number(row[idx.NumeroSesion] || 0),
-      fechaActual: formatearFecha_(row[idx.FechaSesion]),
-      nombrePaciente: row[idx.NombrePaciente] || ''
-    };
-  }
-
-  throw new Error('No se encontró la sesión indicada.');
+  return {
+    sesionId: sesion.SesionID,
+    modalidad: sesion.Modalidad,
+    pacienteId: sesion.PacienteID,
+    cicloId: sesion.CicloID,
+    numeroSesion: Number(sesion.NumeroSesion || 0),
+    fechaActual: formatearFecha_(sesion.FechaSesion),
+    nombrePaciente: sesion.NombrePaciente || ''
+  };
 }

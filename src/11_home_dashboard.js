@@ -26,7 +26,8 @@ function obtenerDatosHomeDashboard() {
       try {
         const yaReciente2 = cache.get(cacheKey);
         if (!yaReciente2) {
-          recalcularMetricasBasicas_();
+          const stateService = new StateService();
+          stateService.runAutomaticTransitions(); // Esto actualiza las métricas de pacientes
           cache.put(cacheKey, '1', ttlSeconds);
         }
       } finally {
@@ -93,7 +94,11 @@ function obtenerDatosHomeDashboard() {
 
     const cicloReferencia = ciclosVigentes
       .slice()
-      .sort((a, b) => a.FechaInicioCiclo - b.FechaInicioCiclo)[0];
+      .sort((a, b) => {
+        const tA = a.FechaInicioCiclo instanceof Date ? a.FechaInicioCiclo.getTime() : 0;
+        const tB = b.FechaInicioCiclo instanceof Date ? b.FechaInicioCiclo.getTime() : 0;
+        return tA - tB;
+      })[0];
 
     const capacidad = Number(cicloReferencia.CapacidadMaxima || 0);
     const ocupadas = Number(cicloReferencia.PlazasOcupadas || 0);
@@ -121,15 +126,34 @@ function obtenerDatosHomeDashboard() {
 
   const proximosCiclos = ciclos
     .filter(c => c.EstadoCiclo === 'PLANIFICADO')
-    .sort((a, b) => a.FechaInicioCiclo - b.FechaInicioCiclo)
+    .sort((a, b) => {
+      const tA = a.FechaInicioCiclo instanceof Date ? a.FechaInicioCiclo.getTime() : Infinity;
+      const tB = b.FechaInicioCiclo instanceof Date ? b.FechaInicioCiclo.getTime() : Infinity;
+      return tA - tB;
+    })
     .slice(0, 8)
-    .map(c => ({ ...c, FechaInicioCiclo: formatearFecha_(c.FechaInicioCiclo) }));
+    .map(c => ({ 
+      CicloID: c.CicloID, 
+      Modalidad: c.Modalidad, 
+      NumeroCiclo: c.NumeroCiclo, 
+      FechaInicioCiclo: formatearFecha_(c.FechaInicioCiclo),
+      PlazasLibres: c.PlazasLibres 
+    }));
 
   const proximosPacientes = pacientes
     .filter(p => p.EstadoPaciente === 'ACTIVO' || p.EstadoPaciente === 'ACTIVO_PENDIENTE_INICIO')
-    .sort((a, b) => a.ProximaSesion - b.ProximaSesion)
+    .sort((a, b) => {
+      const tA = a.ProximaSesion instanceof Date ? a.ProximaSesion.getTime() : Infinity;
+      const tB = b.ProximaSesion instanceof Date ? b.ProximaSesion.getTime() : Infinity;
+      return tA - tB;
+    })
     .slice(0, 10)
-    .map(p => ({ ...p, ProximaSesion: formatearFecha_(p.ProximaSesion) }));
+    .map(p => ({ 
+      PacienteID: p.PacienteID, 
+      Nombre: p.Nombre, 
+      EstadoPaciente: p.EstadoPaciente, 
+      ProximaSesion: formatearFecha_(p.ProximaSesion) 
+    }));
 
   const alertas = construirAlertasHome_(pacientes, ciclos, sesiones, hoy);
 
@@ -279,9 +303,7 @@ function homeRecalcularEstadosAutomaticamente() { recalcularEstadosAutomaticamen
 function homeFichaClinicaPaciente() { fichaClinicaPaciente(); }
 function homeVerIncidenciasCalendario() { verIncidenciasCalendario(); }
 function homeObtenerResumenIncidenciasCalendario() { return obtenerResumenIncidenciasCalendario(); }
-function homeEstadisticasFichasPacientes() { estadisticasFichasPacientes(); }
 
 function volverAlPanelDesdeDiasBloqueados() {
   abrirHomeDashboard(); // Re-abre el panel de control
 }
-function homeEstadisticasFichasPacientes() { estadisticasFichasPacientes(); }

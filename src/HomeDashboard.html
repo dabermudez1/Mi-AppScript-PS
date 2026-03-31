@@ -19,13 +19,14 @@
     <header class="flex justify-between items-center mb-8">
       <div>
         <h1 class="text-3xl font-bold text-indigo-700">Panel de Gestión Clínica</h1>
-        <p class="text-gray-500 text-sm">Actualizado el <span x-text="data.fechaActualizacion"></span></p>
+        <p class="text-gray-500 text-sm">
+          Hoy: <span class="font-semibold text-gray-700" x-text="data.fechaHoy"></span> · 
+          Actualizado: <span x-text="data.fechaActualizacion"></span>
+        </p>
       </div>
       <div class="flex space-x-3">
-        <button @click="callAction('homeActualizarEstadosAutomaticos')" class="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition">
-          🔄 Recalcular Estados
-        </button>
-        <button @click="load()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition">
+        <button @click="load()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition flex items-center">
+          <span class="mr-2">🔄</span>
           Refrescar Panel
         </button>
       </div>
@@ -42,6 +43,22 @@
       </template>
     </div>
 
+    <!-- Alerta Crítica de Incidencias -->
+    <template x-if="data.resumenIncidenciasCalendario.cantidad > 0">
+      <div class="mb-8 p-4 bg-orange-50 border-l-4 border-orange-400 rounded-r-xl flex justify-between items-center shadow-sm">
+        <div class="flex items-center">
+          <span class="text-2xl mr-3">⚠️</span>
+          <div>
+            <p class="font-bold text-orange-800">Incidencias de calendario detectadas</p>
+            <p class="text-orange-700 text-sm">Hay <span class="font-bold" x-text="data.resumenIncidenciasCalendario.cantidad"></span> sesión(es) programada(s) en días bloqueados o con errores.</p>
+          </div>
+        </div>
+        <button @click="callAction('homeVerIncidenciasCalendario')" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition text-sm font-bold shadow">
+          Revisar Incidencias
+        </button>
+      </div>
+    </template>
+
     <!-- Estadísticas Rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -56,23 +73,148 @@
         <p class="text-sm text-gray-400 font-medium">Ciclos en Curso</p>
         <h3 class="text-3xl font-bold mt-1 text-indigo-600" x-text="data.resumen.gruposEnCurso"></h3>
       </div>
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <p class="text-sm text-gray-400 font-medium text-red-500">Incidencias Calendar</p>
-        <h3 class="text-3xl font-bold mt-1 text-red-600" x-text="data.resumenIncidenciasCalendario.cantidad"></h3>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:bg-red-50 transition" @click="callAction('homeVerIncidenciasCalendario')">
+        <p class="text-sm text-gray-400 font-medium" :class="data.resumenIncidenciasCalendario.cantidad > 0 ? 'text-red-500' : ''">Incidencias Calendar</p>
+        <h3 class="text-3xl font-bold mt-1" :class="data.resumenIncidenciasCalendario.cantidad > 0 ? 'text-red-600' : ''" x-text="data.resumenIncidenciasCalendario.cantidad"></h3>
       </div>
     </div>
 
+    <!-- Monitor de Ocupación y Estados -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <!-- Ocupación por Modalidad -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h4 class="font-bold text-gray-700 mb-4 flex items-center">
+          <span class="mr-2">📊</span> Ocupación por modalidad
+        </h4>
+        <div class="space-y-4">
+          <template x-for="item in data.ocupacionPorModalidad" :key="item.modalidad">
+            <div>
+              <div class="flex justify-between text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">
+                <span x-text="item.modalidad"></span>
+                <span x-text="item.ocupadas + '/' + item.capacidad"></span>
+              </div>
+              <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden border border-gray-200">
+                <div class="h-full rounded-full transition-all duration-500" 
+                     :class="item.porcentaje > 90 ? 'bg-red-500' : (item.porcentaje > 70 ? 'bg-orange-400' : 'bg-indigo-500')"
+                     :style="'width: ' + item.porcentaje + '%'"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Estado de Grupos -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h4 class="font-bold text-gray-700 mb-4 flex items-center">
+          <span class="mr-2">🏗️</span> Estado de ciclos (Grupos)
+        </h4>
+        <div class="space-y-3">
+          <template x-for="(val, key) in data.estadoCiclos" :key="key">
+            <div class="flex items-center">
+              <div class="w-32 text-xs font-bold text-gray-500 uppercase tracking-wider" x-text="key.replace(/([A-Z])/g, ' $1')"></div>
+              <div class="flex-1 mx-4 bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div class="bg-slate-400 h-full rounded-full" 
+                     :style="'width: ' + (val > 0 ? (val / (data.estadoCiclos.planificados + data.estadoCiclos.enCurso + data.estadoCiclos.cerrados) * 100) : 0) + '%'"></div>
+              </div>
+              <div class="w-8 text-right text-sm font-bold text-gray-700" x-text="val"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Acciones Operativas Categorizadas -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+      <!-- Pacientes -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <h4 class="text-xs font-black text-gray-400 uppercase mb-4 tracking-widest">Pacientes</h4>
+        <div class="flex flex-col gap-2">
+          <button @click="callAction('homeNuevoPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-indigo-700 font-bold text-sm transition">👤 Nuevo Paciente</button>
+          <button @click="callAction('homeEditarPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">✏️ Editar Paciente</button>
+          <button @click="callAction('homeFichaClinicaPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">📋 Ficha Clínica</button>
+          <button @click="callAction('homeAltaPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-emerald-50 text-emerald-700 font-bold text-sm transition">✅ Dar de Alta</button>
+          <button @click="callAction('homeEliminarPacientePorError')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 text-sm transition">🗑️ Eliminar Error</button>
+          <hr class="my-1 border-gray-100">
+          <button @click="callAction('homeAbrirPantallaPacientes')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-indigo-600 font-bold text-xs uppercase transition">Ver Listado Completo</button>
+        </div>
+      </div>
+
+      <!-- Grupos -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <h4 class="text-xs font-black text-gray-400 uppercase mb-4 tracking-widest">Grupos</h4>
+        <div class="flex flex-col gap-2">
+          <button @click="callAction('homeCrearCicloGrupo')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-indigo-700 font-bold text-sm transition">➕ Crear Nuevo Ciclo</button>
+          <button @click="callAction('homeGestionEsperaYCicloPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-orange-50 text-orange-700 text-sm transition">🤝 Gestionar Espera</button>
+          <button @click="callAction('homeAbrirPantallaCiclos')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">📅 Pantalla Grupos</button>
+        </div>
+      </div>
+
+      <!-- Sesiones y Sync -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <h4 class="text-xs font-black text-gray-400 uppercase mb-4 tracking-widest">Sesiones y Sync</h4>
+        <div class="flex flex-col gap-2">
+          <button @click="callAction('homeAbrirPantallaSesiones')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🔎 Pantalla Sesiones</button>
+          <button @click="callAction('homeAbrirReprogramarSesion')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-orange-50 text-orange-700 text-sm transition">🗓️ Reprogramar Sesión</button>
+          <button @click="callAction('homeActualizarEstadosAutomaticos')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 text-blue-700 font-bold text-sm transition">⚙️ Actualizar Estados</button>
+          <button @click="callAction('homeSincronizarGoogleCalendar')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-indigo-700 font-bold text-sm transition">☁️ Sync Calendar</button>
+          <template x-if="data.calendarUrl">
+            <button @click="window.open(data.calendarUrl, '_blank')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-600 text-xs font-bold transition italic">🔗 Abrir Calendar Web</button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Configuración -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <h4 class="text-xs font-black text-gray-400 uppercase mb-4 tracking-widest">Configuración</h4>
+        <div class="flex flex-col gap-2">
+          <button @click="callAction('homeGestionarConfigModalidades')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🛠️ Config Modalidades</button>
+          <button @click="callAction('homeGestionarCatalogos')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">📚 Catálogos</button>
+          <button @click="callAction('homeGestionarDiasBloqueados')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🚫 Gestión Bloqueos</button>
+          <hr class="my-1 border-gray-100">
+          <button @click="callAction('homeRefrescarDashboardHoja')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-500 text-xs transition underline underline-offset-4">Refrescar Dashboard Hoja</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablas de Próximos Eventos -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      
-      <!-- Próximos Pacientes -->
+      <!-- Próximos Grupos -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-          <h4 class="font-bold text-gray-700">Agenda Próxima</h4>
-          <button @click="callAction('homeAbrirPantallaPacientes')" class="text-indigo-600 text-sm font-semibold hover:underline">Ver todos</button>
+          <h4 class="font-bold text-gray-700">Próximos Ciclos</h4>
+          <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">Planificados</span>
         </div>
         <table class="w-full text-left text-sm">
           <thead>
-            <tr class="text-gray-400">
+            <tr class="text-gray-400 border-b border-gray-50">
+              <th class="px-5 py-3 font-medium">Modalidad</th>
+              <th class="px-5 py-3 font-medium">Ciclo</th>
+              <th class="px-5 py-3 font-medium">Inicio</th>
+              <th class="px-5 py-3 font-medium">Plazas Libres</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="c in data.proximosCiclos" :key="c.CicloID">
+              <tr class="border-t border-gray-50 hover:bg-gray-50">
+                <td class="px-5 py-3 font-semibold" x-text="c.Modalidad"></td>
+                <td class="px-5 py-3" x-text="c.NumeroCiclo"></td>
+                <td class="px-5 py-3" x-text="c.FechaInicioCiclo"></td>
+                <td class="px-5 py-3 font-bold" :class="c.PlazasLibres > 0 ? 'text-green-600' : 'text-red-500'" x-text="c.PlazasLibres"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Próximos Pacientes -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <h4 class="font-bold text-gray-700">Próximos Pacientes</h4>
+          <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">Agenda Activa</span>
+        </div>
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="text-gray-400 border-b border-gray-50">
               <th class="px-5 py-3 font-medium">Paciente</th>
               <th class="px-5 py-3 font-medium">Siguiente Cita</th>
               <th class="px-5 py-3 font-medium">Estado</th>
@@ -93,32 +235,7 @@
           </tbody>
         </table>
       </div>
-
-      <!-- Acciones Rápidas -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h4 class="font-bold text-gray-700 mb-6">Operativa</h4>
-        <div class="grid grid-cols-2 gap-4">
-          <button @click="callAction('homeNuevoPaciente')" class="flex flex-col items-center justify-center p-6 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition border-2 border-transparent hover:border-indigo-200">
-            <span class="text-2xl mb-2">👤+</span>
-            <span class="text-indigo-700 font-bold text-sm">Nuevo Paciente</span>
-          </button>
-          <button @click="callAction('homeAbrirReprogramarSesion')" class="flex flex-col items-center justify-center p-6 bg-orange-50 rounded-xl hover:bg-orange-100 transition border-2 border-transparent hover:border-orange-200">
-            <span class="text-2xl mb-2">📅</span>
-            <span class="text-orange-700 font-bold text-sm">Reprogramar</span>
-          </button>
-          <button @click="callAction('homeAltaPaciente')" class="flex flex-col items-center justify-center p-6 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition border-2 border-transparent hover:border-emerald-200">
-            <span class="text-2xl mb-2">✅</span>
-            <span class="text-emerald-700 font-bold text-sm">Alta Médica</span>
-          </button>
-          <button @click="callAction('homeSincronizarGoogleCalendar')" class="flex flex-col items-center justify-center p-6 bg-blue-50 rounded-xl hover:bg-blue-100 transition border-2 border-transparent hover:border-blue-200">
-            <span class="text-2xl mb-2">☁️</span>
-            <span class="text-blue-700 font-bold text-sm">Sync Calendar</span>
-          </button>
-        </div>
-      </div>
-
     </div>
-
   </div>
 
   <!-- Pantalla de carga -->
@@ -132,16 +249,19 @@
       return {
         loading: true,
         data: {
-          resumen: {},
+          resumen: { activos: 0, espera: 0, alta: 0, pendienteInicio: 0, gruposEnCurso: 0, sesionesPendientes: 0, sesionesErrorSync: 0 },
           alertas: [],
           proximosPacientes: [],
-          fechaActualizacion: ''
+          proximosCiclos: [],
+          fechaActualizacion: 'Cargando...',
+          resumenIncidenciasCalendario: { cantidad: 0 },
+          fechaHoy: ''
         },
         load() {
           this.loading = true;
           google.script.run
             .withSuccessHandler(res => {
-              this.data = res;
+              if (res) this.data = res;
               this.loading = false;
             })
             .withFailureHandler(err => {

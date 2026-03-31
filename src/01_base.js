@@ -704,8 +704,8 @@ function parseFechaES_(texto) {
  * STUB TEMPORAL
  * Se rehace más adelante
  ***************/
-function refrescarDashboard() {
-  construirDashboardReal_();
+function refrescarDashboard() { // Este es el entry point del menú
+  construirDashboardReal_(); // Llama a la función que escribe el dashboard en la hoja
 }
 
 /***************

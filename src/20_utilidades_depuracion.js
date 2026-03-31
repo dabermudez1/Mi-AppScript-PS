@@ -142,55 +142,6 @@ function resetEntornoCompletoDepuracion_(confirmacion) {
   };
 }
 
-function limpiarIntegracionCalendarDepuracion_(confirmacion) {
-  if (confirmacion !== 'CONFIRMAR_RESET_CALENDAR') {
-    throw new Error(
-      'Confirmación inválida para reset de calendar.\n\n' +
-      'Usa exactamente: CONFIRMAR_RESET_CALENDAR'
-    );
-  }
-
-  try {
-    limpiarCamposSyncCalendarSesiones();
-  } catch (e) {
-    Logger.log('Error limpiando campos sync calendar: ' + e.message);
-  }
-
-  try {
-    resetCalendarioConsultaVinculado();
-  } catch (e) {
-    Logger.log('Error reseteando calendario vinculado: ' + e.message);
-  }
-
-  return {
-    mensaje:
-      'Integración de Google Calendar reseteada.\n\n' +
-      '- Sync de sesiones limpiado\n' +
-      '- Calendario desvinculado\n\n' +
-      'No se han borrado eventos del calendario.'
-  };
-}
-
-function resetEntornoCompletoDepuracion_(confirmacion) {
-  if (confirmacion !== 'CONFIRMAR_RESET_TOTAL_ABSOLUTO') {
-    throw new Error(
-      'Confirmación inválida.\n\n' +
-      'Usa exactamente: CONFIRMAR_RESET_TOTAL_ABSOLUTO'
-    );
-  }
-
-  resetProyectoDepuracion_('CONFIRMAR_RESET_TOTAL');
-  limpiarIntegracionCalendarDepuracion_('CONFIRMAR_RESET_CALENDAR');
-
-  return {
-    mensaje:
-      'RESET TOTAL COMPLETO realizado.\n\n' +
-      '- Datos vaciados\n' +
-      '- Integración Google Calendar reseteada\n\n' +
-      'Sistema listo para pruebas desde cero.'
-  };
-}
-
 function ejecutarLimpiarDatosOperativosDepuracion_() {
   const res = limpiarDatosOperativosDepuracion_('CONFIRMAR_RESET_OPERATIVO');
   SpreadsheetApp.getUi().alert(res.mensaje);

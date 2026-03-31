@@ -834,7 +834,8 @@ function confirmarAsignacionPacienteEnEsperaFormulario(formData) {
   });
 
   asegurarSesionesPacienteGrupoSiFaltan_(paciente.PacienteID, ciclo.CicloID);
-  recalcularOcupacionCiclosInterno_();
+  new MaintenanceService().recalculateCycleOccupancy();
+  new StateService().runAutomaticTransitions();
 
   try {
     refrescarDashboard();
@@ -1241,9 +1242,9 @@ function confirmarReasignacionPacienteFormulario(formData) {
 
     generarSesionesPacienteGrupo_(paciente.PacienteID, nuevoCiclo.CicloID);
 
-    recalcularOcupacionCiclosInterno_();
-    recalcularMetricasBasicas_();
-
+    new MaintenanceService().recalculateCycleOccupancy();
+    new StateService().runAutomaticTransitions();
+    
     try {
       refrescarDashboard();
     } catch (e) {
@@ -1505,8 +1506,8 @@ function confirmarEliminacionPacienteFormulario(formData) {
   borrarSesionesPaciente_(paciente.PacienteID);
   borrarPacientePorId_(paciente.PacienteID);
 
-  recalcularOcupacionCiclosInterno_();
-  recalcularMetricasBasicas_();
+  new MaintenanceService().recalculateCycleOccupancy();
+  new StateService().runAutomaticTransitions();
 
   try {
     refrescarDashboard();

@@ -69,86 +69,23 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
 }
 
 /***************
- * HELPERS DATOS
- ***************/
-function obtenerPacientePorId_(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const idx = indexByHeader_(headers);
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.PacienteID]) === String(pacienteId)) {
-      return mapPaciente_(data[i], idx);
-    }
-  }
-
-  return null;
-}
-
-function obtenerCicloPorId_(cicloId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CICLOS);
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  const idx = indexByHeader_(headers);
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.CicloID]) === String(cicloId)) {
-      return mapCiclo_(data[i], idx);
-    }
-  }
-
-  return null;
-}
-
-function mapPaciente_(row, idx) {
-  return {
-    PacienteID: row[idx.PacienteID],
-    Nombre: row[idx.Nombre],
-    ModalidadSolicitada: row[idx.ModalidadSolicitada],
-    EstadoPaciente: row[idx.EstadoPaciente],
-    FechaPrimeraSesionReal: row[idx.FechaPrimeraSesionReal],
-    SesionesPlanificadas: row[idx.SesionesPlanificadas]
-  };
-}
-
-function mapCiclo_(row, idx) {
-  return {
-    CicloID: row[idx.CicloID],
-    FechaInicioCiclo: row[idx.FechaInicioCiclo],
-    DiaSemana: row[idx.DiaSemana],
-    FrecuenciaDias: Number(row[idx.FrecuenciaDias] || 0),
-    SesionesPorCiclo: Number(row[idx.SesionesPorCiclo] || 0)
-  };
-}
-
-/***************
  * MANTENIMIENTO
  ***************/
 function generarSesionesFaltantes() {
   const ui = SpreadsheetApp.getUi();
+  const patientRepo = new PatientRepository();
+  const sessionRepo = new SessionRepository();
 
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetPac = ss.getSheetByName(SHEET_PACIENTES);
-    const sheetSes = ss.getSheetByName(SHEET_SESIONES);
+    const pacientes = patientRepo.findAll();
+    const todasLasSesiones = sessionRepo.findAll();
 
-    if (!sheetPac || !sheetSes) {
-      throw new Error('Faltan hojas PACIENTES o SESIONES.');
-    }
-
-    const pacData = sheetPac.getDataRange().getValues();
-    const sesData = sheetSes.getDataRange().getValues();
-
-    if (pacData.length < 2) {
+    if (pacientes.length === 0) {
       ui.alert('No hay pacientes.');
       return;
     }
 
-    const pIdx = indexByHeader_(pacData[0]);
-    const sIdx = sesData.length > 0 ? indexByHeader_(sesData[0]) : {};
-
-    const sesionesPorPaciente = contarSesionesPorPaciente_(sesData, sIdx);
+    const sesionesPorPaciente = agruparSesionesPorPaciente_(todasLasSesiones);
 
     let generadasIndividual = 0;
     let generadasGrupo = 0;
@@ -156,13 +93,12 @@ function generarSesionesFaltantes() {
     let omitidasSinCondiciones = 0;
     let avisos = [];
 
-    for (let i = 1; i < pacData.length; i++) {
-      const paciente = mapPacienteCompletoDesdeFila_(pacData[i], pIdx);
-      const totalExistentes = sesionesPorPaciente[String(paciente.PacienteID)] || 0;
+    pacientes.forEach(paciente => {
+      const totalExistentes = (sesionesPorPaciente[String(paciente.PacienteID)] || []).length;
 
       if (totalExistentes > 0) {
         omitidasConSesiones++;
-        continue;
+        return;
       }
 
       if (paciente.ModalidadSolicitada === MODALIDADES.INDIVIDUAL) {
@@ -183,7 +119,7 @@ function generarSesionesFaltantes() {
         } else {
           omitidasSinCondiciones++;
         }
-        continue;
+        return;
       }
 
       const esGrupo =
@@ -212,7 +148,7 @@ function generarSesionesFaltantes() {
           omitidasSinCondiciones++;
         }
       }
-    }
+    });
 
     let mensaje =
       'Generación de sesiones faltantes completada.\n\n' +
@@ -231,42 +167,6 @@ function generarSesionesFaltantes() {
     ui.alert('Error al generar sesiones faltantes: ' + error.message);
     throw error;
   }
-}
-
-function contarSesionesPorPaciente_(sesData, sIdx) {
-  const map = {};
-
-  if (!sesData || sesData.length < 2 || sIdx.PacienteID === undefined) {
-    return map;
-  }
-
-  for (let i = 1; i < sesData.length; i++) {
-    const pacienteId = String(sesData[i][sIdx.PacienteID] || '');
-    if (!pacienteId) continue;
-
-    if (!map[pacienteId]) {
-      map[pacienteId] = 0;
-    }
-    map[pacienteId]++;
-  }
-
-  return map;
-}
-
-function mapPacienteCompletoDesdeFila_(row, idx) {
-  return {
-    PacienteID: row[idx.PacienteID],
-    Nombre: row[idx.Nombre],
-    ModalidadSolicitada: row[idx.ModalidadSolicitada],
-    EstadoPaciente: row[idx.EstadoPaciente],
-    CicloObjetivoID: row[idx.CicloObjetivoID],
-    CicloActivoID: row[idx.CicloActivoID],
-    FechaPrimeraSesionReal: row[idx.FechaPrimeraSesionReal],
-    SesionesPlanificadas: Number(row[idx.SesionesPlanificadas] || 0),
-    SesionesCompletadas: Number(row[idx.SesionesCompletadas] || 0),
-    SesionesPendientes: Number(row[idx.SesionesPendientes] || 0),
-    ProximaSesion: row[idx.ProximaSesion]
-  };
 }
 
 function generarFechasIndividualConAvisos_({
