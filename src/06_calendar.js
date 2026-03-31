@@ -430,3 +430,13 @@ function eliminarEventosNoRepresentados(calendar) {
     }
   });
 }
+
+/**
+ * Helper para identificar si un evento de Google Calendar 
+ * es un "Día Bloqueado" para no sobreescribirlo ni borrarlo
+ * durante la sync de sesiones.
+ */
+function esEventoDiaBloqueado_(evento) {
+  const titulo = String(evento && typeof evento.getTitle === 'function' ? evento.getTitle() : '');
+  return titulo.toLowerCase().includes('bloqueado');
+}

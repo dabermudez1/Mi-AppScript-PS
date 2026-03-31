@@ -47,8 +47,14 @@ class StateService {
     // 3. Pacientes: ACTIVO_PENDIENTE_INICIO -> ACTIVO (si su ciclo empezó)
     // Y ACTIVO -> ALTA (si terminaron sesiones)
     const pacientes = this.patientRepo.findAll();
+    
+    // OPTIMIZACIÓN: Precargar sesiones y agruparlas por PacienteID en un solo paso
+    const sesionesPorPaciente = this._mapSessionsByPatient();
+
     pacientes.forEach(p => {
       if (p.EstadoPaciente === ESTADOS_PACIENTE.ALTA) return;
+
+      const susSesiones = sesionesPorPaciente[p.PacienteID] || [];
 
       // Lógica de inicio de ciclo
       if (p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO && p.CicloObjetivoID) {
@@ -62,7 +68,7 @@ class StateService {
       }
 
       // Lógica de fin de sesiones (Auto-Alta)
-      this.refreshPatientMetrics(p);
+      this.refreshPatientMetrics(p, susSesiones);
       if (p.SesionesPlanificadas > 0 && p.SesionesCompletadas >= p.SesionesPlanificadas) {
         p.EstadoPaciente = ESTADOS_PACIENTE.ALTA;
         p.FechaCierre = hoy;
@@ -76,9 +82,11 @@ class StateService {
 
   /**
    * Recalcula sesiones completadas/pendientes para un objeto paciente.
+   * @param {Object} patient - El objeto paciente.
+   * @param {Array} [providedSessions] - Opcional: Lista de sesiones ya filtrada.
    */
-  refreshPatientMetrics(patient) {
-    const sesiones = this.sessionRepo.findByPacienteId(patient.PacienteID);
+  refreshPatientMetrics(patient, providedSessions) {
+    const sesiones = providedSessions || this.sessionRepo.findByPacienteId(patient.PacienteID);
     patient.SesionesCompletadas = sesiones.filter(s => 
       s.EstadoSesion === ESTADOS_SESION.COMPLETADA_AUTO || s.EstadoSesion === ESTADOS_SESION.COMPLETADA_MANUAL
     ).length;
@@ -90,5 +98,19 @@ class StateService {
     if (proximas.length > 0) {
       patient.ProximaSesion = proximas.sort((a,b) => a.FechaSesion - b.FechaSesion)[0].FechaSesion;
     }
+  }
+
+  /**
+   * Helper para agrupar todas las sesiones por PacienteID
+   * @private
+   */
+  _mapSessionsByPatient() {
+    const all = this.sessionRepo.findAll();
+    const map = {};
+    all.forEach(s => {
+      if (!map[s.PacienteID]) map[s.PacienteID] = [];
+      map[s.PacienteID].push(s);
+    });
+    return map;
   }
 }

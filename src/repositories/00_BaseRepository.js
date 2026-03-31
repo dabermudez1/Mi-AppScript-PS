@@ -3,6 +3,10 @@
  * Clase Base para manejar la persistencia en Google Sheets.
  * Implementa el mapeo automático entre Filas y Objetos.
  */
+
+// Objeto global para cachear lecturas durante una misma ejecución del script
+const __EXECUTION_CACHE__ = {};
+
 class BaseRepository {
   constructor(sheetName, headers) {
     this.sheetName = sheetName;
@@ -20,6 +24,11 @@ class BaseRepository {
    * Obtiene todos los registros como una lista de objetos.
    */
   findAll() {
+    // Si ya leímos esta hoja en esta ejecución, devolver caché
+    if (__EXECUTION_CACHE__[this.sheetName]) {
+      return __EXECUTION_CACHE__[this.sheetName];
+    }
+
     const sheet = this.getSheet();
     const data = sheet.getDataRange().getValues();
     if (data.length < 2) return [];
@@ -27,13 +36,16 @@ class BaseRepository {
     const headerRow = data[0];
     const idx = this._indexHeaders(headerRow);
 
-    return data.slice(1).map((row, i) => {
+    const results = data.slice(1).map((row, i) => {
       const obj = { _row: i + 2 }; // Guardamos la referencia a la fila física
       this.headers.forEach(h => {
         obj[h] = row[idx[h]];
       });
       return obj;
     });
+
+    __EXECUTION_CACHE__[this.sheetName] = results;
+    return results;
   }
 
   /**
