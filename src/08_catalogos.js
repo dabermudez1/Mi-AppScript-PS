@@ -118,27 +118,21 @@ function eliminarValorCatalogoFormulario(formData) {
   }
 
   const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('No hay datos en CATALOGOS.');
-  }
+  if (data.length < 2) throw new Error('No hay datos en CATALOGOS.');
 
   const idx = indexByHeader_(data[0]);
+  const initialLength = data.length;
+  
+  // Filtrado en memoria: mantenemos todo excepto el valor a borrar
+  const filteredData = data.filter((row, i) => {
+    if (i === 0) return true;
+    return !(String(row[idx.Catalogo]).trim() === catalogo && String(row[idx.Valor]).trim() === valor);
+  });
 
-  for (let i = data.length - 1; i >= 1; i--) {
-    const c = String(data[i][idx.Catalogo] || '').trim();
-    const v = String(data[i][idx.Valor] || '').trim();
+  if (filteredData.length === initialLength) throw new Error('No se encontró el valor.');
 
-    if (c === catalogo && v === valor) {
-      sheet.deleteRow(i + 1);
+  sheet.clearContents();
+  sheet.getRange(1, 1, filteredData.length, data[0].length).setValues(filteredData);
 
-      return {
-        mensaje:
-          'Valor eliminado correctamente.\n\n' +
-          'Catálogo: ' + catalogo + '\n' +
-          'Valor: ' + valor
-      };
-    }
-  }
-
-  throw new Error('No se encontró el valor en el catálogo.');
+  return { mensaje: 'Valor eliminado correctamente.' };
 }

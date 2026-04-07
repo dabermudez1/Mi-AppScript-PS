@@ -84,24 +84,23 @@ function guardarDiaBloqueadoFormulario(formData) {
   const data = sheet.getDataRange().getValues();
   const idx = indexByHeader_(data[0]);
 
-  const existentes = {};
+  // Mapeamos los datos actuales para buscarlos rápidamente
+  const mapaDatos = {};
+  const headers = data[0];
   for (let i = 1; i < data.length; i++) {
     const fechaExistente = data[i][idx.Fecha];
     if (!fechaExistente) continue;
-
     const claveExistente = obtenerClaveFecha_(fechaExistente);
-    existentes[claveExistente] = i + 1;
+    mapaDatos[claveExistente] = data[i];
   }
 
   let actualizados = 0;
   let insertados = 0;
   let omitidosFinSemana = 0;
-
   let actual = new Date(desde);
 
   while (actual.getTime() <= hasta.getTime()) {
     const fechaActual = normalizarFecha_(actual);
-
     if (esFinDeSemana_(fechaActual)) {
       omitidosFinSemana++;
       actual = sumarDiasNaturales_(actual, 1);
@@ -109,19 +108,28 @@ function guardarDiaBloqueadoFormulario(formData) {
     }
 
     const clave = obtenerClaveFecha_(fechaActual);
-
-    if (existentes[clave]) {
-      const rowNum = existentes[clave];
-      sheet.getRange(rowNum, idx.Bloqueado + 1).setValue(true);
-      sheet.getRange(rowNum, idx.Motivo + 1).setValue(motivo);
+    if (mapaDatos[clave]) {
+      mapaDatos[clave][idx.Bloqueado] = true;
+      mapaDatos[clave][idx.Motivo] = motivo;
       actualizados++;
     } else {
-      sheet.appendRow([fechaActual, true, motivo]);
+      const nuevaFila = new Array(headers.length).fill('');
+      nuevaFila[idx.Fecha] = fechaActual;
+      nuevaFila[idx.Bloqueado] = true;
+      nuevaFila[idx.Motivo] = motivo;
+      mapaDatos[clave] = nuevaFila;
       insertados++;
     }
 
     actual = sumarDiasNaturales_(actual, 1);
   }
+
+  // Reconstruimos la tabla completa
+  const nuevasFilas = Object.values(mapaDatos).sort((a, b) => a[idx.Fecha] - b[idx.Fecha]);
+  const tablaFinal = [headers].concat(nuevasFilas);
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, tablaFinal.length, headers.length).setValues(tablaFinal);
 
   let mensaje =
     'Bloqueo guardado correctamente.\n\n' +

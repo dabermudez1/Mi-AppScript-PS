@@ -345,7 +345,7 @@
               clearInterval(this.pollingInterval);
               this.pollingInterval = null;
             }
-          }, 3000);
+          }, 5000); // Aumentar a 5s para reducir carga en el servidor si hay concurrencia
         },
         callAction(fn) {
           const backgroundTasks = {

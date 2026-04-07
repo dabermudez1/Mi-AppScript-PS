@@ -13,22 +13,31 @@ function abrirHomeDashboard() {
 }
 
 function obtenerDatosHomeDashboard() {
-  // `recalcularMetricasBasicas_()` puede ser costoso si hay muchas sesiones.
-  // Cacheamos el recálculo breve para que el panel sea fluido.
   const cache = CacheService.getScriptCache();
-  const cacheKey = 'metricasBasicas_home_lastRun';
-  const ttlSeconds = 60;
+  const cacheKeyData = 'dashboard_full_data_cache';
+  
+  // Intentar obtener el objeto completo de la caché para carga instantánea
+  const cachedData = cache.get(cacheKeyData);
+  if (cachedData) {
+    try {
+      return JSON.parse(cachedData);
+    } catch (e) { /* fallback a carga normal */ }
+  }
 
-  const yaReciente = cache.get(cacheKey);
+  // Si no hay caché, realizamos el proceso pesado
+  const lockKey = 'metricasBasicas_home_lastRun';
+  const ttlSeconds = 60;
+  const yaReciente = cache.get(lockKey);
+
   if (!yaReciente) {
     const lock = LockService.getScriptLock();
     if (lock.tryLock(1500)) {
       try {
-        const yaReciente2 = cache.get(cacheKey);
+        const yaReciente2 = cache.get(lockKey);
         if (!yaReciente2) {
           const stateService = new StateService();
           stateService.runAutomaticTransitions(); // Esto actualiza las métricas de pacientes
-          cache.put(cacheKey, '1', ttlSeconds);
+          cache.put(lockKey, '1', ttlSeconds);
         }
       } finally {
         lock.releaseLock();
@@ -143,7 +152,7 @@ function obtenerDatosHomeDashboard() {
 
   const alertas = construirAlertasHome_(pacientes, ciclos, sesiones, hoy);
 
-  return {
+  const finalResult = {
     fechaHoy: formatearFecha_(hoy),
     fechaActualizacion: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm'),
     resumen,
@@ -157,6 +166,16 @@ function obtenerDatosHomeDashboard() {
     calendarUrl: (typeof obtenerCalendarConsultaUrl_ === 'function') ? obtenerCalendarConsultaUrl_() : null,
     alertas
   };
+
+  // Guardar en caché el resultado final (durante 10 minutos o hasta actualización manual)
+  try { cache.put(cacheKeyData, JSON.stringify(finalResult), 600); } catch (e) {}
+
+  return finalResult;
+}
+
+function eliminarCacheDashboard_() {
+  const cache = CacheService.getScriptCache();
+  cache.remove('dashboard_full_data_cache');
 }
 
 function construirAlertasHome_(pacientes, ciclos, sesiones, hoy) {

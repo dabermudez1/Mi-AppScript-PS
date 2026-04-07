@@ -38,23 +38,19 @@ function construirDashboardReal_() {
 // y se llama antes de obtener los datos del dashboard.
 
 function obtenerDatosDashboard_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // Usar repositorios para aprovechar la caché de ejecución (__EXECUTION_CACHE__)
+  const patientRepo = new PatientRepository();
+  const cicloRepo = new BaseRepository(SHEET_CICLOS, HEADERS[SHEET_CICLOS]);
+  const configRepo = new BaseRepository(SHEET_CONFIG_MODALIDADES, HEADERS[SHEET_CONFIG_MODALIDADES]);
 
-  const sheetPac = ss.getSheetByName(SHEET_PACIENTES);
-  const sheetCic = ss.getSheetByName(SHEET_CICLOS);
-  const sheetCfg = ss.getSheetByName(SHEET_CONFIG_MODALIDADES);
-
-  if (!sheetPac || !sheetCic || !sheetCfg) {
-    throw new Error('Faltan hojas necesarias para construir el dashboard.');
-  }
-
-  const pacData = sheetPac.getDataRange().getValues();
-  const cicData = sheetCic.getDataRange().getValues();
-  const cfgData = sheetCfg.getDataRange().getValues();
-
-  const pacientes = mapearPacientesDashboard_(pacData);
-  const ciclos = mapearCiclosDashboard_(cicData);
-  const config = mapearConfigDashboard_(cfgData);
+  // findAll() ya devuelve objetos mapeados y usa caché
+  const pacientes = patientRepo.findAll();
+  const ciclos = cicloRepo.findAll();
+  const configArray = configRepo.findAll();
+  
+  // Convertir config a mapa para compatibilidad con lógica existente
+  const config = {};
+  configArray.forEach(c => { config[c.Modalidad] = c; });
 
   const hoy = normalizarFecha_(new Date());
 

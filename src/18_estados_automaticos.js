@@ -4,70 +4,60 @@
  ***********************/
 
 function recalcularEstadosAutomaticamente() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetPac = ss.getSheetByName(SHEET_PACIENTES);
-  const sheetSes = ss.getSheetByName(SHEET_SESIONES);
-
-  if (!sheetPac || !sheetSes) {
-    throw new Error('Faltan hojas PACIENTES o SESIONES.');
-  }
-
-  const pacData = sheetPac.getDataRange().getValues();
-  const sesData = sheetSes.getDataRange().getValues();
-
-  if (pacData.length < 2) {
+  const patientRepo = new PatientRepository();
+  const sessionRepo = new SessionRepository();
+  
+  const pacientes = patientRepo.findAll();
+  const todasLasSesiones = sessionRepo.findAll();
+  
+  if (pacientes.length === 0) {
     return { mensaje: 'No hay pacientes para recalcular.' };
   }
 
-  const pIdx = indexByHeader_(pacData[0]);
-  const sIdx = sesData.length > 0 ? indexByHeader_(sesData[0]) : {};
-
-  const sesionesPorPaciente = agruparSesionesPorPaciente_(sesData, sIdx);
-
-  let actualizados = 0;
+  // Patrón C: Mapa de sesiones por paciente para búsqueda instantánea
+  const sesionesPorPaciente = sessionRepo.mapByPatient(todasLasSesiones);
+  const pacientesAActualizar = [];
   const errores = [];
+  let actualizados = 0;
 
-  for (let i = 1; i < pacData.length; i++) {
-    const row = pacData[i];
-    const pacienteId = row[pIdx.PacienteID];
-    const nombre = row[pIdx.Nombre] || '';
-    const estadoActual = row[pIdx.EstadoPaciente] || '';
+  pacientes.forEach(paciente => {
+    const estadoActual = paciente.EstadoPaciente;
+    const nombre = paciente.Nombre || '';
+    const pacienteId = paciente.PacienteID;
 
     if (estadoActual === ESTADOS_PACIENTE.ALTA) {
-      continue;
+      return;
     }
 
-    const cicloObjetivoId = row[pIdx.CicloObjetivoID] || '';
-    const cicloActivoId = row[pIdx.CicloActivoID] || '';
+    const cicloObjetivoId = paciente.CicloObjetivoID || '';
+    const cicloActivoId = paciente.CicloActivoID || '';
     const tieneCiclo = !!(cicloObjetivoId || cicloActivoId);
 
     const sesiones = sesionesPorPaciente[String(pacienteId)] || [];
     const analisis = analizarSesionesPaciente_(sesiones);
 
     const estadoCalculado = calcularEstadoPacienteAutomatico_({
-      modalidad: row[pIdx.ModalidadSolicitada] || '',
+      modalidad: paciente.ModalidadSolicitada,
       tieneCiclo,
       analisis
     });
 
-    const erroresPaciente = detectarErroresEstadoPaciente_({
-      pacienteId,
-      nombre,
-      estadoActual,
-      tieneCiclo,
-      cicloObjetivoId,
-      cicloActivoId,
-      analisis
-    });
+    const erroresPaciente = detectarErroresEstadoPaciente_({ ...paciente, tieneCiclo, analisis });
 
     if (erroresPaciente.length) {
       errores.push.apply(errores, erroresPaciente);
     }
 
     if (estadoCalculado && estadoCalculado !== estadoActual) {
-      sheetPac.getRange(i + 1, pIdx.EstadoPaciente + 1).setValue(estadoCalculado);
+      paciente.EstadoPaciente = estadoCalculado;
+      pacientesAActualizar.push(paciente);
       actualizados++;
     }
+  });
+
+  // Patrón B: Un solo volcado a Sheets
+  if (pacientesAActualizar.length > 0) {
+    patientRepo.saveAll(pacientesAActualizar);
   }
 
   let mensaje =

@@ -114,41 +114,17 @@ function calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad) {
 function hayCapacidadIndividual_() {
   const config = obtenerConfigModalidad_(MODALIDADES.INDIVIDUAL);
   const capacidadMaxima = Number(config.CapacidadMaxima || 0);
+  if (capacidadMaxima <= 0) return false;
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
+  // Usar repositorio para aprovechar la caché de ejecución
+  const repo = new PatientRepository();
+  const pacientes = repo.findAll();
+  if (pacientes.length === 0) return true;
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    return capacidadMaxima > 0;
-  }
-
-  const headers = data[0];
-  const idx = indexByHeader_(headers);
-
-  const columnasNecesarias = ['ModalidadSolicitada', 'EstadoPaciente'];
-  columnasNecesarias.forEach(col => {
-    if (idx[col] === undefined) {
-      throw new Error('Falta la columna "' + col + '" en ' + SHEET_PACIENTES + '.');
-    }
-  });
-
-  let activos = 0;
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const modalidad = row[idx.ModalidadSolicitada];
-    const estado = row[idx.EstadoPaciente];
-
-    if (
-      modalidad === MODALIDADES.INDIVIDUAL &&
-      estado === ESTADOS_PACIENTE.ACTIVO
-    ) {
-      activos++;
-    }
-  }
+  const activos = pacientes.filter(p => 
+    p.ModalidadSolicitada === MODALIDADES.INDIVIDUAL && 
+    p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO
+  ).length;
 
   return activos < capacidadMaxima;
 }
@@ -287,68 +263,8 @@ function procesarAltaGrupo_({
 }
 
 function buscarPrimerCicloFuturoDisponible_(modalidad, fechaPrimeraConsulta) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CICLOS);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_CICLOS + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return null;
-
-  const headers = data[0];
-  const idx = indexByHeader_(headers);
-
-  const columnasNecesarias = [
-    'CicloID',
-    'Modalidad',
-    'EstadoCiclo',
-    'FechaInicioCiclo',
-    'SesionesPorCiclo',
-    'CapacidadMaxima',
-    'PlazasOcupadas',
-    'PlazasLibres'
-  ];
-
-  columnasNecesarias.forEach(col => {
-    if (idx[col] === undefined) {
-      throw new Error('Falta la columna "' + col + '" en ' + SHEET_CICLOS + '.');
-    }
-  });
-
-  const candidatos = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const rowModalidad = row[idx.Modalidad];
-    const estadoCiclo = row[idx.EstadoCiclo];
-    const fechaInicio = row[idx.FechaInicioCiclo];
-    const capacidadMaxima = Number(row[idx.CapacidadMaxima] || 0);
-    const plazasOcupadas = Number(row[idx.PlazasOcupadas] || 0);
-    const plazasLibresReales = capacidadMaxima - plazasOcupadas;
-
-    if (rowModalidad !== modalidad) continue;
-    if (estadoCiclo !== ESTADOS_CICLO.PLANIFICADO) continue;
-    if (!(fechaInicio instanceof Date)) continue;
-    if (!(normalizarFecha_(fechaInicio) > normalizarFecha_(fechaPrimeraConsulta))) continue;
-    if (plazasLibresReales <= 0) continue;
-
-    candidatos.push({
-      fila: i + 1,
-      CicloID: row[idx.CicloID],
-      Modalidad: row[idx.Modalidad],
-      EstadoCiclo: row[idx.EstadoCiclo],
-      FechaInicioCiclo: normalizarFecha_(row[idx.FechaInicioCiclo]),
-      SesionesPorCiclo: Number(row[idx.SesionesPorCiclo] || 0),
-      CapacidadMaxima: capacidadMaxima,
-      PlazasOcupadas: plazasOcupadas,
-      PlazasLibres: plazasLibresReales
-    });
-  }
-
-  if (candidatos.length === 0) return null;
-
-  candidatos.sort((a, b) => a.FechaInicioCiclo - b.FechaInicioCiclo);
-  return candidatos[0];
+  const repo = new CicloRepository();
+  return repo.findNextAvailable(modalidad, fechaPrimeraConsulta);
 }
 
 function existeCicloFuturoPeroLleno_(modalidad, fechaPrimeraConsulta) {
@@ -384,111 +300,76 @@ function existeCicloFuturoPeroLleno_(modalidad, fechaPrimeraConsulta) {
  * ESCRITURA EN SHEETS
  ***************/
 function crearPacienteEnSheet_(params) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
-
+  const repo = new PatientRepository();
   const pacienteId = generarId_('PAC');
   const fechaAlta = normalizarFecha_(new Date());
 
-  const row = [
-    pacienteId,
-    params.nombre,
-    params.nhc || '',
-    params.sexoGenero || '',
-    params.motivoConsultaDiagnostico || '',
-    params.motivoConsultaOtros || '',
-    params.modalidadSolicitada,
-    fechaAlta,
-    normalizarFecha_(params.fechaPrimeraConsulta),
-    params.estadoPaciente,
-    params.motivoEspera || '',
-    params.cicloObjetivoId || '',
-    params.cicloActivoId || '',
-    params.fechaPrimeraSesionReal instanceof Date ? normalizarFecha_(params.fechaPrimeraSesionReal) : '',
-    Number(params.sesionesPlanificadas || 0),
-    Number(params.sesionesCompletadas || 0),
-    Number(params.sesionesPendientes || 0),
-    params.proximaSesion instanceof Date ? normalizarFecha_(params.proximaSesion) : '',
-    params.fechaCierre instanceof Date ? normalizarFecha_(params.fechaCierre) : '',
-    params.observaciones || '',
-    params.recalcularSecuencia === true
-  ];
+  const nuevoPaciente = {
+    PacienteID: pacienteId,
+    Nombre: params.nombre,
+    NHC: params.nhc || '',
+    SexoGenero: params.sexoGenero || '',
+    MotivoConsultaDiagnostico: params.motivoConsultaDiagnostico || '',
+    MotivoConsultaOtros: params.motivoConsultaOtros || '',
+    ModalidadSolicitada: params.modalidadSolicitada,
+    FechaAlta: fechaAlta,
+    FechaPrimeraConsulta: normalizarFecha_(params.fechaPrimeraConsulta),
+    EstadoPaciente: params.estadoPaciente,
+    MotivoEspera: params.motivoEspera || '',
+    CicloObjetivoID: params.cicloObjetivoId || '',
+    CicloActivoID: params.cicloActivoId || '',
+    FechaPrimeraSesionReal: params.fechaPrimeraSesionReal,
+    SesionesPlanificadas: Number(params.sesionesPlanificadas || 0),
+    SesionesCompletadas: 0,
+    SesionesPendientes: Number(params.sesionesPendientes || 0),
+    ProximaSesion: params.proximaSesion,
+    Observaciones: params.observaciones || '',
+    RecalcularSecuencia: params.recalcularSecuencia === true
+  };
 
-  sheet.appendRow(row);
+  repo.save(nuevoPaciente);
+  eliminarCacheDashboard_(); // Limpiar caché de UI para que el nuevo paciente aparezca
   return pacienteId;
 }
 
 function crearAsignacionCiclo_({ pacienteId, cicloId, modalidad, estadoAsignacion, observaciones }) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ASIGNACIONES_CICLO);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_ASIGNACIONES_CICLO + '.');
-  }
-
+  const repo = new BaseRepository(SHEET_ASIGNACIONES_CICLO, HEADERS[SHEET_ASIGNACIONES_CICLO]);
   const asignacionId = generarId_('ASI');
 
-  const row = [
-    asignacionId,
-    pacienteId,
-    cicloId,
-    modalidad,
-    normalizarFecha_(new Date()),
-    estadoAsignacion,
-    observaciones || ''
-  ];
-
-  sheet.appendRow(row);
+  repo.save({
+    AsignacionID: asignacionId,
+    PacienteID: pacienteId,
+    CicloID: cicloId,
+    Modalidad: modalidad,
+    FechaAsignacion: normalizarFecha_(new Date()),
+    EstadoAsignacion: estadoAsignacion,
+    Observaciones: observaciones || ''
+  });
   return asignacionId;
 }
 
 function actualizarPlazasCiclo_(cicloId, delta, devolverFalseSiNoHayPlaza) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CICLOS);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_CICLOS + '.');
+  const repo = new CicloRepository();
+  const ciclo = repo.findOneBy('CicloID', cicloId);
+  
+  if (!ciclo) throw new Error('No existe el ciclo con ID ' + cicloId + '.');
+
+  const capacidadMaxima = Number(ciclo.CapacidadMaxima || 0);
+  const ocupadasActuales = Number(ciclo.PlazasOcupadas || 0);
+  const nuevasOcupadas = ocupadasActuales + delta;
+
+  if (nuevasOcupadas < 0) throw new Error('Las plazas ocupadas no pueden quedar en negativo.');
+  
+  if (nuevasOcupadas > capacidadMaxima) {
+    if (devolverFalseSiNoHayPlaza === true) return false;
+    throw new Error('El ciclo supera la capacidad máxima.');
   }
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('La hoja CICLOS no tiene datos.');
-  }
+  ciclo.PlazasOcupadas = nuevasOcupadas;
+  ciclo.PlazasLibres = capacidadMaxima - nuevasOcupadas;
 
-  const headers = data[0];
-  const idx = indexByHeader_(headers);
-
-  const columnasNecesarias = ['CicloID', 'CapacidadMaxima', 'PlazasOcupadas', 'PlazasLibres'];
-  columnasNecesarias.forEach(col => {
-    if (idx[col] === undefined) {
-      throw new Error('Falta la columna "' + col + '" en ' + SHEET_CICLOS + '.');
-    }
-  });
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.CicloID]) === String(cicloId)) {
-      const capacidadMaxima = Number(data[i][idx.CapacidadMaxima] || 0);
-      const ocupadasActuales = Number(data[i][idx.PlazasOcupadas] || 0);
-      const nuevasOcupadas = ocupadasActuales + delta;
-
-      if (nuevasOcupadas < 0) {
-        throw new Error('Las plazas ocupadas no pueden quedar en negativo.');
-      }
-
-      if (nuevasOcupadas > capacidadMaxima) {
-        if (devolverFalseSiNoHayPlaza === true) {
-          return false;
-        }
-        throw new Error('El ciclo supera la capacidad máxima.');
-      }
-
-      const nuevasLibres = capacidadMaxima - nuevasOcupadas;
-
-      sheet.getRange(i + 1, idx.PlazasOcupadas + 1).setValue(nuevasOcupadas);
-      sheet.getRange(i + 1, idx.PlazasLibres + 1).setValue(nuevasLibres);
-      return true;
-    }
-  }
-
-  throw new Error('No existe el ciclo con ID ' + cicloId + '.');
+  repo.save(ciclo);
+  return true;
 }
 
 function obtenerOpcionesModalidadFormulario() {
@@ -580,47 +461,13 @@ function asignarPacienteEnEsperaACiclo() {
 }
 
 function obtenerPacientesEnEspera_() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-
-  const idx = indexByHeader_(data[0]);
-
-  const columnasNecesarias = [
-    'PacienteID',
-    'Nombre',
-    'ModalidadSolicitada',
-    'FechaPrimeraConsulta',
-    'EstadoPaciente',
-    'MotivoEspera'
-  ];
-
-  columnasNecesarias.forEach(col => {
-    if (idx[col] === undefined) {
-      throw new Error('Falta la columna "' + col + '" en ' + SHEET_PACIENTES + '.');
-    }
-  });
-
-  const out = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    if (row[idx.EstadoPaciente] === ESTADOS_PACIENTE.ESPERA) {
-      out.push({
-        fila: i + 1,
-        PacienteID: row[idx.PacienteID],
-        Nombre: row[idx.Nombre],
-        ModalidadSolicitada: row[idx.ModalidadSolicitada],
-        FechaPrimeraConsulta: row[idx.FechaPrimeraConsulta],
-        MotivoEspera: row[idx.MotivoEspera] || ''
-      });
-    }
-  }
+  const repo = new PatientRepository();
+  const out = repo.findAll()
+    .filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ESPERA)
+    .map(p => ({
+      ...p,
+      fila: p._row // Mantener compatibilidad con lógica de fila si se necesita
+    }));
 
   out.sort((a, b) => compararFechas_(a.FechaPrimeraConsulta, b.FechaPrimeraConsulta));
   return out;
@@ -724,14 +571,18 @@ function actualizarPacienteEsperaAAssignado_(pacienteId, ciclo) {
 
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][idx.PacienteID]) === String(pacienteId)) {
-      sheet.getRange(i + 1, idx.EstadoPaciente + 1).setValue(ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO);
-      sheet.getRange(i + 1, idx.MotivoEspera + 1).setValue('');
-      sheet.getRange(i + 1, idx.CicloObjetivoID + 1).setValue(ciclo.CicloID);
-      sheet.getRange(i + 1, idx.CicloActivoID + 1).setValue('');
-      sheet.getRange(i + 1, idx.FechaPrimeraSesionReal + 1).setValue(ciclo.FechaInicioCiclo);
-      sheet.getRange(i + 1, idx.SesionesPlanificadas + 1).setValue(ciclo.SesionesPorCiclo);
-      sheet.getRange(i + 1, idx.SesionesPendientes + 1).setValue(ciclo.SesionesPorCiclo);
-      sheet.getRange(i + 1, idx.ProximaSesion + 1).setValue(ciclo.FechaInicioCiclo);
+      // Cargamos la fila actual, modificamos el array en memoria y guardamos de una vez
+      const filaActual = data[i];
+      filaActual[idx.EstadoPaciente] = ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO;
+      filaActual[idx.MotivoEspera] = '';
+      filaActual[idx.CicloObjetivoID] = ciclo.CicloID;
+      filaActual[idx.CicloActivoID] = '';
+      filaActual[idx.FechaPrimeraSesionReal] = ciclo.FechaInicioCiclo;
+      filaActual[idx.SesionesPlanificadas] = ciclo.SesionesPorCiclo;
+      filaActual[idx.SesionesPendientes] = ciclo.SesionesPorCiclo;
+      filaActual[idx.ProximaSesion] = ciclo.FechaInicioCiclo;
+
+      sheet.getRange(i + 1, 1, 1, filaActual.length).setValues([filaActual]);
       return;
     }
   }
@@ -866,34 +717,11 @@ function editarPaciente() {
 }
 
 function obtenerPacientesFormularioEdicion() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-
-  const idx = indexByHeader_(data[0]);
-  const out = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const pacienteId = row[idx.PacienteID];
-    const nombre = row[idx.Nombre];
-    const modalidad = row[idx.ModalidadSolicitada];
-    const estado = row[idx.EstadoPaciente];
-
-    if (!pacienteId) continue;
-
-    out.push({
-      pacienteId: pacienteId,
-      label: (nombre || 'SIN_NOMBRE') + ' | ' + (modalidad || '') + ' | ' + (estado || '')
-    });
-  }
-
-  out.sort((a, b) => String(a.label).localeCompare(String(b.label)));
-  return out;
+  const repo = new PatientRepository();
+  return repo.findAll().map(p => ({
+    pacienteId: p.PacienteID,
+    label: `${p.Nombre || 'SIN_NOMBRE'} | ${p.ModalidadSolicitada || ''} | ${p.EstadoPaciente || ''}`
+  })).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 function obtenerDetallePacienteParaEdicion(pacienteId) {
@@ -1272,47 +1100,8 @@ function confirmarReasignacionPacienteFormulario(formData) {
 }
 
 function obtenerPacienteCompletoPorId_(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return null;
-
-  const idx = indexByHeader_(data[0]);
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    if (String(row[idx.PacienteID]) === String(pacienteId)) {
-      return {
-        fila: i + 1,
-        PacienteID: row[idx.PacienteID],
-        Nombre: row[idx.Nombre],
-        NHC: idx.NHC !== undefined ? row[idx.NHC] : '',
-        SexoGenero: idx.SexoGenero !== undefined ? row[idx.SexoGenero] : '',
-        MotivoConsultaDiagnostico: idx.MotivoConsultaDiagnostico !== undefined ? row[idx.MotivoConsultaDiagnostico] : '',
-        MotivoConsultaOtros: idx.MotivoConsultaOtros !== undefined ? row[idx.MotivoConsultaOtros] : '',
-        ModalidadSolicitada: row[idx.ModalidadSolicitada],
-        FechaAlta: row[idx.FechaAlta],
-        FechaPrimeraConsulta: row[idx.FechaPrimeraConsulta],
-        EstadoPaciente: row[idx.EstadoPaciente],
-        MotivoEspera: row[idx.MotivoEspera],
-        CicloObjetivoID: row[idx.CicloObjetivoID],
-        CicloActivoID: row[idx.CicloActivoID],
-        FechaPrimeraSesionReal: row[idx.FechaPrimeraSesionReal],
-        SesionesPlanificadas: Number(row[idx.SesionesPlanificadas] || 0),
-        SesionesCompletadas: Number(row[idx.SesionesCompletadas] || 0),
-        SesionesPendientes: Number(row[idx.SesionesPendientes] || 0),
-        ProximaSesion: row[idx.ProximaSesion],
-        FechaCierre: row[idx.FechaCierre],
-        Observaciones: row[idx.Observaciones] || ''
-      };
-    }
-  }
-
-  return null;
+  const repo = new PatientRepository();
+  return repo.findById(pacienteId);
 }
 
 function cancelarAsignacionVigentePaciente_(pacienteId, cicloId) {
@@ -1426,19 +1215,14 @@ function obtenerPacientesEliminablesFormulario() {
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     const estado = row[idx.EstadoPaciente];
+    const pacienteId = row[idx.PacienteID];
 
-    if (
-      estado === ESTADOS_PACIENTE.ESPERA ||
-      estado === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO
-    ) {
-      out.push({
-        pacienteId: row[idx.PacienteID],
-        label:
-          (row[idx.Nombre] || 'SIN_NOMBRE') +
-          ' | ' + (row[idx.ModalidadSolicitada] || '') +
-          ' | ' + (estado || '')
-      });
-    }
+    if (!pacienteId) continue;
+
+    out.push({
+      pacienteId: pacienteId,
+      label: (row[idx.Nombre] || 'SIN_NOMBRE') + ' | ' + (row[idx.ModalidadSolicitada] || '') + ' | ' + (estado || '')
+    });
   }
 
   out.sort((a, b) => String(a.label).localeCompare(String(b.label)));
@@ -1451,16 +1235,13 @@ function obtenerImpactoEliminacionPacienteFormulario(pacienteId) {
     throw new Error('Paciente no encontrado.');
   }
 
-  if (
-    paciente.EstadoPaciente !== ESTADOS_PACIENTE.ESPERA &&
-    paciente.EstadoPaciente !== ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO
-  ) {
-    throw new Error('Solo se puede eliminar físicamente un paciente en ESPERA o ACTIVO_PENDIENTE_INICIO.');
-  }
-
   const asignaciones = contarAsignacionesPaciente_(paciente.PacienteID);
   const sesiones = contarSesionesPaciente_(paciente.PacienteID);
   const cicloId = String(paciente.CicloObjetivoID || paciente.CicloActivoID || '');
+
+  // Ahora liberamos plaza si el paciente está activo o pendiente, para limpiar duplicados correctamente
+  const liberaraPlaza = (paciente.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO || 
+                         paciente.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO) && !!cicloId;
 
   return {
     pacienteId: paciente.PacienteID,
@@ -1472,7 +1253,7 @@ function obtenerImpactoEliminacionPacienteFormulario(pacienteId) {
     cicloId: cicloId,
     asignaciones: asignaciones,
     sesiones: sesiones,
-    liberaraPlaza: paciente.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO && !!cicloId
+    liberaraPlaza: liberaraPlaza
   };
 }
 
@@ -1488,15 +1269,11 @@ function confirmarEliminacionPacienteFormulario(formData) {
     throw new Error('Paciente no encontrado.');
   }
 
-  if (
-    paciente.EstadoPaciente !== ESTADOS_PACIENTE.ESPERA &&
-    paciente.EstadoPaciente !== ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO
-  ) {
-    throw new Error('Solo se puede eliminar físicamente un paciente en ESPERA o ACTIVO_PENDIENTE_INICIO.');
-  }
-
   const cicloId = String(paciente.CicloObjetivoID || paciente.CicloActivoID || '');
-  const liberarPlaza = paciente.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO && !!cicloId;
+  
+  // Lógica de liberación de plaza ampliada a ACTIVO para permitir limpieza de duplicados
+  const liberarPlaza = (paciente.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO || 
+                        paciente.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO) && !!cicloId;
 
   if (liberarPlaza) {
     actualizarPlazasCiclo_(cicloId, -1, false);
@@ -1512,6 +1289,7 @@ function confirmarEliminacionPacienteFormulario(formData) {
   try {
     refrescarDashboard();
   } catch (e) {
+    eliminarCacheDashboard_();
     // no rompemos por dashboard
   }
 
@@ -1563,58 +1341,61 @@ function contarSesionesPaciente_(pacienteId) {
 }
 
 function borrarAsignacionesPaciente_(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ASIGNACIONES_CICLO);
-  if (!sheet) return;
-
+  const repo = new AsignacionRepository();
+  const sheet = repo.getSheet();
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return;
 
   const idx = indexByHeader_(data[0]);
+  const pidStr = String(pacienteId);
+  
+  // PATRÓN B: Escritura por bloques (Filtramos en memoria y volcamos)
+  const filtrados = data.filter((row, i) => i === 0 || String(row[idx.PacienteID]) !== pidStr);
 
-  for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][idx.PacienteID] || '') === String(pacienteId)) {
-      sheet.deleteRow(i + 1);
-    }
+  if (filtrados.length !== data.length) {
+    sheet.clearContents();
+    sheet.getRange(1, 1, filtrados.length, data[0].length).setValues(filtrados);
+    __EXECUTION_CACHE__[SHEET_ASIGNACIONES_CICLO] = null;
   }
 }
 
 function borrarSesionesPaciente_(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
-  if (!sheet) return;
-
+  const repo = new SessionRepository();
+  const sheet = repo.getSheet();
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return;
 
   const idx = indexByHeader_(data[0]);
+  const pidStr = String(pacienteId);
 
-  for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][idx.PacienteID] || '') === String(pacienteId)) {
-      sheet.deleteRow(i + 1);
-    }
+  const filtrados = data.filter((row, i) => i === 0 || String(row[idx.PacienteID]) !== pidStr);
+
+  if (filtrados.length !== data.length) {
+    sheet.clearContents();
+    sheet.getRange(1, 1, filtrados.length, data[0].length).setValues(filtrados);
+    __EXECUTION_CACHE__[SHEET_SESIONES] = null;
   }
 }
 
 function borrarPacientePorId_(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
-
+  const repo = new PatientRepository();
+  const sheet = repo.getSheet();
   const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('No hay pacientes.');
-  }
+  if (data.length < 2) return;
 
   const idx = indexByHeader_(data[0]);
+  const pidStr = String(pacienteId);
 
-  for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][idx.PacienteID] || '') === String(pacienteId)) {
-      sheet.deleteRow(i + 1);
-      return;
-    }
+  const filtrados = data.filter((row, i) => i === 0 || String(row[idx.PacienteID]) !== pidStr);
+
+  if (filtrados.length !== data.length) {
+    sheet.clearContents();
+    sheet.getRange(1, 1, filtrados.length, data[0].length).setValues(filtrados);
+    __EXECUTION_CACHE__[SHEET_PACIENTES] = null;
+    eliminarCacheDashboard_();
+  } else {
+    throw new Error('Paciente no encontrado para borrado.');
   }
-
-  throw new Error('Paciente no encontrado para borrado.');
 }
 
 /***********************

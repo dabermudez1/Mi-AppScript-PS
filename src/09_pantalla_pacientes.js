@@ -13,46 +13,20 @@ function abrirPantallaPacientes() {
 }
 
 function obtenerDatosPantallaPacientes() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    return {
-      pacientes: [],
-      estadosPaciente: obtenerValoresCatalogo_('ESTADOS_PACIENTE'),
-      modalidades: obtenerValoresCatalogo_('MODALIDADES')
-    };
-  }
-
-  const idx = indexByHeader_(data[0]);
-
-  const pacientes = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    pacientes.push({
-      pacienteId: row[idx.PacienteID] || '',
-      nombre: row[idx.Nombre] || '',
-      modalidad: row[idx.ModalidadSolicitada] || '',
-      fechaAlta: formatearFecha_(row[idx.FechaAlta]),
-      fechaPrimeraConsulta: formatearFecha_(row[idx.FechaPrimeraConsulta]),
-      estadoPaciente: row[idx.EstadoPaciente] || '',
-      motivoEspera: row[idx.MotivoEspera] || '',
-      cicloObjetivoId: row[idx.CicloObjetivoID] || '',
-      cicloActivoId: row[idx.CicloActivoID] || '',
-      fechaPrimeraSesionReal: formatearFecha_(row[idx.FechaPrimeraSesionReal]),
-      sesionesPlanificadas: Number(row[idx.SesionesPlanificadas] || 0),
-      sesionesCompletadas: Number(row[idx.SesionesCompletadas] || 0),
-      sesionesPendientes: Number(row[idx.SesionesPendientes] || 0),
-      proximaSesion: formatearFecha_(row[idx.ProximaSesion]),
-      fechaCierre: formatearFecha_(row[idx.FechaCierre]),
-      observaciones: row[idx.Observaciones] || ''
-    });
-  }
+  const repo = new PatientRepository();
+  const pacientes = repo.findAll().map(p => ({
+    ...p, // Mantiene claves originales (Mayúsculas)
+    pacienteId: p.PacienteID,
+    nombre: p.Nombre,
+    modalidad: p.ModalidadSolicitada,
+    fechaAlta: formatearFecha_(p.FechaAlta),
+    fechaPrimeraConsulta: formatearFecha_(p.FechaPrimeraConsulta),
+    estadoPaciente: p.EstadoPaciente, // Clave vital para los filtros
+    fechaPrimeraSesionReal: formatearFecha_(p.FechaPrimeraSesionReal),
+    proximaSesion: formatearFecha_(p.ProximaSesion),
+    fechaCierre: formatearFecha_(p.FechaCierre),
+    observaciones: p.Observaciones || ''
+  }));
 
   return {
     pacientes: pacientes,

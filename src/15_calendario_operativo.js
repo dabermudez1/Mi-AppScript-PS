@@ -123,7 +123,8 @@ function esFechaBloqueada_(fecha) {
 
   if (esFinDeSemana_(f)) return true;
 
-  const bloqueadas = obtenerDiasBloqueados_();
+  // Usar la versión con CacheService para evitar lecturas repetidas a la hoja
+  const bloqueadas = obtenerMapaDiasBloqueados_();
   const clave = obtenerClaveFecha_(f);
 
   return bloqueadas[clave] === true;

@@ -65,6 +65,9 @@ class BaseRepository {
     const headerRow = data[0];
     const idx = this._indexHeaders(headerRow);
 
+    // Invalidar caché de ejecución para forzar re-lectura en la próxima consulta
+    __EXECUTION_CACHE__[this.sheetName] = null;
+
     // Convertir objeto a array de fila respetando el orden de los headers reales
     const rowValues = headerRow.map(h => (obj[h] !== undefined ? obj[h] : ""));
 
@@ -75,7 +78,6 @@ class BaseRepository {
       // Creación
       sheet.appendRow(rowValues);
       obj._row = sheet.getLastRow();
-      // Si el objeto no tiene ID, lo ideal es que se genere antes de llamar a save()
     }
     return obj;
   }
