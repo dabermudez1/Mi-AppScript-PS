@@ -77,31 +77,17 @@ function obtenerDatosHomeDashboard() {
       };
     }
 
-    const ciclosVigentes = ciclos.filter(c =>
-      c.Modalidad === modalidad &&
-      (c.EstadoCiclo === 'PLANIFICADO' || c.EstadoCiclo === 'EN_CURSO')
+    const ciclosVigentes = ciclos.filter(c => 
+      c.Modalidad === modalidad && (c.EstadoCiclo === 'PLANIFICADO' || c.EstadoCiclo === 'EN_CURSO')
     );
 
     if (ciclosVigentes.length === 0) {
-      return {
-        modalidad,
-        capacidad: 0,
-        ocupadas: 0,
-        libres: 0,
-        porcentaje: 0
-      };
+      return { modalidad, capacidad: 0, ocupadas: 0, libres: 0, porcentaje: 0 };
     }
 
-    const cicloReferencia = ciclosVigentes
-      .slice()
-      .sort((a, b) => {
-        const tA = a.FechaInicioCiclo instanceof Date ? a.FechaInicioCiclo.getTime() : 0;
-        const tB = b.FechaInicioCiclo instanceof Date ? b.FechaInicioCiclo.getTime() : 0;
-        return tA - tB;
-      })[0];
-
-    const capacidad = Number(cicloReferencia.CapacidadMaxima || 0);
-    const ocupadas = Number(cicloReferencia.PlazasOcupadas || 0);
+    // FIX: Cálculo agregado para modalidades de grupo
+    const capacidad = ciclosVigentes.reduce((sum, c) => sum + Number(c.CapacidadMaxima || 0), 0);
+    const ocupadas = ciclosVigentes.reduce((sum, c) => sum + Number(c.PlazasOcupadas || 0), 0);
 
     return {
       modalidad,
@@ -167,6 +153,7 @@ function obtenerDatosHomeDashboard() {
     proximosCiclos,
     proximosPacientes,
     resumenIncidenciasCalendario: obtenerResumenIncidenciasCalendario(sesiones),
+    taskStatus: getBackgroundTaskStatus_(),
     calendarUrl: (typeof obtenerCalendarConsultaUrl_ === 'function') ? obtenerCalendarConsultaUrl_() : null,
     alertas
   };
@@ -272,6 +259,30 @@ function actualizarDashboard() {
 }
 
 
+/**
+ * Obtiene el estado de las tareas de segundo plano.
+ */
+function getBackgroundTaskStatus_() {
+  const props = PropertiesService.getUserProperties();
+  return {
+    syncCalendar: {
+      running: props.getProperty('TASK_SYNC_CALENDAR_RUNNING') === 'true',
+      progress: parseInt(props.getProperty('TASK_SYNC_CALENDAR_PROGRESS') || '0'),
+      lastResult: props.getProperty('TASK_SYNC_CALENDAR_RESULT') || ''
+    },
+    updateStates: {
+      running: props.getProperty('TASK_UPDATE_STATES_RUNNING') === 'true',
+      progress: parseInt(props.getProperty('TASK_UPDATE_STATES_PROGRESS') || '0'),
+      lastResult: props.getProperty('TASK_UPDATE_STATES_RESULT') || ''
+    },
+    generateSessions: {
+      running: props.getProperty('TASK_GENERATE_SESSIONS_RUNNING') === 'true',
+      progress: parseInt(props.getProperty('TASK_GENERATE_SESSIONS_PROGRESS') || '0'),
+      lastResult: props.getProperty('TASK_GENERATE_SESSIONS_RESULT') || ''
+    }
+  };
+}
+
 /***************
  * LANZADORES DESDE HOME
  ***************/
@@ -299,6 +310,7 @@ function abrirHomeDashboardDesdePantalla() {  abrirHomeDashboard(); }
 function homeAbrirReprogramarSesion() { abrirReprogramarSesion(); }
 function homeAltaPaciente() { altaPaciente(); }
 function refrescarPanel() {  abrirHomeDashboard(); }
+function homeEstadisticasFichasPacientes() { estadisticasFichasPacientes(); }
 function homeRecalcularEstadosAutomaticamente() { recalcularEstadosAutomaticamenteConModal(); }
 function homeFichaClinicaPaciente() { fichaClinicaPaciente(); }
 function homeVerIncidenciasCalendario() { verIncidenciasCalendario(); }

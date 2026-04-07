@@ -21,4 +21,17 @@ class SessionRepository extends BaseRepository {
       s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA
     );
   }
+
+  /**
+   * Agrupa una lista de sesiones por PacienteID.
+   */
+  mapByPatient(sesiones) {
+    const data = sesiones || this.findAll();
+    const map = {};
+    data.forEach(s => {
+      if (!map[s.PacienteID]) map[s.PacienteID] = [];
+      map[s.PacienteID].push(s);
+    });
+    return map;
+  }
 }

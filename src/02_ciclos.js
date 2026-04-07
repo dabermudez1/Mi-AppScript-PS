@@ -187,6 +187,7 @@ const avisos = resultadoFechas.avisos || [];
     fechas,
     config
   });
+  const fechaFin = fechas[fechas.length - 1];
 
   let mensaje =
   'Ciclo creado correctamente.\n\n' +

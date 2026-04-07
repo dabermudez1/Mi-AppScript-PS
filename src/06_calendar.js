@@ -16,7 +16,10 @@ function crearCalendarioConsulta() {
 }
 
 function sincronizarSesionesAGoogleCalendar(calendarParam) {
-  const ui = SpreadsheetApp.getUi();
+  const props = PropertiesService.getUserProperties();
+  props.setProperty('TASK_SYNC_CALENDAR_RUNNING', 'true');
+  props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '0');
+  
   const calendar = calendarParam || obtenerOCrearCalendarioConsulta_();
   
   const sessionRepo = new SessionRepository();
@@ -49,8 +52,17 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
 
   // 4) Procesar Sincronización
   let actualizados = 0;
-  sesionesDeseadas.forEach(sesion => {
+  const total = sesionesDeseadas.length;
+
+  sesionesDeseadas.forEach((sesion, index) => {
+    // FIX: Reportar progreso más frecuentemente (cada 2 sesiones)
+    if (index % 2 === 0 || index === total - 1) {
+      const prg = Math.max(1, Math.round((index / total) * 100));
+      props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', prg.toString());
+    }
+
     const titulo = construirTituloEventoSesion_(sesion);
+
     const desc = construirDescripcionEventoSesion_(sesion);
     const color = obtenerColorPorModalidad_(sesion.Modalidad);
     const fecha = normalizarFecha_(sesion.FechaSesion);
@@ -62,6 +74,7 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
     if (ev) {
       ev.setTitle(titulo);
       ev.setDescription(desc);
+      ev.setAllDayDate(fecha); // FIX: Actualizar la fecha para reprogramaciones
       try { ev.setColor(color); } catch(e){}
     } else {
       const nuevoEv = calendar.createAllDayEvent(titulo, fecha, { description: desc });
@@ -70,11 +83,14 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
       sesion.CalendarSyncStatus = 'CREADO';
     }
     sesion.CalendarLastSync = new Date();
-    sessionRepo.save(sesion);
     actualizados++;
   });
 
-  // 5) Limpiar eventos huérfanos en Google (opcional pero recomendado)
+  // 5) Guardar todos los cambios en la hoja en un solo paso (Batch Save)
+  props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '95');
+  sessionRepo.saveAll(sesionesDeseadas);
+
+  // 6) Limpiar eventos huérfanos en Google
   const idsValidos = new Set(sesionesDeseadas.map(s => s.CalendarEventId).filter(id => id));
   let eliminados = 0;
   googleEventsMap.forEach((ev, id) => {
@@ -84,7 +100,10 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
     }
   });
 
-  ui.alert(`Sincronización completada.\nActualizados/Creados: ${actualizados}\nEliminados: ${eliminados}`);
+  const resultMsg = `Sincronización finalizada: ${actualizados} procesados, ${eliminados} eliminados.`;
+  props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '100');
+  props.setProperty('TASK_SYNC_CALENDAR_RESULT', resultMsg);
+  props.setProperty('TASK_SYNC_CALENDAR_RUNNING', 'false');
 }
 
 

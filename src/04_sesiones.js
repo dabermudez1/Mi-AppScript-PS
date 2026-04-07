@@ -72,20 +72,24 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
  * MANTENIMIENTO
  ***************/
 function generarSesionesFaltantes() {
-  const ui = SpreadsheetApp.getUi();
+  const props = PropertiesService.getUserProperties();
   const patientRepo = new PatientRepository();
   const sessionRepo = new SessionRepository();
+
+  props.setProperty('TASK_GENERATE_SESSIONS_RUNNING', 'true');
+  props.setProperty('TASK_GENERATE_SESSIONS_PROGRESS', '0');
 
   try {
     const pacientes = patientRepo.findAll();
     const todasLasSesiones = sessionRepo.findAll();
 
     if (pacientes.length === 0) {
-      ui.alert('No hay pacientes.');
+      props.setProperty('TASK_GENERATE_SESSIONS_RUNNING', 'false');
+      props.setProperty('TASK_GENERATE_SESSIONS_RESULT', 'No hay pacientes registrados.');
       return;
     }
 
-    const sesionesPorPaciente = agruparSesionesPorPaciente_(todasLasSesiones);
+    const sesionesPorPaciente = sessionRepo.mapByPatient(todasLasSesiones);
 
     let generadasIndividual = 0;
     let generadasGrupo = 0;
@@ -93,7 +97,11 @@ function generarSesionesFaltantes() {
     let omitidasSinCondiciones = 0;
     let avisos = [];
 
-    pacientes.forEach(paciente => {
+    const total = pacientes.length;
+
+    pacientes.forEach((paciente, index) => {
+      if (index % 5 === 0) props.setProperty('TASK_GENERATE_SESSIONS_PROGRESS', Math.round((index / total) * 100).toString());
+
       const totalExistentes = (sesionesPorPaciente[String(paciente.PacienteID)] || []).length;
 
       if (totalExistentes > 0) {
@@ -157,15 +165,13 @@ function generarSesionesFaltantes() {
       'Omitidas (ya tenían sesiones): ' + omitidasConSesiones + '\n' +
       'Omitidas (sin condiciones válidas): ' + omitidasSinCondiciones;
 
-    if (avisos.length > 0) {
-      mensaje += '\n\nAvisos:\n- ' + avisos.join('\n- ');
-    }
-
-    ui.alert(mensaje);
+    props.setProperty('TASK_GENERATE_SESSIONS_PROGRESS', '100');
+    props.setProperty('TASK_GENERATE_SESSIONS_RESULT', mensaje);
+    props.setProperty('TASK_GENERATE_SESSIONS_RUNNING', 'false');
 
   } catch (error) {
-    ui.alert('Error al generar sesiones faltantes: ' + error.message);
-    throw error;
+    props.setProperty('TASK_GENERATE_SESSIONS_RUNNING', 'false');
+    props.setProperty('TASK_GENERATE_SESSIONS_RESULT', 'Error: ' + error.message);
   }
 }
 

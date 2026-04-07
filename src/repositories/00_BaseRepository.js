@@ -81,6 +81,32 @@ class BaseRepository {
   }
 
   /**
+  * Guarda múltiples objetos en la hoja de una sola vez.
+   * Extremadamente eficiente para procesos masivos.
+   */
+  saveAll(objects) {
+    if (!objects || objects.length === 0) return;
+    
+    const sheet = this.getSheet();
+    const data = sheet.getDataRange().getValues();
+    const headerRow = data[0];
+    const idx = this._indexHeaders(headerRow);
+
+    objects.forEach(obj => {
+      if (!obj._row) return; // Solo procesa actualizaciones de filas existentes
+      const rowIndex = obj._row - 1;
+      const rowValues = headerRow.map(h => (obj[h] !== undefined ? obj[h] : data[rowIndex][idx[h]]));
+      data[rowIndex] = rowValues;
+    });
+
+    // Escribimos toda la tabla de una sola vez
+    sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+    
+    // Invalidar caché
+    __EXECUTION_CACHE__[this.sheetName] = null;
+  }
+
+  /**
    * Elimina un registro por su número de fila.
    */
   delete(obj) {

@@ -15,6 +15,13 @@
   
   <div class="max-w-7xl mx-auto p-6" x-cloak>
     
+    <!-- Notificación Flotante (Toast) -->
+    <div x-show="toast.show" x-transition class="fixed bottom-5 right-5 z-50 bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center space-x-3" style="display:none;">
+      <span class="text-green-400">●</span>
+      <span x-text="toast.message"></span>
+      <button @click="toast.show = false" class="ml-4 text-gray-400 hover:text-white">&times;</button>
+    </div>
+
     <!-- Header -->
     <header class="flex justify-between items-center mb-8">
       <div>
@@ -25,6 +32,28 @@
         </p>
       </div>
       <div class="flex space-x-3">
+        <!-- Task Indicators -->
+        <div class="flex items-center space-x-4 mr-4">
+          <template x-if="data.taskStatus?.syncCalendar?.running">
+            <div class="flex flex-col items-end">
+              <span class="text-xs font-bold text-indigo-600 animate-pulse">Sincronizando Calendar (<span x-text="data.taskStatus.syncCalendar.progress"></span>%)</span>
+              <div class="w-32 bg-gray-200 h-1.5 rounded-full mt-1"><div class="bg-indigo-600 h-full rounded-full transition-all" :style="'width:' + data.taskStatus.syncCalendar.progress + '%'"></div></div>
+            </div>
+          </template>
+          <template x-if="data.taskStatus?.updateStates?.running">
+            <div class="flex flex-col items-end">
+              <span class="text-xs font-bold text-orange-600 animate-pulse">Actualizando Estados (<span x-text="data.taskStatus.updateStates.progress"></span>%)</span>
+              <div class="w-32 bg-gray-200 h-1.5 rounded-full mt-1"><div class="bg-orange-600 h-full rounded-full transition-all" :style="'width:' + data.taskStatus.updateStates.progress + '%'"></div></div>
+            </div>
+          </template>
+          <template x-if="data.taskStatus?.generateSessions?.running">
+            <div class="flex flex-col items-end">
+              <span class="text-xs font-bold text-emerald-600 animate-pulse">Generando Sesiones (<span x-text="data.taskStatus.generateSessions.progress"></span>%)</span>
+              <div class="w-32 bg-gray-200 h-1.5 rounded-full mt-1"><div class="bg-emerald-600 h-full rounded-full transition-all" :style="'width:' + data.taskStatus.generateSessions.progress + '%'"></div></div>
+            </div>
+          </template>
+        </div>
+        
         <button @click="load()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition flex items-center">
           <span class="mr-2">🔄</span>
           Refrescar Panel
@@ -133,7 +162,8 @@
           <button @click="callAction('homeEditarPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">✏️ Editar Paciente</button>
           <button @click="callAction('homeFichaClinicaPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">📋 Ficha Clínica</button>
           <button @click="callAction('homeAltaPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-emerald-50 text-emerald-700 font-bold text-sm transition">✅ Dar de Alta</button>
-          <button @click="callAction('homeEliminarPacientePorError')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 text-sm transition">🗑️ Eliminar Error</button>
+          <button @click="callAction('homeEliminarPacientePorError')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 text-sm transition">🗑️ Eliminar Paciente</button>
+          <button @click="callAction('homeEstadisticasFichasPacientes')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 text-blue-700 font-bold text-sm transition">📈 Estadísticas Fichas</button>
           <hr class="my-1 border-gray-100">
           <button @click="callAction('homeAbrirPantallaPacientes')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-indigo-600 font-bold text-xs uppercase transition">Ver Listado Completo</button>
         </div>
@@ -143,9 +173,13 @@
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
         <h4 class="text-xs font-black text-gray-400 uppercase mb-4 tracking-widest">Grupos</h4>
         <div class="flex flex-col gap-2">
-          <button @click="callAction('homeCrearCicloGrupo')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-indigo-700 font-bold text-sm transition">➕ Crear Nuevo Ciclo</button>
+          <button @click="callAction('homeCrearCicloGrupo')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-indigo-700 font-bold text-sm transition">➕ Crear Nuevo Grupo</button>
           <button @click="callAction('homeGestionEsperaYCicloPaciente')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-orange-50 text-orange-700 text-sm transition">🤝 Gestionar Espera</button>
           <button @click="callAction('homeAbrirPantallaCiclos')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">📅 Pantalla Grupos</button>
+          <button @click="callAction('generarSesionesFaltantes')" 
+                  :disabled="data.taskStatus?.generateSessions?.running"
+                  :class="data.taskStatus?.generateSessions?.running ? 'opacity-50 cursor-not-allowed' : 'hover:bg-emerald-50 text-emerald-700'"
+                  class="w-full text-left px-3 py-2 rounded-lg font-bold text-sm transition">✨ Generar Sesiones</button>
         </div>
       </div>
 
@@ -155,8 +189,14 @@
         <div class="flex flex-col gap-2">
           <button @click="callAction('homeAbrirPantallaSesiones')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🔎 Pantalla Sesiones</button>
           <button @click="callAction('homeAbrirReprogramarSesion')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-orange-50 text-orange-700 text-sm transition">🗓️ Reprogramar Sesión</button>
-          <button @click="callAction('homeActualizarEstadosAutomaticos')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 text-blue-700 font-bold text-sm transition">⚙️ Actualizar Estados</button>
-          <button @click="callAction('homeSincronizarGoogleCalendar')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-indigo-700 font-bold text-sm transition">☁️ Sync Calendar</button>
+          <button @click="callAction('homeActualizarEstadosAutomaticos')" 
+                  :disabled="data.taskStatus?.updateStates?.running"
+                  :class="data.taskStatus?.updateStates?.running ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-50 text-blue-700'"
+                  class="w-full text-left px-3 py-2 rounded-lg font-bold text-sm transition">⚙️ Actualizar Estados</button>
+          <button @click="callAction('homeSincronizarGoogleCalendar')" 
+                  :disabled="data.taskStatus?.syncCalendar?.running"
+                  :class="data.taskStatus?.syncCalendar?.running ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'hover:bg-indigo-50 text-indigo-700'"
+                  class="w-full text-left px-3 py-2 rounded-lg font-bold text-sm transition">☁️ Sync Calendar</button>
           <template x-if="data.calendarUrl">
             <button @click="window.open(data.calendarUrl, '_blank')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-600 text-xs font-bold transition italic">🔗 Abrir Calendar Web</button>
           </template>
@@ -169,7 +209,7 @@
         <div class="flex flex-col gap-2">
           <button @click="callAction('homeGestionarConfigModalidades')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🛠️ Config Modalidades</button>
           <button @click="callAction('homeGestionarCatalogos')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">📚 Catálogos</button>
-          <button @click="callAction('homeGestionarDiasBloqueados')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🚫 Gestión Bloqueos</button>
+          <button @click="callAction('homeGestionarDiasBloqueados')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🚫 Gestión Festivos y Ausencias</button>
           <hr class="my-1 border-gray-100">
           <button @click="callAction('homeRefrescarDashboardHoja')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-500 text-xs transition underline underline-offset-4">Refrescar Dashboard Hoja</button>
         </div>
@@ -248,6 +288,8 @@
     function dashboardData() {
       return {
         loading: true,
+        pollingInterval: null,
+        toast: { show: false, message: '' },
         data: {
           resumen: { activos: 0, espera: 0, alta: 0, pendienteInicio: 0, gruposEnCurso: 0, sesionesPendientes: 0, sesionesErrorSync: 0 },
           alertas: [],
@@ -255,29 +297,79 @@
           proximosCiclos: [],
           fechaActualizacion: 'Cargando...',
           resumenIncidenciasCalendario: { cantidad: 0 },
+          taskStatus: { syncCalendar: { running: false }, updateStates: { running: false }, generateSessions: { running: false } },
           fechaHoy: ''
         },
-        load() {
-          this.loading = true;
+        load(isSilent = false) {
+          if (!isSilent) this.loading = true;
+          
           google.script.run
             .withSuccessHandler(res => {
-              if (res) this.data = res;
+              if (res) {
+                // Notificar finalización de tareas
+                if (this.data.taskStatus?.syncCalendar?.running && !res.taskStatus.syncCalendar.running) {
+                  this.showToast(res.taskStatus.syncCalendar.lastResult || "Sincronización completada");
+                }
+                if (this.data.taskStatus?.updateStates?.running && !res.taskStatus.updateStates.running) {
+                  this.showToast(res.taskStatus.updateStates.lastResult || "Estados actualizados");
+                }
+                if (this.data.taskStatus?.generateSessions?.running && !res.taskStatus.generateSessions.running) {
+                  this.showToast(res.taskStatus.generateSessions.lastResult || "Sesiones generadas");
+                }
+
+                this.data = res;
+
+                // Si al cargar detectamos que algo corre, activamos polling si no existe
+                if ((res.taskStatus.syncCalendar.running || res.taskStatus.updateStates.running) && !this.pollingInterval) {
+                  this.startPolling();
+                }
+              }
               this.loading = false;
             })
             .withFailureHandler(err => {
-              alert("Error al cargar: " + err.message);
+              this.showToast("Error al cargar: " + err.message, true);
               this.loading = false;
             })
             .obtenerDatosHomeDashboard();
         },
+        showToast(msg, isError = false) {
+          this.toast.message = msg;
+          this.toast.show = true;
+          setTimeout(() => this.toast.show = false, 5000);
+        },
+        startPolling() {
+          if (this.pollingInterval) return;
+          this.pollingInterval = setInterval(() => {
+            this.load(true);
+            if (!this.data.taskStatus.syncCalendar.running && !this.data.taskStatus.updateStates.running && !this.data.taskStatus.generateSessions.running) {
+              clearInterval(this.pollingInterval);
+              this.pollingInterval = null;
+            }
+          }, 3000);
+        },
         callAction(fn) {
-          this.loading = true;
+          const backgroundTasks = {
+            'homeSincronizarGoogleCalendar': 'syncCalendar',
+            'homeActualizarEstadosAutomaticos': 'updateStates',
+            'generarSesionesFaltantes': 'generateSessions'
+          };
+          const taskKey = backgroundTasks[fn];
+
+          if (taskKey) {
+            if (this.data.taskStatus[taskKey].running) return;
+            this.data.taskStatus[taskKey].running = true;
+            this.data.taskStatus[taskKey].progress = 0;
+            this.showToast("Iniciando tarea en segundo plano...");
+          } else { this.loading = true; }
+
           google.script.run
             .withSuccessHandler(() => {
-              this.load();
+              if (taskKey) this.startPolling();
+              else this.load();
             })
             .withFailureHandler(err => {
-              alert("Error: " + err.message);
+              if (taskKey) this.data.taskStatus[taskKey].running = false;
+              this.showToast("Error: " + err.message, true);
               this.loading = false;
             })[fn]();
         }

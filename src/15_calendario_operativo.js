@@ -93,10 +93,10 @@ function generarFechasGrupoPorSemanas_({
   let actual = normalizarFecha_(fechaInicio);
 
   for (let i = 0; i < sesiones; i++) {
-    const fechaSesion = buscarSiguienteFechaValidaGrupo_(actual, diaSemana);
-    fechas.push(fechaSesion);
+    fechas.push(new Date(actual));
 
-    actual = sumarSemanasManteniendoDia_(ajuste.fecha, intervaloSemanas);
+    // Avanzar a la siguiente fecha según el intervalo
+    actual = sumarSemanasManteniendoDia_(actual, intervaloSemanas);
   }
 
   return fechas;

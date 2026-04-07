@@ -13,11 +13,16 @@ class StateService {
    * Ejecuta el proceso completo de actualización de estados.
    */
   runAutomaticTransitions() {
+	const props = PropertiesService.getUserProperties();
+    props.setProperty('TASK_UPDATE_STATES_PROGRESS', '2');
     const hoy = normalizarFecha_(new Date());
     let stats = { ciclos: 0, pacientes: 0, sesiones: 0 };
+    props.setProperty('TASK_UPDATE_STATES_PROGRESS', '5');
 
     // 1. Ciclos: PLANIFICADO -> EN_CURSO -> CERRADO
     const ciclos = this.cicloRepo.findAll();
+    props.setProperty('TASK_UPDATE_STATES_PROGRESS', '15');
+
     ciclos.forEach(c => {
       const fechaInicio = normalizarFecha_(new Date(c.FechaInicioCiclo));
       const fechaFin = normalizarFecha_(new Date(c.FechaFinCiclo));
@@ -35,7 +40,14 @@ class StateService {
 
     // 2. Sesiones: PENDIENTE -> COMPLETADA_AUTO (si la fecha pasó)
     const sesiones = this.sessionRepo.findAll();
-    sesiones.forEach(s => {
+    const totalSesiones = sesiones.length || 1;
+    props.setProperty('TASK_UPDATE_STATES_PROGRESS', '30');
+
+    sesiones.forEach((s, i) => {
+      if (i % 10 === 0) {
+        const p = Math.round(30 + (i / totalSesiones * 20));
+        props.setProperty('TASK_UPDATE_STATES_PROGRESS', p.toString());
+      }
       const fechaSesion = normalizarFecha_(new Date(s.FechaSesion));
       if (s.EstadoSesion === ESTADOS_SESION.PENDIENTE && fechaSesion < hoy) {
         s.EstadoSesion = ESTADOS_SESION.COMPLETADA_AUTO;
@@ -47,11 +59,14 @@ class StateService {
     // 3. Pacientes: ACTIVO_PENDIENTE_INICIO -> ACTIVO (si su ciclo empezó)
     // Y ACTIVO -> ALTA (si terminaron sesiones)
     const pacientes = this.patientRepo.findAll();
-    
+    const totalPacientes = pacientes.length;
+    props.setProperty('TASK_UPDATE_STATES_PROGRESS', '50');
+
     // OPTIMIZACIÓN: Precargar sesiones y agruparlas por PacienteID en un solo paso
     const sesionesPorPaciente = this._mapSessionsByPatient();
 
-    pacientes.forEach(p => {
+    pacientes.forEach((p, i) => {
+      if (i % 5 === 0) props.setProperty('TASK_UPDATE_STATES_PROGRESS', Math.round(50 + (i / totalPacientes * 45)).toString());
       if (p.EstadoPaciente === ESTADOS_PACIENTE.ALTA) return;
 
       const susSesiones = sesionesPorPaciente[p.PacienteID] || [];
@@ -76,7 +91,7 @@ class StateService {
         stats.pacientes++;
       }
     });
-
+	props.setProperty('TASK_UPDATE_STATES_PROGRESS', '100');
     return stats;
   }
 
