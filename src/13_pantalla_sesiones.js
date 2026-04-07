@@ -23,7 +23,6 @@ function obtenerDatosPantallaSesiones() {
   const sesiones = data.map(s => {
     if (s.CalendarSyncStatus) estadosSyncSet[String(s.CalendarSyncStatus)] = true;
     return {
-      ...s,
       sesionId: s.SesionID,
       pacienteId: s.PacienteID,
       cicloId: s.CicloID,
@@ -36,8 +35,11 @@ function obtenerDatosPantallaSesiones() {
       fechaOriginal: formatearFecha_(s.FechaOriginal),
       modificadaManual: s.ModificadaManual === true,
       calendarSyncStatus: s.CalendarSyncStatus,
-      calendarLastSync: formatearFecha_(s.CalendarLastSync)
-    });
+      calendarLastSync: formatearFecha_(s.CalendarLastSync),
+      calendarEventId: s.CalendarEventId || '',
+      calendarEventTitle: s.CalendarEventTitle || '',
+      notas: s.Notas || ''
+    };
   });
 
   return {

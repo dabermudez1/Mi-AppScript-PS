@@ -200,7 +200,7 @@ const avisos = resultadoFechas.avisos || [];
   }
 
   return {
-    cicloId,
+    cicloId: ciclo.cicloId,
     mensaje: mensaje
   };
 }

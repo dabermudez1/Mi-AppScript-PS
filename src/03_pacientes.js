@@ -108,7 +108,12 @@ function calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad) {
   }
 
   const fechaBase = sumarDiasNaturales_(fechaPrimeraConsulta, intervaloDias);
-  return ajustarASiguienteFechaOperativa_(fechaBase);
+  
+  // Evolución: De "Día laborable" a "Slot disponible"
+  const availabilityService = new AvailabilityService();
+  const slot = availabilityService.findNextAvailableSlot22(fechaBase);
+  
+  return slot; // Ahora devuelve {fecha, hora}
 }
 
 function hayCapacidadIndividual_() {
@@ -465,8 +470,12 @@ function obtenerPacientesEnEspera_() {
   const out = repo.findAll()
     .filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ESPERA)
     .map(p => ({
-      ...p,
-      fila: p._row // Mantener compatibilidad con lógica de fila si se necesita
+      PacienteID: p.PacienteID,
+      Nombre: p.Nombre,
+      ModalidadSolicitada: p.ModalidadSolicitada,
+      FechaPrimeraConsulta: p.FechaPrimeraConsulta, // Sigue siendo Date interno, pero filtrado por callers
+      MotivoEspera: p.MotivoEspera || '',
+      fila: p._row 
     }));
 
   out.sort((a, b) => compararFechas_(a.FechaPrimeraConsulta, b.FechaPrimeraConsulta));
@@ -474,68 +483,31 @@ function obtenerPacientesEnEspera_() {
 }
 
 function obtenerCiclosDisponiblesParaPacienteEnEspera_(paciente) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CICLOS);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_CICLOS + '.');
-  }
+  const cicloRepo = new CicloRepository();
+  const todosLosCiclos = cicloRepo.findAll(); // Usa el repositorio y su caché
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-
-  const idx = indexByHeader_(data[0]);
-
-  const columnasNecesarias = [
-    'CicloID',
-    'Modalidad',
-    'NumeroCiclo',
-    'EstadoCiclo',
-    'FechaInicioCiclo',
-    'SesionesPorCiclo',
-    'CapacidadMaxima',
-    'PlazasOcupadas',
-    'PlazasLibres'
-  ];
-
-  columnasNecesarias.forEach(col => {
-    if (idx[col] === undefined) {
-      throw new Error('Falta la columna "' + col + '" en ' + SHEET_CICLOS + '.');
-    }
-  });
-
-  const ciclos = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    const modalidad = row[idx.Modalidad];
-    const estado = row[idx.EstadoCiclo];
-    const fechaInicio = row[idx.FechaInicioCiclo];
-    const capacidad = Number(row[idx.CapacidadMaxima] || 0);
-    const ocupadas = Number(row[idx.PlazasOcupadas] || 0);
+  const ciclosFiltrados = todosLosCiclos.filter(c => {
+    const fechaInicio = c.FechaInicioCiclo;
+    const capacidad = Number(c.CapacidadMaxima || 0);
+    const ocupadas = Number(c.PlazasOcupadas || 0);
     const libresReales = capacidad - ocupadas;
 
-    if (modalidad !== paciente.ModalidadSolicitada) continue;
-    if (estado !== ESTADOS_CICLO.PLANIFICADO) continue;
-    if (!(fechaInicio instanceof Date)) continue;
-    if (!(normalizarFecha_(fechaInicio).getTime() > normalizarFecha_(paciente.FechaPrimeraConsulta).getTime())) continue;
-    if (libresReales <= 0) continue;
+    return (
+      c.Modalidad === paciente.ModalidadSolicitada &&
+      c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO &&
+      (fechaInicio instanceof Date) &&
+      (normalizarFecha_(fechaInicio).getTime() > normalizarFecha_(paciente.FechaPrimeraConsulta).getTime()) &&
+      libresReales > 0
+    );
+  });
 
-    ciclos.push({
-      fila: i + 1,
-      CicloID: row[idx.CicloID],
-      Modalidad: modalidad,
-      NumeroCiclo: Number(row[idx.NumeroCiclo] || 0),
-      EstadoCiclo: estado,
-      FechaInicioCiclo: normalizarFecha_(fechaInicio),
-      SesionesPorCiclo: Number(row[idx.SesionesPorCiclo] || 0),
-      CapacidadMaxima: capacidad,
-      PlazasOcupadas: ocupadas,
-      PlazasLibres: libresReales
-    });
-  }
+  ciclosFiltrados.sort((a, b) => compararFechas_(a.FechaInicioCiclo, b.FechaInicioCiclo));
 
-  ciclos.sort((a, b) => compararFechas_(a.FechaInicioCiclo, b.FechaInicioCiclo));
-  return ciclos;
+  // Mapear a un formato compatible con la UI, asegurando que las fechas sean strings
+  return ciclosFiltrados.map(c => ({
+    ...c,
+    FechaInicioCiclo: formatearFecha_(c.FechaInicioCiclo) // Convertir Date a string
+  }));
 }
 
 function actualizarPacienteEsperaAAssignado_(pacienteId, ciclo) {
@@ -725,143 +697,82 @@ function obtenerPacientesFormularioEdicion() {
 }
 
 function obtenerDetallePacienteParaEdicion(pacienteId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
+  const patientRepo = new PatientRepository();
+  const paciente = patientRepo.findById(pacienteId); // Usa el repositorio
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('No hay pacientes.');
-  }
+  if (!paciente) throw new Error('Paciente no encontrado.');
 
-  const idx = indexByHeader_(data[0]);
+  const estado = paciente.EstadoPaciente;
+  const puedeEditarModalidad = estado === ESTADOS_PACIENTE.ESPERA;
+  const puedeEditarFechaConsulta = estado === ESTADOS_PACIENTE.ESPERA;
 
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    if (String(row[idx.PacienteID]) === String(pacienteId)) {
-      const estado = row[idx.EstadoPaciente];
-      const puedeEditarModalidad = estado === ESTADOS_PACIENTE.ESPERA;
-      const puedeEditarFechaConsulta = estado === ESTADOS_PACIENTE.ESPERA;
-
-      return {
-        pacienteId: row[idx.PacienteID],
-        nombre: row[idx.Nombre] || '',
-        modalidad: row[idx.ModalidadSolicitada] || '',
-        fechaPrimeraConsulta: formatearFechaISOInput_(row[idx.FechaPrimeraConsulta]),
-        estadoPaciente: estado || '',
-        motivoEspera: row[idx.MotivoEspera] || '',
-        cicloObjetivoId: row[idx.CicloObjetivoID] || '',
-        cicloActivoId: row[idx.CicloActivoID] || '',
-        fechaPrimeraSesionReal: formatearFecha_(row[idx.FechaPrimeraSesionReal]),
-        sesionesPlanificadas: Number(row[idx.SesionesPlanificadas] || 0),
-        sesionesCompletadas: Number(row[idx.SesionesCompletadas] || 0),
-        sesionesPendientes: Number(row[idx.SesionesPendientes] || 0),
-        proximaSesion: formatearFecha_(row[idx.ProximaSesion]),
-        fechaCierre: formatearFecha_(row[idx.FechaCierre]),
-        observaciones: row[idx.Observaciones] || '',
-        restricciones: {
-          puedeEditarModalidad: puedeEditarModalidad,
-          puedeEditarFechaConsulta: puedeEditarFechaConsulta,
-          puedeEditarNombre: true,
-          puedeEditarObservaciones: true
-        }
-      };
+  return {
+    pacienteId: paciente.PacienteID,
+    nombre: paciente.Nombre || '',
+    modalidad: paciente.ModalidadSolicitada || '',
+    fechaPrimeraConsulta: formatearFechaISOInput_(paciente.FechaPrimeraConsulta),
+    estadoPaciente: estado || '',
+    motivoEspera: paciente.MotivoEspera || '',
+    cicloObjetivoId: paciente.CicloObjetivoID || '',
+    cicloActivoId: paciente.CicloActivoID || '',
+    fechaPrimeraSesionReal: formatearFecha_(paciente.FechaPrimeraSesionReal),
+    sesionesPlanificadas: Number(paciente.SesionesPlanificadas || 0),
+    sesionesCompletadas: Number(paciente.SesionesCompletadas || 0),
+    sesionesPendientes: Number(paciente.SesionesPendientes || 0),
+    proximaSesion: formatearFecha_(paciente.ProximaSesion),
+    fechaCierre: formatearFecha_(paciente.FechaCierre),
+    observaciones: paciente.Observaciones || '',
+    restricciones: {
+      puedeEditarModalidad: puedeEditarModalidad,
+      puedeEditarFechaConsulta: puedeEditarFechaConsulta,
+      puedeEditarNombre: true,
+      puedeEditarObservaciones: true
     }
-  }
-
-  throw new Error('Paciente no encontrado.');
+  };
 }
 
 function guardarEdicionPaciente(formData) {
-  const pacienteId = String(formData.pacienteId || '').trim();
+  const patientRepo = new PatientRepository();
+  const paciente = patientRepo.findById(formData.pacienteId);
+  if (!paciente) throw new Error('Paciente no encontrado.');
+
   const nombre = String(formData.nombre || '').trim();
   const modalidadNueva = String(formData.modalidad || '').trim();
   const fechaConsultaISO = String(formData.fechaPrimeraConsulta || '').trim();
   const observaciones = String(formData.observaciones || '').trim();
 
-  if (!pacienteId) {
-    throw new Error('Falta el paciente.');
-  }
+  if (!nombre) throw new Error('El nombre es obligatorio.');
 
-  if (!nombre) {
-    throw new Error('El nombre es obligatorio.');
-  }
+  const estado = paciente.EstadoPaciente;
+  const modalidadActual = paciente.ModalidadSolicitada;
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
+  paciente.Nombre = nombre;
+  paciente.Observaciones = observaciones;
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    throw new Error('No hay pacientes.');
-  }
+  let mensajeAdicional = '';
 
-  const idx = indexByHeader_(data[0]);
-
-  const columnasNecesarias = [
-    'PacienteID',
-    'Nombre',
-    'ModalidadSolicitada',
-    'FechaPrimeraConsulta',
-    'EstadoPaciente',
-    'Observaciones'
-  ];
-
-  columnasNecesarias.forEach(col => {
-    if (idx[col] === undefined) {
-      throw new Error('Falta la columna "' + col + '" en ' + SHEET_PACIENTES + '.');
+  if (estado === ESTADOS_PACIENTE.ESPERA) {
+    if (!Object.values(MODALIDADES).includes(modalidadNueva)) {
+      throw new Error('La modalidad no es válida.');
     }
-  });
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-
-    if (String(row[idx.PacienteID]) !== String(pacienteId)) continue;
-
-    const estado = row[idx.EstadoPaciente];
-    const modalidadActual = row[idx.ModalidadSolicitada];
-
-    sheet.getRange(i + 1, idx.Nombre + 1).setValue(nombre);
-    sheet.getRange(i + 1, idx.Observaciones + 1).setValue(observaciones);
-
-    if (estado === ESTADOS_PACIENTE.ESPERA) {
-      if (!Object.values(MODALIDADES).includes(modalidadNueva)) {
-        throw new Error('La modalidad no es válida.');
-      }
-
-      const fechaConsulta = parseFechaISO_(fechaConsultaISO);
-      if (!(fechaConsulta instanceof Date)) {
-        throw new Error('La fecha de primera consulta no es válida.');
-      }
-
-      sheet.getRange(i + 1, idx.ModalidadSolicitada + 1).setValue(modalidadNueva);
-      sheet.getRange(i + 1, idx.FechaPrimeraConsulta + 1).setValue(fechaConsulta);
-
-      return {
-        mensaje:
-          'Paciente actualizado correctamente.\n\n' +
-          'Nombre: ' + nombre + '\n' +
-          'Modalidad anterior: ' + modalidadActual + '\n' +
-          'Modalidad nueva: ' + modalidadNueva + '\n' +
-          'Estado: ' + estado
-      };
+    const fechaConsulta = parseFechaISO_(fechaConsultaISO);
+    if (!(fechaConsulta instanceof Date)) {
+      throw new Error('La fecha de primera consulta no es válida.');
     }
 
+    paciente.ModalidadSolicitada = modalidadNueva;
+    paciente.FechaPrimeraConsulta = fechaConsulta;
+    mensajeAdicional = `\nModalidad anterior: ${modalidadActual}\nModalidad nueva: ${modalidadNueva}`;
+  } else {
     if (modalidadNueva && modalidadNueva !== modalidadActual) {
       throw new Error('Solo se puede cambiar la modalidad si el paciente está en ESPERA.');
     }
-
     if (fechaConsultaISO) {
-      const fechaOriginal = row[idx.FechaPrimeraConsulta];
+      const fechaOriginal = paciente.FechaPrimeraConsulta;
       const fechaNueva = parseFechaISO_(fechaConsultaISO);
-
       if (!(fechaNueva instanceof Date)) {
         throw new Error('La fecha de primera consulta no es válida.');
       }
-
       const originalTime = fechaOriginal instanceof Date ? normalizarFecha_(fechaOriginal).getTime() : null;
       const nuevaTime = normalizarFecha_(fechaNueva).getTime();
 
@@ -869,17 +780,19 @@ function guardarEdicionPaciente(formData) {
         throw new Error('Solo se puede cambiar la fecha de primera consulta si el paciente está en ESPERA.');
       }
     }
-
-    return {
-      mensaje:
-        'Paciente actualizado correctamente.\n\n' +
-        'Nombre: ' + nombre + '\n' +
-        'Estado: ' + estado + '\n' +
-        'Solo se han permitido los campos editables para ese estado.'
-    };
+    mensajeAdicional = '\nSolo se han permitido los campos editables para ese estado.';
   }
 
-  throw new Error('Paciente no encontrado.');
+  patientRepo.save(paciente); // Guardado por bloques
+  eliminarCacheDashboard_(); // Invalida la caché del dashboard
+
+  return {
+    mensaje:
+      `Paciente actualizado correctamente.\n\n` +
+      `Nombre: ${nombre}\n` +
+      `Estado: ${estado}` +
+      mensajeAdicional
+  };
 }
 
 function formatearFechaISOInput_(fecha) {

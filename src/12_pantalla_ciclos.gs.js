@@ -13,15 +13,26 @@ function abrirPantallaCiclos() {
 }
 
 function obtenerDatosPantallaCiclos() {
-  const ciclos = new CicloRepository().findAll().map(c => ({
-    ...c,
+  const repo = new CicloRepository();
+  const data = repo.findAll();
+
+  const ciclosMapeados = data.map(c => ({
+    cicloId: c.CicloID,
+    modalidad: c.Modalidad,
+    numeroCiclo: c.NumeroCiclo,
+    estadoCiclo: c.EstadoCiclo,
     fechaInicioCiclo: formatearFecha_(c.FechaInicioCiclo),
     fechaFinCiclo: formatearFecha_(c.FechaFinCiclo),
-    fechaBaseUsada: formatearFecha_(c.FechaBaseUsada)
+    diaSemana: c.DiaSemana,
+    frecuenciaDias: c.FrecuenciaDias,
+    capacidadMaxima: c.CapacidadMaxima,
+    plazasOcupadas: c.PlazasOcupadas,
+    plazasLibres: c.PlazasLibres,
+    notas: c.Notas || ''
   }));
 
   return {
-    ciclos: ciclos,
+    ciclos: ciclosMapeados,
     modalidades: obtenerValoresCatalogo_('MODALIDADES'),
     estadosCiclo: obtenerValoresCatalogo_('ESTADOS_CICLO')
   };

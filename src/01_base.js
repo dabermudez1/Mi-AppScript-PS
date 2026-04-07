@@ -13,6 +13,8 @@ const SHEET_CICLOS = 'CICLOS';
 const SHEET_ASIGNACIONES_CICLO = 'ASIGNACIONES_CICLO';
 const SHEET_SESIONES = 'SESIONES';
 const SHEET_DASHBOARD = 'DASHBOARD';
+const SHEET_AGENDA_PLANTILLA = 'AGENDA_PLANTILLA';
+const SHEET_AGENDA_EXCEPCIONES = 'AGENDA_EXCEPCIONES';
 
 /***************
  * CALENDARIO
@@ -32,6 +34,13 @@ const MODALIDADES = {
 const TIPOS_MODALIDAD = {
   INDIVIDUAL: 'INDIVIDUAL',
   GRUPO: 'GRUPO'
+};
+
+const TIPOS_SESION_AGENDA = {
+  S22: '2.2',
+  S21: '2.1',
+  GRUPO: '2.2/GRUPO',
+  DESCANSO: 'DESCANSO'
 };
 
 /***************
@@ -177,7 +186,20 @@ const HEADERS = {
     'CalendarSyncStatus',
     'CalendarLastSync',
     'CalendarEventTitle',
-    'CalendarHash'
+    'CalendarHash',
+    'HoraInicio'
+  ],
+
+  [SHEET_AGENDA_PLANTILLA]: [
+    'DiaSemana',
+    'HoraInicio',
+    'TipoSlot'
+  ],
+
+  [SHEET_AGENDA_EXCEPCIONES]: [
+    'Fecha',
+    'HoraInicio',
+    'TipoSlot'
   ]
 };
 
@@ -732,6 +754,14 @@ function pedirFecha_(ui, titulo, mensaje) {
 }
 
 function obtenerValoresCatalogo_(nombreCatalogo) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = `catalogo_${nombreCatalogo}`;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) { /* Fallback a lectura normal */ }
+  }
+
+  // Si no está en caché, leer de la hoja
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CATALOGOS);
   if (!sheet) {
     throw new Error('No existe la hoja ' + SHEET_CATALOGOS + '.');
@@ -757,6 +787,11 @@ function obtenerValoresCatalogo_(nombreCatalogo) {
       valores.push(valor);
     }
   }
+
+  // Guardar en caché por 5 minutos (300 segundos)
+  try {
+    cache.put(cacheKey, JSON.stringify(valores), 300);
+  } catch (e) { /* Ignorar errores de caché */ }
 
   return valores;
 }

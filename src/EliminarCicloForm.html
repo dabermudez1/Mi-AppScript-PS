@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 16px; color: #1f1f1f; }
+      h2 { margin-top: 0; margin-bottom: 16px; font-size: 20px; }
+      .field { margin-bottom: 14px; }
+      label { display: block; font-weight: bold; margin-bottom: 6px; }
+      select, textarea { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; }
+      textarea { resize: none; height: 140px; background: #fafafa; }
+      .warning { background: #fff3cd; border: 1px solid #e0c97f; padding: 10px; margin-bottom: 12px; font-size: 13px; }
+      .actions { display: flex; gap: 10px; margin-top: 18px; }
+      button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
+      .danger { background: #f4cccc; border: 1px solid #d99999; }
+      .secondary { background: #f3f3f3; border: 1px solid #cccccc; }
+      .status { margin-top: 12px; font-size: 13px; white-space: pre-line; }
+      .error { color: #b00020; }
+      .success { color: #1b5e20; }
+    </style>
+  </head>
+  <body>
+    <h2>Eliminar grupo por error</h2>
+    <div class="warning">
+      <strong>Atención:</strong> Esta acción elimina el ciclo, sus sesiones y asignaciones.<br>
+      Los pacientes vinculados volverán automáticamente al estado <strong>ESPERA</strong>.
+    </div>
+    <div class="field">
+      <label for="ciclo">Ciclo a eliminar</label>
+      <select id="ciclo" onchange="cargarImpacto()"></select>
+    </div>
+    <div class="field">
+      <label for="impacto">Impacto del borrado</label>
+      <textarea id="impacto" readonly></textarea>
+    </div>
+    <div class="actions">
+      <button id="btnEliminar" class="danger" onclick="eliminarCiclo()" disabled>Eliminar ciclo definitivamente</button>
+      <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+      <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+    </div>
+    <div id="status" class="status"></div>
+
+    <script>
+      function setStatus(message, type) {
+        const el = document.getElementById('status');
+        el.textContent = message || '';
+        el.className = 'status ' + (type || '');
+      }
+
+      function cargarCiclos() {
+        setStatus('Cargando ciclos...', '');
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            const select = document.getElementById('ciclo');
+            select.innerHTML = '<option value="">-- Selecciona un ciclo --</option>';
+            if (!resultado || resultado.length === 0) {
+              setStatus('No se encontraron ciclos.', 'error');
+              return;
+            }
+            resultado.forEach(c => {
+              const opt = document.createElement('option');
+              opt.value = c.cicloId;
+              opt.textContent = c.label;
+              select.appendChild(opt);
+            });
+            setStatus('', '');
+          })
+          .withFailureHandler(function(err) {
+            setStatus('Error al cargar ciclos: ' + err.message, 'error');
+          })
+          .obtenerCiclosEliminablesFormulario();
+      }
+
+      function cargarImpacto() {
+        const id = document.getElementById('ciclo').value;
+        const txt = document.getElementById('impacto');
+        const btn = document.getElementById('btnEliminar');
+        txt.value = '';
+        btn.disabled = true;
+        if (!id) return;
+
+        txt.value = 'Calculando impacto...';
+        google.script.run
+          .withSuccessHandler(function(i) {
+            txt.value = 
+              'CICLO: ' + i.modalidad + ' (Nº ' + i.numeroCiclo + ')\n' +
+              'ESTADO: ' + i.estado + '\n\n' +
+              'DATOS A BORRAR:\n' +
+              '- ' + i.sesionesContar + ' sesiones programadas.\n' +
+              '- ' + i.asignacionesContar + ' registros de historial.\n\n' +
+              'PACIENTES AFECTADOS (' + i.pacientesContar + '):\n' +
+              (i.nombresPacientes || 'Ninguno') + '\n\n' +
+              'NOTA: Estos pacientes volverán a la lista de ESPERA.';
+            btn.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            setStatus('Error al calcular impacto: ' + err.message, 'error');
+          })
+          .obtenerImpactoEliminacionCicloFormulario(id);
+      }
+
+      function eliminarCiclo() {
+        const id = document.getElementById('ciclo').value;
+        if (!confirm('¿Estás SEGURO de eliminar este ciclo?\n\nEsta operación no se puede deshacer y afectará a los pacientes asignados.')) return;
+        
+        setStatus('Eliminando ciclo y limpiando datos...', '');
+        document.getElementById('btnEliminar').disabled = true;
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            setStatus(res.mensaje, 'success');
+            cargarCiclos();
+            document.getElementById('impacto').value = '';
+          })
+          .withFailureHandler(function(err) {
+            setStatus(err.message, 'error');
+            document.getElementById('btnEliminar').disabled = false;
+          })
+          .confirmarEliminacionCicloFormulario({ cicloId: id });
+      }
+
+      function volverAlPanel() {
+        google.script.run
+          .withSuccessHandler(function() {
+            google.script.host.close();
+          })
+          .withFailureHandler(function(error) {
+            alert("Error al abrir panel: " + error.message);
+          })
+          .abrirHomeDashboard();
+      }
+
+      cargarCiclos();
+    </script>
+  </body>
+</html>

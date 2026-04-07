@@ -294,13 +294,27 @@
         });
       }
 
+      // Optimización: Un solo recorrido para calcular todos los resúmenes
       function renderSummary(lista) {
-        document.getElementById('sumTotal').textContent = lista.length;
-        document.getElementById('sumActivos').textContent = lista.filter(p => p.estadoPaciente === 'ACTIVO').length;
-        document.getElementById('sumEspera').textContent = lista.filter(p => p.estadoPaciente === 'ESPERA').length;
-        document.getElementById('sumAlta').textContent = lista.filter(p => p.estadoPaciente === 'ALTA').length;
-        document.getElementById('sumPendienteInicio').textContent =
-          lista.filter(p => p.estadoPaciente === 'ACTIVO_PENDIENTE_INICIO').length;
+        let total = 0;
+        let activos = 0;
+        let espera = 0;
+        let alta = 0;
+        let pendienteInicio = 0;
+
+        lista.forEach(p => {
+          total++;
+          if (p.estadoPaciente === 'ACTIVO') activos++;
+          else if (p.estadoPaciente === 'ESPERA') espera++;
+          else if (p.estadoPaciente === 'ALTA') alta++;
+          else if (p.estadoPaciente === 'ACTIVO_PENDIENTE_INICIO') pendienteInicio++;
+        });
+
+        document.getElementById('sumTotal').textContent = total;
+        document.getElementById('sumActivos').textContent = activos;
+        document.getElementById('sumEspera').textContent = espera;
+        document.getElementById('sumAlta').textContent = alta;
+        document.getElementById('sumPendienteInicio').textContent = pendienteInicio;
       }
 
       function render() {

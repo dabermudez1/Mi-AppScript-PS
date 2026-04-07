@@ -34,30 +34,17 @@ function fichaClinicaPacienteDesdePaciente(pacienteId) {
 }
 
 function obtenerPacientesFichaClinicaFormulario() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
+  const patientRepo = new PatientRepository();
+  const pacientes = patientRepo.findAll(); // Usa el repositorio
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-
-  const idx = indexByHeader_(data[0]);
-  const out = [];
-
-  for (let i = 1; i < data.length; i++) {
-    out.push({
-      pacienteId: data[i][idx.PacienteID] || '',
-      label:
-        (data[i][idx.Nombre] || 'SIN_NOMBRE') +
-        ' | ' + (data[i][idx.NHC] || 'SIN_NHC') +
-        ' | ' + (data[i][idx.ModalidadSolicitada] || '') +
-        ' | ' + (data[i][idx.EstadoPaciente] || '')
-    });
-  }
-
-  out.sort((a, b) => String(a.label).localeCompare(String(b.label)));
-  return out;
+  return pacientes.map(p => ({
+    pacienteId: p.PacienteID,
+    label:
+      (p.Nombre || 'SIN_NOMBRE') +
+      ' | ' + (p.NHC || 'SIN_NHC') +
+      ' | ' + (p.ModalidadSolicitada || '') +
+      ' | ' + (p.EstadoPaciente || '')
+  })).sort((a, b) => String(a.label).localeCompare(String(b.label)));
 }
 
 function obtenerCatalogosFichaClinicaFormulario() {
@@ -439,4 +426,3 @@ function ejecutarSincronizarFichasClinicasPacientes() {
   const res = sincronizarFichasClinicasPacientes();
   SpreadsheetApp.getUi().alert(res.mensaje);
 }
-

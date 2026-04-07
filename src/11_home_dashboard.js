@@ -308,6 +308,7 @@ function getBackgroundTaskStatus_() {
 function homeNuevoPaciente() { nuevoPaciente(); }
 function homeEditarPaciente() { editarPaciente(); }
 function homeEliminarPacientePorError() { eliminarPacientePorError(); }
+function homeEliminarCicloPorError() { eliminarCicloPorError(); }
 function homeCrearCicloGrupo() { crearCicloGrupo(); }
 function homeGestionEsperaYCicloPaciente() { gestionarEsperaYCicloPaciente(); }
 function homeAbrirPantallaPacientes() { abrirPantallaPacientes(); }

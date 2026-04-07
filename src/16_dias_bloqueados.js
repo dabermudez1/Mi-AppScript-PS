@@ -163,20 +163,25 @@ function eliminarLoteDiasBloqueadosFormulario(fechasTexto) {
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return { mensaje: 'No hay datos para eliminar.' };
 
-  const idx = indexByHeader_(data[0]);
   let eliminados = 0;
+  const headers = data[0];
+  const idx = indexByHeader_(headers);
 
-  // Recorremos de abajo hacia arriba para mantener la validez de los índices al borrar filas
-  for (let i = data.length - 1; i >= 1; i--) {
-    const fechaFila = data[i][idx.Fecha];
-    if (!fechaFila) continue;
-
+  // PATRÓN B: Filtrado en memoria y escritura única
+  const filteredData = data.filter((row, i) => {
+    if (i === 0) return true; // Mantener encabezados
+    const fechaFila = row[idx.Fecha];
+    if (!fechaFila) return true; // Mantener filas sin fecha (o inválidas)
     const claveFila = obtenerClaveFecha_(fechaFila);
     if (clavesObjetivo.has(claveFila)) {
-      sheet.deleteRow(i + 1);
       eliminados++;
+      return false; // Eliminar esta fila
     }
-  }
+    return true; // Mantener esta fila
+  });
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, filteredData.length, headers.length).setValues(filteredData);
 
   // Sincronizar con Google Calendar después de modificar los días bloqueados
   sincronizarDiasBloqueadosAGoogleCalendar();
