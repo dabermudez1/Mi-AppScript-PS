@@ -10,4 +10,12 @@ class PatientRepository extends BaseRepository {
     const all = this.findAll();
     return all.find(p => String(p.PacienteID) === String(pacienteId)) || null;
   }
+
+  findActivos() {
+    return this.findAll().filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO);
+  }
+
+  findEnEspera() {
+    return this.findAll().filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ESPERA);
+  }
 }

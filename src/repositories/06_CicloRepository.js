@@ -21,4 +21,14 @@ class CicloRepository extends BaseRepository {
 
     return ciclosFiltrados.sort((a, b) => compararFechas_(a.FechaInicioCiclo, b.FechaInicioCiclo))[0] || null;
   }
+
+  existsPlannedInFuture(modalidad, fechaReferencia) {
+    const ref = normalizarFecha_(fechaReferencia);
+    return this.findAll().some(c => 
+      c.Modalidad === modalidad &&
+      c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO &&
+      c.FechaInicioCiclo instanceof Date &&
+      normalizarFecha_(c.FechaInicioCiclo) > ref
+    );
+  }
 }
