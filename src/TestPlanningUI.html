@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  </head>
+  <body class="p-4">
+    <div id="form">
+      <div class="field">
+        <label class="label">Fecha Inicio</label>
+        <input class="input" type="date" id="inicio">
+      </div>
+      <div class="field">
+        <label class="label">Sesiones</label>
+        <input class="input" type="number" id="cantidad" value="4">
+      </div>
+      <div class="field">
+        <label class="label">Frecuencia (Días)</label>
+        <input class="input" type="number" id="frecuencia" value="7">
+      </div>
+      <button class="button is-link is-fullwidth" onclick="test()">Simular Planificación</button>
+    </div>
+    <div id="results" class="mt-4" style="display:none">
+      <table class="table is-fullwidth is-striped">
+        <thead><tr><th>Sesión</th><th>Fecha</th><th>Hora</th></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+    <script>
+      function test() {
+        const config = {
+          fechaInicio: document.getElementById('inicio').value,
+          numSesiones: document.getElementById('cantidad').value,
+          frecuencia: document.getElementById('frecuencia').value
+        };
+        google.script.run
+          .withSuccessHandler(res => {
+            const b = document.getElementById('body');
+            b.innerHTML = res.map(s => `<tr><td>${s.numero}</td><td>${s.fecha}</td><td>${s.hora}</td></tr>`).join('');
+            document.getElementById('results').style.display = 'block';
+          })
+          .getProposedSlots(config);
+      }
+    </script>
+  </body>
+</html>

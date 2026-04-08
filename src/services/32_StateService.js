@@ -49,7 +49,8 @@ class StateService {
         props.setProperty('TASK_UPDATE_STATES_PROGRESS', p.toString());
       }
       const fechaSesion = normalizarFecha_(new Date(s.FechaSesion));
-      if (s.EstadoSesion === ESTADOS_SESION.PENDIENTE && fechaSesion < hoy) {
+      const sesionDateTime = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
+      if (s.EstadoSesion === ESTADOS_SESION.PENDIENTE && compararFechasHoras_(sesionDateTime, hoy) < 0) {
         s.EstadoSesion = ESTADOS_SESION.COMPLETADA_AUTO;
         this.sessionRepo.save(s);
         stats.sesiones++;
@@ -108,10 +109,13 @@ class StateService {
     patient.SesionesPendientes = sesiones.filter(s => 
       s.EstadoSesion === ESTADOS_SESION.PENDIENTE || s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA
     ).length;
-    
-    const proximas = sesiones.filter(s => (s.EstadoSesion === ESTADOS_SESION.PENDIENTE || s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA) && s.FechaSesion instanceof Date);
+
+    const proximas = sesiones.filter(s =>
+      (s.EstadoSesion === ESTADOS_SESION.PENDIENTE || s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA) &&
+      s.FechaSesion instanceof Date && s.HoraInicio
+    ).map(s => ({ ...s, fullDateTime: normalizarFechaHora_(s.FechaSesion, s.HoraInicio) }));
     if (proximas.length > 0) {
-      patient.ProximaSesion = proximas.sort((a,b) => a.FechaSesion - b.FechaSesion)[0].FechaSesion;
+      patient.ProximaSesion = proximas.sort((a,b) => compararFechasHoras_(a.fullDateTime, b.fullDateTime))[0].fullDateTime;
     }
   }
 

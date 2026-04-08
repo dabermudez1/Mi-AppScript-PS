@@ -66,18 +66,31 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
     const desc = construirDescripcionEventoSesion_(sesion);
     const color = obtenerColorPorModalidad_(sesion.Modalidad);
     const fecha = normalizarFecha_(sesion.FechaSesion);
+    const horaInicioStr = sesion.HoraInicio; // Nuevo campo
+
+    let startTime = null;
+    let endTime = null;
+    if (horaInicioStr) {
+      startTime = normalizarFechaHora_(sesion.FechaSesion, horaInicioStr);
+      // Asumimos una duración por defecto de 30 minutos para sesiones 2.2 si no se especifica
+      // TODO: Obtener la duración real del slot de la configuración de modalidad o tipo de slot
+      endTime = sumarMinutos_(startTime, 30);
+    }
 
     let ev = (sesion.CalendarEventId && sesion.CalendarEventId !== "") 
       ? googleEventsMap.get(sesion.CalendarEventId) 
       : null;
 
     if (ev) {
+      // Si el evento tiene hora, actualizamos con hora. Si no, con all-day date.
+      if (startTime && endTime) ev.setTime(startTime, endTime); else ev.setAllDayDate(fecha);
       ev.setTitle(titulo);
       ev.setDescription(desc);
-      ev.setAllDayDate(fecha); // FIX: Actualizar la fecha para reprogramaciones
       try { ev.setColor(color); } catch(e){}
     } else {
-      const nuevoEv = calendar.createAllDayEvent(titulo, fecha, { description: desc });
+      const nuevoEv = startTime && endTime
+        ? calendar.createEvent(titulo, startTime, endTime, { description: desc })
+        : calendar.createAllDayEvent(titulo, fecha, { description: desc });
       try { nuevoEv.setColor(color); } catch(e){}
       sesion.CalendarEventId = nuevoEv.getId();
       sesion.CalendarSyncStatus = 'CREADO';
@@ -236,6 +249,7 @@ function construirDescripcionEventoSesion_(sesion) {
     'SESION: S' + (sesion.NumeroSesion || ''),
     'MODALIDAD: ' + modalidad,
     'ESTADO: ' + (sesion.EstadoSesion || ''),
+    'HORA: ' + (sesion.HoraInicio || '-'), // Nuevo
     'FECHA (DIA ENTERO): ' + formatearFecha_(sesion.FechaSesion),
     'FECHA ORIGINAL: ' + formatearFecha_(sesion.FechaOriginal),
     'CICLO: ' + (sesion.CicloID || '-'),
@@ -253,6 +267,7 @@ function generarHashSesionCalendar_(sesion) {
     sesion.NombrePaciente || '',
     sesion.Modalidad || '',
     sesion.NumeroSesion || '',
+    sesion.HoraInicio || '', // Nuevo
     sesion.FechaSesion instanceof Date ? normalizarFecha_(sesion.FechaSesion).getTime() : '',
     sesion.EstadoSesion || '',
     sesion.Notas || '',

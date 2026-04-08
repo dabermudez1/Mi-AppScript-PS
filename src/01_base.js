@@ -14,6 +14,8 @@ const SHEET_ASIGNACIONES_CICLO = 'ASIGNACIONES_CICLO';
 const SHEET_SESIONES = 'SESIONES';
 const SHEET_DASHBOARD = 'DASHBOARD';
 const SHEET_AGENDA_PLANTILLA = 'AGENDA_PLANTILLA';
+// El usuario ya ha añadido estas hojas y sus encabezados.
+// Necesitamos asegurarnos de que el sistema las reconozca.
 const SHEET_AGENDA_EXCEPCIONES = 'AGENDA_EXCEPCIONES';
 
 /***************
@@ -108,6 +110,7 @@ const HEADERS = {
     'DiaSemana',
     'FrecuenciaDias',
     'FechaBase',
+    'HoraBase', // Nuevo campo para modalidades de grupo
     'CapacidadMaxima',
     'SesionesPorCiclo',
     'Notas'
@@ -187,7 +190,7 @@ const HEADERS = {
     'CalendarLastSync',
     'CalendarEventTitle',
     'CalendarHash',
-    'HoraInicio'
+    'HoraInicio' // Añadido por el usuario
   ],
 
   [SHEET_AGENDA_PLANTILLA]: [
@@ -312,7 +315,9 @@ function crearHojasSiNoExisten_() {
     SHEET_CICLOS,
     SHEET_ASIGNACIONES_CICLO,
     SHEET_SESIONES,
-    SHEET_DASHBOARD
+    SHEET_DASHBOARD,
+    SHEET_AGENDA_PLANTILLA, // Nueva hoja
+    SHEET_AGENDA_EXCEPCIONES // Nueva hoja
   ];
 
   const existentes = ss.getSheets().map(s => s.getName());
@@ -546,6 +551,8 @@ function aplicarFormatoBasico_() {
   aplicarFormatoPacientes_();
   aplicarFormatoCiclos_();
   aplicarFormatoAsignaciones_();
+  aplicarFormatoAgenda_(); // Nuevo
+  aplicarFormatoExcepciones_(); // Nuevo
   aplicarFormatoSesiones_();
   aplicarFormatoCatalogos_();
 }
@@ -641,6 +648,35 @@ function aplicarFormatoCatalogos_() {
   sheet.autoResizeColumns(1, 2);
 }
 
+function aplicarFormatoAgenda_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_AGENDA_PLANTILLA);
+  if (!sheet) return;
+
+  aplicarFormatoCabecera_(sheet, HEADERS[SHEET_AGENDA_PLANTILLA].length);
+  sheet.setFrozenRows(1);
+
+  const idx = indexByHeader_(HEADERS[SHEET_AGENDA_PLANTILLA]);
+  const lastRows = Math.max(sheet.getLastRow() - 1, 1);
+
+  if (idx.HoraInicio !== undefined) {
+    sheet.getRange(2, idx.HoraInicio + 1, lastRows, 1).setNumberFormat('HH:mm');
+  }
+}
+
+function aplicarFormatoExcepciones_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_AGENDA_EXCEPCIONES);
+  if (!sheet) return;
+
+  aplicarFormatoCabecera_(sheet, HEADERS[SHEET_AGENDA_EXCEPCIONES].length);
+  sheet.setFrozenRows(1);
+
+  const idx = indexByHeader_(HEADERS[SHEET_AGENDA_EXCEPCIONES]);
+  const lastRows = Math.max(sheet.getLastRow() - 1, 1);
+
+  sheet.getRange(2, idx.Fecha + 1, lastRows, 1).setNumberFormat('dd/MM/yyyy');
+  sheet.getRange(2, idx.HoraInicio + 1, lastRows, 1).setNumberFormat('HH:mm');
+}
+
 function aplicarFormatoCabecera_(sheet, totalColumnas) {
   const range = sheet.getRange(1, 1, 1, totalColumnas);
   range.setFontWeight('bold');
@@ -678,6 +714,38 @@ function sumarDiasNaturales_(fecha, dias) {
   return normalizarFecha_(f);
 }
 
+/**
+ * Normaliza un objeto Date para incluir la hora, o combina una fecha y una cadena de hora.
+ * Si se pasa solo `date`, se normaliza a la fecha y hora exactas.
+ * Si se pasa `date` y `timeString`, combina la fecha de `date` con la hora de `timeString`.
+ * @param {Date} date - El objeto Date base.
+ * @param {string} [timeString] - Cadena de hora en formato "HH:mm".
+ * @returns {Date} Un nuevo objeto Date con la fecha y hora normalizadas.
+ */
+function normalizarFechaHora_(date, timeString) {
+  if (!(date instanceof Date)) {
+    throw new Error('El primer argumento debe ser un objeto Date.');
+  }
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (timeString) {
+    const partes = String(timeString).split(':');
+    if (partes.length === 2) {
+      d.setHours(Number(partes[0]), Number(partes[1]), 0, 0);
+    } else {
+      throw new Error('Formato de hora inválido. Se espera "HH:mm".');
+    }
+  } else {
+    // Si no se proporciona timeString, se normaliza la fecha y hora existentes
+    d.setHours(date.getHours(), date.getMinutes(), 0, 0);
+  }
+  return d;
+}
+
+function sumarMinutos_(date, minutes) {
+  return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
 function esFinDeSemana_(fecha) {
   const day = fecha.getDay(); // 0 domingo, 6 sábado
   return day === 0 || day === 6;
@@ -689,6 +757,10 @@ function moverASiguienteLaborable_(fecha) {
     f = sumarDiasNaturales_(f, 1);
   }
   return f;
+}
+
+function compararFechasHoras_(date1, date2) {
+  return date1.getTime() - date2.getTime();
 }
 
 function parseFechaES_(texto) {
@@ -722,6 +794,35 @@ function parseFechaES_(texto) {
   return normalizarFecha_(fecha);
 }
 
+/**
+ * Parsea una cadena de fecha y hora en formato "dd/mm/yyyy HH:mm" o "dd/mm/yyyy" a un objeto Date.
+ * @param {string} texto - La cadena de fecha y hora.
+ * @returns {Date|null} Objeto Date si el parseo es exitoso, null en caso contrario.
+ */
+function parseFechaHoraES_(texto) {
+  if (!texto) return null;
+  if (texto instanceof Date) return texto; // Ya es un Date, devolver tal cual
+
+  const partes = String(texto).trim().split(' ');
+  const fechaParte = partes[0];
+  const horaParte = partes[1] || '00:00'; // Si no hay hora, asumir medianoche
+
+  const fecha = parseFechaES_(fechaParte);
+  if (!fecha) return null;
+
+  const [horas, minutos] = horaParte.split(':').map(Number);
+  if (isNaN(horas) || isNaN(minutos)) return null;
+
+  fecha.setHours(horas, minutos, 0, 0);
+  return fecha;
+}
+
+function formatearHora_(dateOrTimeString) {
+  if (dateOrTimeString instanceof Date) {
+    return Utilities.formatDate(dateOrTimeString, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  return String(dateOrTimeString || '');
+}
 /***************
  * STUB TEMPORAL
  * Se rehace más adelante
@@ -751,6 +852,11 @@ function pedirFecha_(ui, titulo, mensaje) {
   }
 
   return fecha;
+}
+
+function pedirFechaHora_(ui, titulo, mensaje) {
+  // Implementación similar a pedirFecha_, pero usando parseFechaHoraES_
+  // y validando formato "dd/mm/yyyy HH:mm"
 }
 
 function obtenerValoresCatalogo_(nombreCatalogo) {

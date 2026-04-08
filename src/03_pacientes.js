@@ -107,13 +107,12 @@ function calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad) {
     );
   }
 
-  const fechaBase = sumarDiasNaturales_(fechaPrimeraConsulta, intervaloDias);
-  
-  // Evolución: De "Día laborable" a "Slot disponible"
   const availabilityService = new AvailabilityService();
-  const slot = availabilityService.findNextAvailableSlot22(fechaBase);
-  
-  return slot; // Ahora devuelve {fecha, hora}
+  // Buscar el primer slot '2.2' a partir de la fecha de primera consulta + intervalo
+  const startSearchDate = sumarDiasNaturales_(fechaPrimeraConsulta, intervaloDias);
+  const slot = availabilityService.findNextAvailableSlot(startSearchDate, modalidad, 30); // 30 min para 2.2
+
+  return slot ? { fecha: slot.startDateTime, hora: formatearHora_(slot.startDateTime) } : null;
 }
 
 function hayCapacidadIndividual_() {
@@ -251,7 +250,7 @@ function procesarAltaGrupo_({
     cicloId: ciclo.CicloID,
     modalidad,
     estadoAsignacion: ESTADOS_ASIGNACION.RESERVADO,
-    observaciones: ''
+    observaciones: 'Asignación automática al crear paciente'
   });
   generarSesionesPacienteGrupo_(pacienteId, ciclo.CicloID);
   
@@ -265,6 +264,101 @@ function procesarAltaGrupo_({
       'CicloID: ' + ciclo.CicloID + '\n' +
       'Inicio ciclo: ' + formatearFecha_(ciclo.FechaInicioCiclo)
   };
+}
+
+/**
+ * Genera las sesiones para un paciente individual.
+ * @param {string} pacienteId - ID del paciente.
+ */
+function generarSesionesPacienteIndividual_(pacienteId) {
+  const patientRepo = new PatientRepository();
+  const sessionRepo = new SessionRepository();
+  const availabilityService = new AvailabilityService();
+  const paciente = patientRepo.findById(pacienteId);
+
+  if (!paciente) throw new Error('Paciente no encontrado: ' + pacienteId);
+  if (paciente.ModalidadSolicitada !== MODALIDADES.INDIVIDUAL) {
+    throw new Error('Esta función es solo para pacientes individuales.');
+  }
+
+  const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
+  const sesionesPlanificadas = Number(config.SesionesPorCiclo || 0);
+  const frecuenciaDias = Number(config.FrecuenciaDias || 0);
+
+  if (sesionesPlanificadas <= 0) {
+    throw new Error('Sesiones planificadas no válidas para la modalidad ' + paciente.ModalidadSolicitada);
+  }
+
+  let currentSearchDateTime = normalizarFechaHora_(paciente.FechaPrimeraConsulta, '09:00'); // Empezar a buscar desde la primera consulta, hora por defecto
+  const generatedSessions = [];
+
+  for (let i = 0; i < sesionesPlanificadas; i++) {
+    const requiredDuration = 30; // 30 min para sesión 2.2 individual
+    const nextSlot = availabilityService.findNextAvailableSlot(
+      currentSearchDateTime,
+      paciente.ModalidadSolicitada,
+      requiredDuration
+    );
+
+    if (!nextSlot) {
+      throw new Error(`No se encontró slot disponible para la sesión ${i + 1} del paciente ${paciente.Nombre}.`);
+    }
+
+    const sesionId = generarId_('SES');
+    const nuevaSesion = {
+      SesionID: sesionId,
+      PacienteID: paciente.PacienteID,
+      CicloID: '', // No aplica para individuales
+      AsignacionID: '', // No aplica para individuales
+      Modalidad: paciente.ModalidadSolicitada,
+      NombrePaciente: paciente.Nombre,
+      NumeroSesion: i + 1,
+      FechaSesion: nextSlot.startDateTime,
+      HoraInicio: formatearHora_(nextSlot.startDateTime),
+      EstadoSesion: ESTADOS_SESION.PENDIENTE,
+      FechaOriginal: nextSlot.startDateTime, // La primera vez es la misma
+      ModificadaManual: false,
+      Notas: '',
+      CalendarEventId: '',
+      CalendarSyncStatus: '',
+      CalendarLastSync: '',
+      CalendarEventTitle: '',
+      CalendarHash: ''
+    };
+    generatedSessions.push(nuevaSesion);
+
+    // Para la siguiente búsqueda, empezar después de este slot
+    currentSearchDateTime = sumarMinutos_(nextSlot.startDateTime, nextSlot.durationMinutes);
+    // Y luego avanzar los días de frecuencia
+    currentSearchDateTime = sumarDiasNaturales_(currentSearchDateTime, frecuenciaDias);
+  }
+
+  sessionRepo.saveAll(generatedSessions);
+
+  // Actualizar la próxima sesión del paciente
+  if (generatedSessions.length > 0) {
+    paciente.ProximaSesion = generatedSessions[0].FechaSesion; // La primera sesión generada
+    paciente.SesionesPlanificadas = sesionesPlanificadas;
+    paciente.SesionesPendientes = sesionesPlanificadas;
+    patientRepo.save(paciente);
+  }
+}
+
+/**
+ * Genera las sesiones para un paciente de grupo.
+ * @param {string} pacienteId - ID del paciente.
+ * @param {string} cicloId - ID del ciclo al que está asignado el paciente.
+ */
+function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
+  // TODO: Implementar la lógica de generación de sesiones de grupo
+  // Similar a individuales, pero usando la FechaInicioCiclo y HoraBase de la modalidad de grupo
+  // y buscando slots '2.2/GRUPO'.
+  // Por ahora, dejar un stub para no romper la llamada existente.
+  Logger.log(`[STUB] Generando sesiones de grupo para paciente ${pacienteId} en ciclo ${cicloId}`);
+  // Aquí se debería llamar a AvailabilityService.findNextAvailableSlot
+  // para cada sesión del ciclo, usando la FechaInicioCiclo y HoraBase
+  // de la configuración de la modalidad de grupo.
+  // La duración de un slot de grupo es 90 minutos.
 }
 
 function buscarPrimerCicloFuturoDisponible_(modalidad, fechaPrimeraConsulta) {

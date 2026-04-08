@@ -42,6 +42,7 @@ function obtenerConfigModalidadesFormulario() {
       diaSemana: row[idx.DiaSemana] || '',
       frecuenciaDias: Number(row[idx.FrecuenciaDias] || 0),
       fechaBase: formatearFechaISOInput_(row[idx.FechaBase]),
+      horaBase: row[idx.HoraBase] || '', // Nuevo campo
       capacidadMaxima: Number(row[idx.CapacidadMaxima] || 0),
       sesionesPorCiclo: Number(row[idx.SesionesPorCiclo] || 0),
       notas: row[idx.Notas] || ''
@@ -70,6 +71,7 @@ function guardarConfigModalidadFormulario(formData) {
   const diaSemana = String(formData.diaSemana || '').trim();
   const frecuenciaDias = Number(formData.frecuenciaDias || 0);
   const fechaBaseISO = String(formData.fechaBase || '').trim();
+  const horaBase = String(formData.horaBase || '').trim(); // Nuevo
   const capacidadMaxima = Number(formData.capacidadMaxima || 0);
   const sesionesPorCiclo = Number(formData.sesionesPorCiclo || 0);
   const notas = String(formData.notas || '').trim();
@@ -121,6 +123,9 @@ function guardarConfigModalidadFormulario(formData) {
       if (fechaBaseISO) {
         throw new Error('INDIVIDUAL no debe tener FechaBase.');
       }
+      if (horaBase) {
+        throw new Error('INDIVIDUAL no debe tener HoraBase.');
+      }
     }
 
     if (tipoModalidad === TIPOS_MODALIDAD.GRUPO) {
@@ -134,12 +139,20 @@ function guardarConfigModalidadFormulario(formData) {
         throw new Error('Las modalidades de grupo requieren FechaBase.');
       }
 
+      if (!horaBase) {
+        throw new Error('Las modalidades de grupo requieren HoraBase.');
+      }
+      if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(horaBase)) {
+        throw new Error('HoraBase no es válida. Se espera formato HH:mm.');
+      }
+
       const fechaBase = parseFechaISO_(fechaBaseISO);
       if (!(fechaBase instanceof Date)) {
         throw new Error('FechaBase no es válida.');
       }
 
       const diaReal = convertirDiaSemanaATexto_(fechaBase);
+      // La validación de día de la semana se mantiene para la fecha base
       if (diaReal !== diaSemana) {
         throw new Error(
           'La FechaBase no coincide con el DiaSemana configurado.\n\n' +
@@ -148,9 +161,12 @@ function guardarConfigModalidadFormulario(formData) {
         );
       }
 
+      // Guardamos la fecha y la hora base
       sheet.getRange(i + 1, idx.FechaBase + 1).setValue(fechaBase);
+      sheet.getRange(i + 1, idx.HoraBase + 1).setValue(horaBase);
     } else {
       sheet.getRange(i + 1, idx.FechaBase + 1).setValue('');
+      sheet.getRange(i + 1, idx.HoraBase + 1).setValue('');
     }
 
     sheet.getRange(i + 1, idx.Activa + 1).setValue(activa);

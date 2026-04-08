@@ -1,5 +1,5 @@
 /**
- * Repository para la configuración de la agenda (Plantilla y Excepciones).
+ * Gestiona la lectura de la configuración de la agenda (Plantilla y Excepciones).
  */
 class AgendaRepository {
   constructor() {
@@ -8,24 +8,18 @@ class AgendaRepository {
     this.SHEET_EXCEPCIONES = "AGENDA_EXCEPCIONES";
   }
 
-  /**
-   * Obtiene la plantilla semanal base.
-   * @returns {Object} { "LUNES": [{hora: "09:30", tipo: "SEGUIMIENTO"}, ...] }
-   */
   getWeeklyTemplate() {
     const sheet = this.ss.getSheetByName(this.SHEET_PLANTILLA);
     if (!sheet) throw new Error(`No se encontró la hoja ${this.SHEET_PLANTILLA}`);
-    
     const data = sheet.getDataRange().getValues();
-    const [, ...rows] = data; // Ignorar cabecera
+    const [, ...rows] = data;
 
     return rows.reduce((acc, row) => {
       const [dia, hora, tipo] = row;
       if (!dia) return acc;
-      const diaUpper = dia.toString().toUpperCase().trim();
-      if (!acc[diaUpper]) acc[diaUpper] = [];
-      
-      acc[diaUpper].push({ 
+      const diaKey = dia.toString().toUpperCase().trim();
+      if (!acc[diaKey]) acc[diaKey] = [];
+      acc[diaKey].push({ 
         hora: this._formatTime(hora), 
         tipo: tipo 
       });
@@ -33,13 +27,9 @@ class AgendaRepository {
     }, {});
   }
 
-  /**
-   * Obtiene las excepciones configuradas.
-   */
   getExceptions() {
     const sheet = this.ss.getSheetByName(this.SHEET_EXCEPCIONES);
     if (!sheet) return [];
-    
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return [];
     const [, ...rows] = data;
@@ -55,7 +45,6 @@ class AgendaRepository {
     if (timeValue instanceof Date) {
       return Utilities.formatDate(timeValue, Session.getScriptTimeZone(), "HH:mm");
     }
-    // Si viene como string "HH:mm:ss" o similar de la celda
     return timeValue.toString().substring(0, 5);
   }
 

@@ -56,68 +56,6 @@ function sumarSemanasManteniendoDia_(fecha, semanas) {
   return normalizarFecha_(f);
 }
 
-function buscarSiguienteFechaValidaIndividual_(fecha) {
-  return moverASiguienteLaborable_(fecha);
-}
-
-function buscarSiguienteFechaValidaGrupo_(fecha, diaSemanaTexto) {
-  let f = normalizarFecha_(fecha);
-
-  if (!fechaCoincideConDiaSemana_(f, diaSemanaTexto)) {
-    throw new Error(
-      'La fecha calculada no respeta el día fijo del grupo.\n\n' +
-      'Fecha: ' + formatearFecha_(f) + '\n' +
-      'DiaSemana esperado: ' + diaSemanaTexto
-    );
-  }
-
-  if (esFinDeSemana_(f)) {
-    throw new Error(
-      'La fecha del grupo cae en fin de semana, lo cual no es válido.\n\n' +
-      'Fecha: ' + formatearFecha_(f)
-    );
-  }
-
-  return f;
-}
-
-function generarFechasGrupoPorSemanas_({
-  fechaInicio,
-  diaSemana,
-  intervaloSemanas,
-  sesiones
-}) {
-  validarFechaBaseGrupo_(fechaInicio, diaSemana);
-
-  const fechas = [];
-  let actual = normalizarFecha_(fechaInicio);
-
-  for (let i = 0; i < sesiones; i++) {
-    fechas.push(new Date(actual));
-
-    // Avanzar a la siguiente fecha según el intervalo
-    actual = sumarSemanasManteniendoDia_(actual, intervaloSemanas);
-  }
-
-  return fechas;
-}
-
-function generarFechasIndividualPorDiasLaborables_({
-  fechaInicio,
-  intervaloDias,
-  sesiones
-}) {
-  const fechas = [];
-
-  for (let i = 0; i < sesiones; i++) {
-    const base = sumarDiasNaturales_(fechaInicio, i * intervaloDias);
-    const ajustada = buscarSiguienteFechaValidaIndividual_(base);
-    fechas.push(ajustada);
-  }
-
-  return fechas;
-}
-
 function esFechaBloqueada_(fecha) {
   const f = normalizarFecha_(fecha);
 

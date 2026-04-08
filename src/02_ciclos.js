@@ -59,13 +59,21 @@ function validarFechaInicioCiclo_(fechaInicio, config) {
   }
 }
 
-function generarFechasCiclo_({ fechaInicio, diaSemana, frecuenciaDias, sesiones }) {
-  return generarFechasGrupoPorSemanasConAvisos_({
-    fechaInicio: normalizarFecha_(fechaInicio),
-    diaSemana: diaSemana,
-    intervaloSemanas: Number(frecuenciaDias || 0),
-    sesiones: Number(sesiones || 0)
-  });
+/**
+ * Genera los slots horarios para un ciclo de grupo.
+ * @param {Object} params - Parámetros para la generación.
+ * @param {Date} params.fechaInicio - Fecha de inicio del ciclo.
+ * @param {string} params.horaInicio - Hora de inicio del primer slot del ciclo.
+ * @param {string} params.modalidad - Modalidad del grupo.
+ * @returns {Array<AgendaSlot>} Lista de slots generados.
+ */
+function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
+  // TODO: Implementar la lógica de generación de slots para grupos
+  // Esto implicará usar AvailabilityService.findNextAvailableSlot
+  // para cada sesión del ciclo, a partir de la fechaInicio y horaInicio dadas.
+  // Por ahora, devolver un array vacío para no romper la ejecución.
+  Logger.log(`[STUB] Generando slots para ciclo de grupo: ${modalidad} desde ${formatearFecha_(fechaInicio)} ${horaInicio}`);
+  return [];
 }
 
 function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {

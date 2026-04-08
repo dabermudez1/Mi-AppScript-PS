@@ -1,65 +1,54 @@
 /**
- * Servicio encargado de la lógica de disponibilidad y asignación de slots.
+ * Gestiona la lectura de la configuración de la agenda (Plantilla y Excepciones).
  */
-class AvailabilityService {
-  constructor(agendaRepo, sessionRepo) {
-    this.agendaRepo = agendaRepo;
-    this.sessionRepo = sessionRepo;
+class AgendaRepository {
+  constructor() {
+    this.ss = SpreadsheetApp.getActiveSpreadsheet();
+    this.SHEET_PLANTILLA = "AGENDA_PLANTILLA";
+    this.SHEET_EXCEPCIONES = "AGENDA_EXCEPCIONES";
   }
 
-  /**
-   * Encuentra el siguiente slot disponible respetando la frecuencia.
-   * @param {Date} targetDate Fecha sugerida (ej. ultimaSesion + frecuencia)
-   * @param {string} modalidad Tipo de modalidad (ej. "2.2")
-   */
-  findNextAvailableSlot(targetDate, modalidad) {
-    let searchDate = new Date(targetDate);
-    const weeklyTemplate = this.agendaRepo.getWeeklyTemplate();
-    const exceptions = this.agendaRepo.getExceptions();
-    
-    // Mapeo de reglas de negocio
-    const requiredType = this._getRequiredSlotType(modalidad);
+  getWeeklyTemplate() {
+    const sheet = this.ss.getSheetByName(this.SHEET_PLANTILLA);
+    if (!sheet) throw new Error(`No se encontró la hoja ${this.SHEET_PLANTILLA}`);
+    const data = sheet.getDataRange().getValues();
+    const [, ...rows] = data;
 
-    // Buscamos hasta en 30 días posteriores si no hay hueco
-    for (let i = 0; i < 30; i++) {
-      const dateStr = Utilities.formatDate(searchDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
-      const dayName = this._getDayName(searchDate);
-
-      // 1. Obtener slots del día (Excepciones > Plantilla)
-      let dailySlots = exceptions.filter(e => e.fecha === dateStr);
-      if (dailySlots.length === 0) {
-        dailySlots = weeklyTemplate[dayName] || [];
-      }
-
-      // 2. Filtrar y buscar primer slot libre del tipo correcto
-      const freeSlot = dailySlots.find(slot => {
-        if (slot.tipo !== requiredType) return false;
-        return !this.sessionRepo.isSlotOccupied(dateStr, slot.hora);
+    return rows.reduce((acc, row) => {
+      const [dia, hora, tipo] = row;
+      if (!dia) return acc;
+      const diaKey = dia.toString().toUpperCase().trim();
+      if (!acc[diaKey]) acc[diaKey] = [];
+      acc[diaKey].push({ 
+        hora: this._formatTime(hora), 
+        tipo: tipo 
       });
+      return acc;
+    }, {});
+  }
 
-      if (freeSlot) {
-        return {
-          fecha: new Date(searchDate),
-          hora: freeSlot.hora
-        };
-      }
+  getExceptions() {
+    const sheet = this.ss.getSheetByName(this.SHEET_EXCEPCIONES);
+    if (!sheet) return [];
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
+    const [, ...rows] = data;
 
-      // 3. Si no hay hueco, pasar al siguiente día
-      searchDate.setDate(searchDate.getDate() + 1);
+    return rows.map(row => ({
+      fecha: this._formatDate(row[0]),
+      hora: this._formatTime(row[1]),
+      tipo: row[2]
+    }));
+  }
+
+  _formatTime(timeValue) {
+    if (timeValue instanceof Date) {
+      return Utilities.formatDate(timeValue, Session.getScriptTimeZone(), "HH:mm");
     }
-    
-    throw new Error(`No se encontró disponibilidad para ${modalidad} tras 30 días de búsqueda.`);
+    return timeValue.toString().substring(0, 5);
   }
 
-  _getRequiredSlotType(modalidad) {
-    if (modalidad === "2.2") return "SEGUIMIENTO";
-    if (modalidad === "2.1") return "PRIMERA";
-    if (modalidad.includes("GRUPO")) return "SEGUIMIENTO/GRUPO";
-    return "SEGUIMIENTO";
-  }
-
-  _getDayName(date) {
-    const dias = ["DOMINGO", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"];
-    return dias[date.getDay()];
+  _formatDate(dateValue) {
+    return Utilities.formatDate(new Date(dateValue), Session.getScriptTimeZone(), "dd/MM/yyyy");
   }
 }
