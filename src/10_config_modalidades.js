@@ -349,7 +349,7 @@ function obtenerAgendaExcepcionesParaUI() {
       timestamp: timestamp,
       horaInicio: formatearHora_(ex.HoraInicio),
       tipoSlot: String(ex.TipoSlot || ''),
-      row: Number(slot._row || 0)
+      row: Number(ex._row || 0)
     };
   }).sort((a, b) => a.timestamp - b.timestamp);
 }
