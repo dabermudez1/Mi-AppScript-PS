@@ -242,12 +242,20 @@ function obtenerAgendaPlantillaParaUI() {
 
   return all
     .filter(slot => slot && slot.DiaSemana && slot.HoraInicio) // Ignorar filas totalmente vacías
-    .map(slot => ({
-      diaSemana: String(slot.DiaSemana || ''),
-      horaInicio: formatearHora_(slot.HoraInicio),
-      tipoSlot: String(slot.TipoSlot || ''),
-      row: Number(slot._row || 0)
-    }));
+    .map(slot => {
+      let type = String(slot.TipoSlot || '');
+      // Normalización para evitar el problema del "-" en la UI
+      if (type === '2.1') type = 'PRIMERA';
+      if (type === '2.2') type = 'SEGUIMIENTO';
+      if (type === '2.2/GRUPO') type = 'SEGUIMIENTO/GRUPO';
+      
+      return {
+        diaSemana: String(slot.DiaSemana || ''),
+        horaInicio: formatearHora_(slot.HoraInicio),
+        tipoSlot: type,
+        row: Number(slot._row || 0)
+      };
+    });
 }
 
 /**
@@ -256,8 +264,8 @@ function obtenerAgendaPlantillaParaUI() {
 function obtenerCatalogosAgenda() {
   return {
     diasSemana: obtenerValoresCatalogo_('DIAS_SEMANA'),
-    // Tipos de slot para la lógica de planificación y la UI
-    tiposSlot: ['2.1', '2.2', '2.2/GRUPO', 'PRIMERA', 'SEGUIMIENTO', 'SEGUIMIENTO/GRUPO', 'DESCANSO']
+    // Eliminamos redundancias: usamos solo los nombres descriptivos
+    tiposSlot: ['PRIMERA', 'SEGUIMIENTO', 'SEGUIMIENTO/GRUPO', 'DESCANSO']
   };
 }
 
@@ -344,12 +352,17 @@ function obtenerAgendaExcepcionesParaUI() {
     const timestamp = (dt instanceof Date && !isNaN(dt.getTime())) ? dt.getTime() : 0;
     const fechaTexto = (dt instanceof Date && !isNaN(dt.getTime())) ? formatearFecha_(dt) : String(ex.Fecha || '');
 
+    let type = String(ex.TipoSlot || '');
+    if (type === '2.1') type = 'PRIMERA';
+    if (type === '2.2') type = 'SEGUIMIENTO';
+    if (type === '2.2/GRUPO') type = 'SEGUIMIENTO/GRUPO';
+
     return {
       fecha: fechaTexto,
       timestamp: timestamp,
       horaInicio: formatearHora_(ex.HoraInicio),
-      tipoSlot: String(ex.TipoSlot || ''),
-      row: Number(ex._row || 0)
+      tipoSlot: type,
+      row: Number(ex._row || 0) // FIX: Era slot._row y causaba ReferenceError
     };
   }).sort((a, b) => a.timestamp - b.timestamp);
 }
