@@ -14,22 +14,31 @@
     .tab-content.active { display: block; }
 
     /* Form & Tables */
-    .editor-box { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end; background: #f0f2f1; padding: 12px; border-radius: 8px; border: 1px solid #ccc; }
+    .editor-box { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #ddd; }
     .field { display: flex; flex-direction: column; gap: 4px; }
     label { font-size: 12px; font-weight: bold; color: #555; }
     select, input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
     
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 8px; font-size: 12px; }
     th { background: #ececec; text-align: left; padding: 10px; border-bottom: 2px solid #ddd; position: sticky; top: 0; }
-    td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+    td { padding: 4px; border-bottom: 1px solid #eee; border-right: 1px solid #eee; }
     tr:hover { background: #f9f9f9; }
+    
+    /* Grid Specific */
+    .grid-select { width: 100%; border: none; background: transparent; font-size: 11px; cursor: pointer; padding: 4px; border-radius: 4px; }
+    .grid-select:hover { background: #f0f0f0; }
+    .grid-select option { background: #fff; }
+    .time-col { font-weight: bold; background: #f5f5f5; width: 70px; text-align: center; border-right: 2px solid #ddd; }
+    .cell-22 { background-color: #e8f5e9 !important; color: #2e7d32; font-weight: bold; }
+    .cell-21 { background-color: #e3f2fd !important; color: #1565c0; font-weight: bold; }
+    .cell-grupo { background-color: #f3e5f5 !important; color: #7b1fa2; font-weight: bold; }
+    .cell-descanso { background-color: #fafafa !important; color: #9e9e9e; font-style: italic; }
 
     .actions { display: flex; gap: 8px; margin-top: 16px; }
     button { padding: 8px 14px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; font-size: 13px; }
     .btn-add { background: #d9ead3; border-color: #9bbb8f; color: #2e7d32; }
-    .btn-add:hover { background: #c9dbc2; }
-    .btn-del { color: #c62828; background: none; border: none; padding: 4px; }
-    .btn-del:hover { background: #ffebee; border-radius: 50%; }
+    .btn-save-all { background: #303f9f; color: white; border: none; }
+    .btn-save-all:hover { background: #283593; }
     .btn-secondary { background: #f3f3f3; }
 
     .status { margin-top: 12px; font-size: 13px; font-style: italic; }
@@ -56,33 +65,26 @@
 
   <!-- PESTAÑA PLANTILLA -->
   <div id="tab-plantilla" class="tab-content active">
-    <div class="editor-box">
-      <div class="field">
-        <label>Día</label>
-        <select id="tmpl-dia"></select>
+    <div class="editor-box" style="justify-content: space-between; align-items: center;">
+      <div style="font-size: 13px; color: #666;">
+        <strong>Modo Edición:</strong> Cambia los valores directamente en la cuadrícula y pulsa "Guardar Cambios".
       </div>
-      <div class="field">
-        <label>Hora Inicio</label>
-        <select id="tmpl-hora"></select>
-      </div>
-      <div class="field">
-        <label>Tipo de Slot</label>
-        <select id="tmpl-tipo"></select>
-      </div>
-      <button class="btn-add" onclick="saveTmpl()">Añadir a Plantilla</button>
+      <button class="btn-save-all" onclick="saveTemplateGrid()">💾 Guardar Cambios de Plantilla</button>
     </div>
 
     <div class="scroll-area">
-      <table>
+      <table id="grid-plantilla">
         <thead>
           <tr>
-            <th>Día de la Semana</th>
-            <th>Hora Inicio</th>
-            <th>Tipo de Slot</th>
-            <th style="width: 40px;"></th>
+            <th class="time-col">Hora</th>
+            <th>LUNES</th>
+            <th>MARTES</th>
+            <th>MIERCOLES</th>
+            <th>JUEVES</th>
+            <th>VIERNES</th>
           </tr>
         </thead>
-        <tbody id="body-plantilla"></tbody>
+        <tbody id="body-grid-plantilla"></tbody>
       </table>
     </div>
   </div>
@@ -130,6 +132,10 @@
 
   <script>
     let catalogos = {};
+    let currentTemplate = [];
+    const workDays = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'];
+    const timeSlots = [];
+    for (let h = 8; h <= 20; h++) { timeSlots.push(`${h.toString().padStart(2,'0')}:00`, `${h.toString().padStart(2,'0')}:30`); }
 
     function openTab(evt, tabId) {
       const contents = document.getElementsByClassName("tab-content");
@@ -173,13 +179,6 @@
       
       // Excepciones incluyen "LIBRE"
       document.getElementById("exc-tipo").innerHTML = options + `<option value="LIBRE">LIBRE (Anular Plantilla)</option>`;
-
-      // Generar slots de tiempo (08:00 a 21:00 en saltos de 30 min)
-      const timeSlots = [];
-      for (let h = 8; h <= 21; h++) {
-        const hh = h.toString().padStart(2, '0');
-        timeSlots.push(`${hh}:00`, `${hh}:30`);
-      }
       const timeOptions = timeSlots.map(t => `<option value="${t}">${t}</option>`).join("");
       document.getElementById("tmpl-hora").innerHTML = timeOptions;
       document.getElementById("exc-hora").innerHTML = `<option value="">Todo el día</option>` + timeOptions;
@@ -189,15 +188,8 @@
       // Cargar Plantilla
       google.script.run
         .withSuccessHandler(data => {
-          const body = document.getElementById("body-plantilla");
-          body.innerHTML = data.map(item => `
-            <tr>
-              <td>${item.diaSemana}</td>
-              <td>${item.horaInicio}</td>
-              <td>${getBadge(item.tipoSlot)}</td>
-              <td><button class="btn-del" onclick="deleteTmpl(${item.row})">🗑️</button></td>
-            </tr>
-          `).join("");
+          currentTemplate = data;
+          renderGrid();
         })
         .withFailureHandler(err => console.error("Error cargando plantilla:", err))
         .obtenerAgendaPlantillaParaUI();
@@ -220,6 +212,66 @@
         .obtenerAgendaExcepcionesParaUI();
     }
 
+    function renderGrid() {
+      const tbody = document.getElementById("body-grid-plantilla");
+      let html = "";
+      
+      const tipos = ["", ...catalogos.tiposSlot];
+      
+      timeSlots.forEach(time => {
+        html += `<tr><td class="time-col">${time}</td>`;
+        workDays.forEach(day => {
+          const slot = currentTemplate.find(s => s.diaSemana === day && s.horaInicio === time);
+          const val = slot ? slot.tipoSlot : "";
+          const cellClass = getCellClass(val);
+          
+          html += `<td class="${cellClass}">
+            <select class="grid-select" data-day="${day}" data-time="${time}" onchange="updateCellClass(this)">
+              ${tipos.map(t => `<option value="${t}" ${t === val ? 'selected' : ''}>${t || '-'}</option>`).join("")}
+            </select>
+          </td>`;
+        });
+        html += "</tr>";
+      });
+      tbody.innerHTML = html;
+    }
+
+    function getCellClass(tipo) {
+      if (tipo === '2.2' || tipo === 'SEGUIMIENTO') return "cell-22";
+      if (tipo === '2.1' || tipo === 'PRIMERA') return "cell-21";
+      if (tipo === '2.2/GRUPO' || tipo === 'SEGUIMIENTO/GRUPO') return "cell-grupo";
+      if (tipo === 'DESCANSO') return "cell-descanso";
+      return "";
+    }
+
+    function updateCellClass(el) {
+      el.parentElement.className = getCellClass(el.value);
+    }
+
+    function saveTemplateGrid() {
+      const selects = document.querySelectorAll(".grid-select");
+      const dataToSave = [];
+      
+      selects.forEach(sel => {
+        if (sel.value) {
+          dataToSave.push({
+            diaSemana: sel.dataset.day,
+            horaInicio: sel.dataset.time,
+            tipoSlot: sel.value
+          });
+        }
+      });
+
+      setStatus("Guardando plantilla completa...", "");
+      google.script.run
+        .withSuccessHandler(res => {
+          setStatus(res.mensaje, "success");
+          loadAll(); // Recargar para asegurar sincronía
+        })
+        .withFailureHandler(err => setStatus(err.message, "error"))
+        .actualizarPlantillaCompleta(dataToSave);
+    }
+
     function getBadge(tipo) {
       let cls = "badge";
       if (tipo === '2.2' || tipo === 'SEGUIMIENTO') cls += " badge-22";
@@ -228,30 +280,6 @@
       else if (tipo === 'DESCANSO') cls += " badge-descanso";
       else if (tipo === 'LIBRE') cls += " badge-libre";
       return `<span class="${cls}">${tipo}</span>`;
-    }
-
-    function saveTmpl() {
-      const dia = document.getElementById("tmpl-dia").value;
-      const hora = document.getElementById("tmpl-hora").value;
-      const tipo = document.getElementById("tmpl-tipo").value;
-
-      if (!hora) { alert("Indica la hora"); return; }
-
-      setStatus("Guardando...", "");
-      google.script.run
-        .withSuccessHandler(res => {
-          setStatus(res.mensaje, "success");
-          refreshTables();
-        })
-        .withFailureHandler(err => setStatus(err.message, "error"))
-        .guardarSlotPlantilla({ diaSemana: dia, horaInicio: hora, tipoSlot: tipo });
-    }
-
-    function deleteTmpl(row) {
-      if (!confirm("¿Eliminar este slot de la plantilla?")) return;
-      google.script.run
-        .withSuccessHandler(() => refreshTables())
-        .eliminarSlotPlantilla(row);
     }
 
     function saveExc() {

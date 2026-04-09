@@ -245,6 +245,38 @@ function guardarSlotPlantilla(formData) {
 }
 
 /**
+ * Actualiza la plantilla completa desde la vista de rejilla.
+ * @param {Array<Object>} listaSlots - Lista de objetos {diaSemana, horaInicio, tipoSlot}.
+ */
+function actualizarPlantillaCompleta(listaSlots) {
+  const repo = new AgendaTemplateRepository();
+  const sheet = repo.getSheet();
+  
+  // 1. Limpiar datos actuales (manteniendo cabecera)
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+  }
+  
+  if (!listaSlots || listaSlots.length === 0) return { mensaje: 'Plantilla vaciada.' };
+
+  // 2. Preparar filas para guardado masivo
+  const headers = HEADERS[SHEET_AGENDA_PLANTILLA];
+  const idx = indexByHeader_(headers);
+  const dataValues = listaSlots.map(slot => {
+    const row = new Array(headers.length).fill('');
+    row[idx.DiaSemana] = slot.diaSemana;
+    row[idx.HoraInicio] = slot.horaInicio;
+    row[idx.TipoSlot] = slot.tipoSlot;
+    return row;
+  });
+
+  // 3. Escribir en bloque
+  sheet.getRange(2, 1, dataValues.length, headers.length).setValues(dataValues);
+  aplicarFormatoAgenda_();
+  return { mensaje: 'Plantilla actualizada correctamente.' };
+}
+
+/**
  * Elimina un slot de la plantilla.
  */
 function eliminarSlotPlantilla(row) {
