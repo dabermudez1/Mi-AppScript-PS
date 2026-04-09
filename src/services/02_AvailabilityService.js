@@ -106,9 +106,18 @@ class AvailabilityService {
     sessions.forEach(s => {
       if (s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
         const start = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
-        // Asumimos que la duración de una sesión es 30 min si no se especifica o es 2.2
-        // Esto podría ser más sofisticado leyendo la configuración de modalidad o el tipo de slot
-        const duration = 30; // TODO: Obtener duración real de la sesión o tipo de slot
+                
+        let sessionSlotType;
+        if (s.Modalidad === MODALIDADES.INDIVIDUAL) {
+          sessionSlotType = '2.2'; // Las sesiones individuales son de tipo 2.2
+        } else if (s.Modalidad.startsWith('GRUPO')) {
+          sessionSlotType = '2.2/GRUPO'; // Las sesiones de grupo son de tipo 2.2/GRUPO
+        } else {
+          sessionSlotType = 'DESCONOCIDO'; // Fallback para modalidades no reconocidas
+        }
+
+        const duration = this.agendaService._getSlotDuration(sessionSlotType);
+        if (duration === 0) Logger.log(`Advertencia: Duración 0 para slotType ${sessionSlotType} de modalidad ${s.Modalidad}`);
         const end = sumarMinutos_(start, duration);
         occupied.push({ start, end });
       }
