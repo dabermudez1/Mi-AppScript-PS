@@ -6,6 +6,9 @@ class AgendaService {
   constructor() {
     this.templateRepo = new AgendaTemplateRepository();
     this.exceptionRepo = new AgendaExceptionRepository();
+    // Cache de datos para evitar lecturas repetitivas en bucles
+    this._cachedTemplate = null;
+    this._cachedExceptions = null;
   }
 
   /**
@@ -13,7 +16,10 @@ class AgendaService {
    * @returns {Array<Object>} Lista de objetos de plantilla.
    */
   getWeeklyTemplate() {
-    return this.templateRepo.findAll();
+    if (!this._cachedTemplate) {
+      this._cachedTemplate = this.templateRepo.findAll();
+    }
+    return this._cachedTemplate;
   }
 
   /**
@@ -23,11 +29,13 @@ class AgendaService {
    * @returns {Array<Object>} Lista de objetos de excepción.
    */
   getExceptions(startDate, endDate) {
-    const allExceptions = this.exceptionRepo.findAll();
+    if (!this._cachedExceptions) {
+      this._cachedExceptions = this.exceptionRepo.findAll();
+    }
     const normalizedStartDate = normalizarFecha_(startDate);
     const normalizedEndDate = normalizarFecha_(endDate);
 
-    return allExceptions.filter(ex => {
+    return this._cachedExceptions.filter(ex => {
       const exDate = normalizarFecha_(ex.Fecha);
       return exDate >= normalizedStartDate && exDate <= normalizedEndDate;
     });

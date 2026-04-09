@@ -21,11 +21,20 @@ class AvailabilityService {
     let currentDateTime = normalizarFechaHora_(startSearchDateTime);
     let searchLimitDate = sumarDiasNaturales_(currentDateTime, 365); // Buscar hasta 1 año en el futuro
 
+    // OPTIMIZACIÓN: Cargar todas las sesiones una sola vez fuera del bucle
+    const allSessions = this.sessionRepo.findAll();
+    const sessionsMap = {};
+    allSessions.forEach(s => {
+      if (s.FechaSesion instanceof Date && s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
+        const key = obtenerClaveFecha_(s.FechaSesion);
+        if (!sessionsMap[key]) sessionsMap[key] = [];
+        sessionsMap[key].push(s);
+      }
+    });
+
     while (compararFechasHoras_(currentDateTime, searchLimitDate) <= 0) {
       const agendaForDay = this.agendaService.getAgendaForDay(currentDateTime);
-      const sessionsForDay = this.sessionRepo.findAll().filter(s =>
-        normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(currentDateTime).getTime()
-      );
+      const sessionsForDay = sessionsMap[obtenerClaveFecha_(currentDateTime)] || [];
 
       // Obtener slots ocupados por sesiones existentes
       const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
@@ -128,16 +137,23 @@ class AvailabilityService {
     const today = new Date();
     const summary = [];
     
+    // Optimización similar para el resumen
+    const allSessions = this.sessionRepo.findAll();
+    const sessionsMap = {};
+    allSessions.forEach(s => {
+      if (s.FechaSesion instanceof Date && s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
+        const key = obtenerClaveFecha_(s.FechaSesion);
+        if (!sessionsMap[key]) sessionsMap[key] = [];
+        sessionsMap[key].push(s);
+      }
+    });
+
     for (let i = 0; i < 7; i++) {
       const date = sumarDiasNaturales_(today, i);
       if (esFechaBloqueada_(date)) continue;
 
       const agendaForDay = this.agendaService.getAgendaForDay(date);
-      const sessionsForDay = this.sessionRepo.findAll().filter(s =>
-        s.FechaSesion instanceof Date && 
-        normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(date).getTime() &&
-        s.EstadoSesion !== ESTADOS_SESION.CANCELADA
-      );
+      const sessionsForDay = sessionsMap[obtenerClaveFecha_(date)] || [];
 
       const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
       const freeSlots = agendaForDay.filter(slot => 
