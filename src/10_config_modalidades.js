@@ -212,7 +212,7 @@ function obtenerAgendaPlantillaParaUI() {
   const repo = new AgendaTemplateRepository();
   return repo.findAll().map(slot => ({
     diaSemana: slot.DiaSemana,
-    horaInicio: slot.HoraInicio,
+    horaInicio: formatearHora_(slot.HoraInicio),
     tipoSlot: slot.TipoSlot,
     row: slot._row
   }));
@@ -260,7 +260,7 @@ function obtenerAgendaExcepcionesParaUI() {
   const repo = new AgendaExceptionRepository();
   return repo.findAll().map(ex => ({
     fecha: formatearFecha_(ex.Fecha),
-    horaInicio: ex.HoraInicio,
+    horaInicio: formatearHora_(ex.HoraInicio),
     tipoSlot: ex.TipoSlot,
     row: ex._row
   })).sort((a, b) => parseFechaES_(a.fecha) - parseFechaES_(b.fecha));

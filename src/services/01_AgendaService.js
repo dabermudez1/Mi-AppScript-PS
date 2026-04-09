@@ -103,8 +103,8 @@ class AgendaService {
     // Reglas de duración de slots
     switch (slotType) {
       case '2.2': case 'SEGUIMIENTO': return 30;
-      case '2.1': case 'PRIMERA': return 60;
-      case '2.2/GRUPO': case 'SEGUIMIENTO/GRUPO': return 90; 
+      case '2.1': case 'PRIMERA': return 60; // 2 slots de 30 min
+      case '2.2/GRUPO': case 'SEGUIMIENTO/GRUPO': return 60; // 2 slots de 30 min (según nueva instrucción)
       case 'DESCANSO': return 30; // Aunque bloquea, un slot de descanso es de 30 min
       default: return 30; // Por defecto, 30 minutos
     }

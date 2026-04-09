@@ -63,7 +63,7 @@
       </div>
       <div class="field">
         <label>Hora Inicio</label>
-        <input type="time" id="tmpl-hora">
+        <select id="tmpl-hora"></select>
       </div>
       <div class="field">
         <label>Tipo de Slot</label>
@@ -96,7 +96,7 @@
       </div>
       <div class="field">
         <label>Hora (opcional)</label>
-        <input type="time" id="exc-hora">
+        <select id="exc-hora"></select>
       </div>
       <div class="field">
         <label>Tipo de Slot</label>
@@ -173,6 +173,16 @@
       
       // Excepciones incluyen "LIBRE"
       document.getElementById("exc-tipo").innerHTML = options + `<option value="LIBRE">LIBRE (Anular Plantilla)</option>`;
+
+      // Generar slots de tiempo (08:00 a 21:00 en saltos de 30 min)
+      const timeSlots = [];
+      for (let h = 8; h <= 21; h++) {
+        const hh = h.toString().padStart(2, '0');
+        timeSlots.push(`${hh}:00`, `${hh}:30`);
+      }
+      const timeOptions = timeSlots.map(t => `<option value="${t}">${t}</option>`).join("");
+      document.getElementById("tmpl-hora").innerHTML = timeOptions;
+      document.getElementById("exc-hora").innerHTML = `<option value="">Todo el día</option>` + timeOptions;
     }
 
     function refreshTables() {
@@ -273,16 +283,6 @@
         .withSuccessHandler(() => google.script.host.close())
         .abrirHomeDashboardDesdePantalla();
     }
-
-    function obtenerCatalogosAgenda() {
-        return {
-        diasSemana: obtenerValoresCatalogo_('DIAS_SEMANA'),
-        // Sincronizamos los tipos de slot con los que el usuario ya usa en su tabla
-        tiposSlot: ['2.1', '2.2', '2.2/GRUPO', 'PRIMERA', 'SEGUIMIENTO', 'SEGUIMIENTO/GRUPO', 'DESCANSO']
-        };
-    }
-
-
 
     // Inicializar
     loadAll();
