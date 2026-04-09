@@ -723,18 +723,23 @@ function sumarDiasNaturales_(fecha, dias) {
  * @returns {Date} Un nuevo objeto Date con la fecha y hora normalizadas.
  */
 function normalizarFechaHora_(date, timeString) {
-  if (!(date instanceof Date)) {
-    throw new Error('El primer argumento debe ser un objeto Date.');
+  // Intentar convertir a Date si no lo es (por si viene como string de la hoja)
+  let d = (date instanceof Date) ? new Date(date.getTime()) : new Date(date);
+  
+  if (isNaN(d.getTime())) {
+    throw new Error('El primer argumento debe ser una fecha válida.');
   }
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-  if (timeString) {
-    const partes = String(timeString).split(':');
-    if (partes.length === 2) {
+  if (timeString && String(timeString).trim() !== '') {
+    // Usamos formatearHora_ para asegurar que tratamos con un string "HH:mm" 
+    // incluso si timeString es un objeto Date de Sheets
+    const sTime = formatearHora_(timeString);
+    const partes = sTime.split(':');
+    
+    if (partes.length >= 2) {
       d.setHours(Number(partes[0]), Number(partes[1]), 0, 0);
-    } else {
-      throw new Error('Formato de hora inválido. Se espera "HH:mm".');
-    }
+    } 
+    // Si el split falla, simplemente mantenemos la hora que ya trajera el objeto
   } else {
     // Si no se proporciona timeString, se normaliza la fecha y hora existentes
     d.setHours(date.getHours(), date.getMinutes(), 0, 0);

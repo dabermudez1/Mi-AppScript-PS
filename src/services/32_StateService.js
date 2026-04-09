@@ -48,8 +48,12 @@ class StateService {
         const p = Math.round(30 + (i / totalSesiones * 20));
         props.setProperty('TASK_UPDATE_STATES_PROGRESS', p.toString());
       }
-      const fechaSesion = normalizarFecha_(new Date(s.FechaSesion));
-      const sesionDateTime = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
+      
+      // Aseguramos que trabajamos con un objeto Date válido
+      const baseDate = (s.FechaSesion instanceof Date) ? s.FechaSesion : new Date(s.FechaSesion);
+      if (isNaN(baseDate.getTime())) return;
+
+      const sesionDateTime = normalizarFechaHora_(baseDate, s.HoraInicio);
       if (s.EstadoSesion === ESTADOS_SESION.PENDIENTE && compararFechasHoras_(sesionDateTime, hoy) < 0) {
         s.EstadoSesion = ESTADOS_SESION.COMPLETADA_AUTO;
         this.sessionRepo.save(s);
