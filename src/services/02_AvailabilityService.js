@@ -145,38 +145,63 @@ class AvailabilityService {
   getFreeSlotsSummary() {
     const today = new Date();
     const summary = [];
-    
-    // Optimización similar para el resumen
-    const allSessions = this.sessionRepo.findAll();
+
+    // 1. Carga masiva de datos (Una sola lectura a disco)
+    const allSessions = this.sessionRepo.findAll(); 
+    const blockedDays = obtenerMapaDiasBloqueados_();
+    const weeklyTemplate = this.agendaService.getWeeklyTemplate();
+
+    // 2. Indexación rápida de sesiones
     const sessionsMap = {};
     allSessions.forEach(s => {
       if (s.FechaSesion instanceof Date && s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
         const key = obtenerClaveFecha_(s.FechaSesion);
         if (!sessionsMap[key]) sessionsMap[key] = [];
-        sessionsMap[key].push(s);
+        sessionsMap[key].push(s); 
       }
     });
 
     for (let i = 0; i < 7; i++) {
       const date = sumarDiasNaturales_(today, i);
-      if (esFechaBloqueada_(date)) continue;
+      const dateKey = obtenerClaveFecha_(date);
+      
+      // Saltamos si el día está bloqueado (Festivos/Fines de semana)
+      if (esFinDeSemana_(date) || blockedDays[dateKey]) continue;
 
       const agendaForDay = this.agendaService.getAgendaForDay(date);
-      const sessionsForDay = sessionsMap[obtenerClaveFecha_(date)] || [];
-
+      const sessionsForDay = sessionsMap[dateKey] || [];
       const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
+
       const freeSlots = agendaForDay.filter(slot => 
         slot.type !== 'DESCANSO' && !this._isSlotOccupied(slot, occupiedSlots)
       );
 
       if (freeSlots.length > 0) {
+        const diaSemanaStr = convertirDiaSemanaATexto_(date);
         summary.push({
           fecha: formatearFecha_(date),
-          diaSemana: convertirDiaSemanaATexto_(date),
-          slots: freeSlots.map(s => ({ hora: formatearHora_(s.startDateTime), tipo: s.type }))
+          diaSemana: diaSemanaStr,
+          // Normalizamos el tipo para que el CSS del Dashboard funcione
+          slots: freeSlots.map(s => ({ 
+            hora: formatearHora_(s.startDateTime), 
+            tipo: this._normalizeTypeForUI(s.type) 
+          }))
         });
       }
     }
     return summary;
+  }
+
+  /**
+   * Mapea nombres descriptivos a códigos técnicos para el CSS del Dashboard
+   * @private
+   */
+  _normalizeTypeForUI(type) {
+    const map = {
+      'SEGUIMIENTO': '2.2',
+      'PRIMERA': '2.1',
+      'SEGUIMIENTO/GRUPO': '2.2/GRUPO'
+    };
+    return map[type] || type;
   }
 }
