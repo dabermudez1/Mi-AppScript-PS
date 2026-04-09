@@ -639,6 +639,10 @@ function aplicarFormatoSesiones_() {
         sheet.getRange(2, idx[col] + 1, lastRows, 1).setNumberFormat('dd/MM/yyyy');
       }
     });
+
+  if (idx.HoraInicio !== undefined) {
+    sheet.getRange(2, idx.HoraInicio + 1, lastRows, 1).setNumberFormat('HH:mm');
+  }
 }
 
 function aplicarFormatoCatalogos_() {

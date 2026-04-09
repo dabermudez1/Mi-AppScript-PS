@@ -327,9 +327,9 @@ function generarSesionesPacienteIndividual_(pacienteId) {
       Modalidad: paciente.ModalidadSolicitada,
       NombrePaciente: paciente.Nombre,
       NumeroSesion: i + 1,
-      FechaSesion: nextSlot.startDateTime,
+      FechaSesion: normalizarFecha_(nextSlot.startDateTime),
       EstadoSesion: ESTADOS_SESION.PENDIENTE,
-      FechaOriginal: nextSlot.startDateTime, // La primera vez es la misma
+      FechaOriginal: normalizarFecha_(nextSlot.startDateTime),
       ModificadaManual: false,
       Notas: '',
       CalendarEventId: '',

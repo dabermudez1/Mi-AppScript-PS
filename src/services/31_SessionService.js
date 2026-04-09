@@ -20,7 +20,8 @@ class SessionService {
       sesion.FechaOriginal = sesion.FechaSesion;
     }
 
-    sesion.FechaSesion = nuevaFecha;
+    sesion.FechaSesion = normalizarFecha_(nuevaFecha);
+    sesion.HoraInicio = formatearHora_(nuevaFecha);
     sesion.ModificadaManual = true;
     sesion.EstadoSesion = ESTADOS_SESION.REPROGRAMADA;
 
@@ -44,21 +45,33 @@ class SessionService {
    * Crea sesiones masivamente para un paciente (Alta inicial).
    */
   createInitialSessions(paciente, fechas, cicloId = '') {
-    fechas.forEach((fecha, index) => {
+    const sesiones = fechas.map((fecha, index) => {
       const nuevaSesion = {
         SesionID: generarId_('SES'),
         PacienteID: paciente.PacienteID,
         CicloID: cicloId,
+        AsignacionID: '',
         Modalidad: paciente.ModalidadSolicitada,
         NombrePaciente: paciente.Nombre,
         NumeroSesion: index + 1,
-        FechaSesion: fecha,
+        FechaSesion: normalizarFecha_(fecha),
         EstadoSesion: ESTADOS_SESION.PENDIENTE,
-        FechaOriginal: fecha,
+        FechaOriginal: normalizarFecha_(fecha),
         ModificadaManual: false,
-        CalendarSyncStatus: 'PENDIENTE'
+        Notas: '',
+        CalendarEventId: '',
+        CalendarSyncStatus: 'PENDIENTE',
+        CalendarLastSync: '',
+        CalendarEventTitle: '',
+        CalendarHash: '',
+        HoraInicio: formatearHora_(fecha)
       };
-      this.sessionRepo.save(nuevaSesion);
+      return nuevaSesion;
     });
+
+    if (sesiones.length > 0) {
+      this.sessionRepo.saveAll(sesiones);
+    }
+    return sesiones.length;
   }
 }
