@@ -210,16 +210,24 @@ function gestionarAgenda() {
  * Optimizada para reducir latencia y round-trips al servidor.
  */
 function obtenerDatosInicialesAgenda() {
+  Logger.log("Iniciando carga de datos de agenda...");
   try {
     const data = {
-      catalogos: obtenerCatalogosAgenda() || {},
-      plantilla: obtenerAgendaPlantillaParaUI() || [],
-      excepciones: obtenerAgendaExcepcionesParaUI() || [],
+      catalogos: JSON.parse(JSON.stringify(obtenerCatalogosAgenda() || {})),
+      plantilla: JSON.parse(JSON.stringify(obtenerAgendaPlantillaParaUI() || [])),
+      excepciones: JSON.parse(JSON.stringify(obtenerAgendaExcepcionesParaUI() || [])),
       fechaHoy: new Date().toISOString().split('T')[0]
     };
+
+    Logger.log("Datos preparados con éxito. Plantilla: " + data.plantilla.length + " filas. Excepciones: " + data.excepciones.length);
+    
+    if (!data.catalogos || !data.plantilla) {
+      throw new Error("Error en la integridad de los datos cargados.");
+    }
+
     return data;
   } catch (e) {
-    Logger.log("Error en obtenerDatosInicialesAgenda: " + e.message);
+    Logger.log("CRITICAL ERROR en obtenerDatosInicialesAgenda: " + e.message + "\nStack: " + e.stack);
     throw new Error("Error interno al cargar la agenda: " + e.message);
   }
 }
@@ -229,13 +237,16 @@ function obtenerDatosInicialesAgenda() {
  */
 function obtenerAgendaPlantillaParaUI() {
   const repo = new AgendaTemplateRepository();
-  return repo.findAll()
-    .filter(slot => slot.DiaSemana && slot.HoraInicio) // Ignorar filas totalmente vacías
+  const all = repo.findAll();
+  if (!all || !Array.isArray(all)) return [];
+
+  return all
+    .filter(slot => slot && slot.DiaSemana && slot.HoraInicio) // Ignorar filas totalmente vacías
     .map(slot => ({
-      diaSemana: slot.DiaSemana,
+      diaSemana: String(slot.DiaSemana || ''),
       horaInicio: formatearHora_(slot.HoraInicio),
-      tipoSlot: slot.TipoSlot,
-      row: slot._row
+      tipoSlot: String(slot.TipoSlot || ''),
+      row: Number(slot._row || 0)
     }));
 }
 
@@ -321,7 +332,10 @@ function eliminarSlotPlantilla(row) {
  */
 function obtenerAgendaExcepcionesParaUI() {
   const repo = new AgendaExceptionRepository();
-  const data = repo.findAll().filter(ex => ex.Fecha); // Ignorar filas sin fecha
+  const all = repo.findAll();
+  if (!all || !Array.isArray(all)) return [];
+  
+  const data = all.filter(ex => ex && ex.Fecha); // Ignorar filas sin fecha
   
   return data.map(ex => {
     let dt = ex.Fecha instanceof Date ? ex.Fecha : parseFechaES_(ex.Fecha);
@@ -334,8 +348,8 @@ function obtenerAgendaExcepcionesParaUI() {
       fecha: fechaTexto,
       timestamp: timestamp,
       horaInicio: formatearHora_(ex.HoraInicio),
-      tipoSlot: ex.TipoSlot,
-      row: ex._row
+      tipoSlot: String(ex.TipoSlot || ''),
+      row: Number(slot._row || 0)
     };
   }).sort((a, b) => a.timestamp - b.timestamp);
 }

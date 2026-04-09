@@ -829,13 +829,17 @@ function parseFechaHoraES_(texto) {
  * Evita la sobrecarga de Utilities.formatDate en bucles masivos.
  */
 function formatearHora_(dateOrTimeString) {
+  if (!dateOrTimeString && dateOrTimeString !== 0) return '';
+  
   if (dateOrTimeString instanceof Date && !isNaN(dateOrTimeString.getTime())) {
     const h = dateOrTimeString.getHours().toString().padStart(2, '0');
     const m = dateOrTimeString.getMinutes().toString().padStart(2, '0');
     return `${h}:${m}`;
   }
-  if (typeof dateOrTimeString === 'string') return dateOrTimeString.trim().substring(0, 5);
-  return '';
+  
+  // Si es un string o número, intentamos extraer HH:mm
+  const str = String(dateOrTimeString).trim();
+  return str.match(/^\d{1,2}:\d{2}/) ? str.substring(0, 5) : (str.substring(0, 5) || '');
 }
 /***************
  * STUB TEMPORAL
