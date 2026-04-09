@@ -238,8 +238,8 @@ function obtenerAgendaPlantillaParaUI() {
 function obtenerCatalogosAgenda() {
   return {
     diasSemana: obtenerValoresCatalogo_('DIAS_SEMANA'),
-    // Tipos de slot fijos para la lógica de planificación
-    tiposSlot: ['2.1', '2.2', '2.2/GRUPO', 'DESCANSO']
+    // Tipos de slot para la lógica de planificación y la UI
+    tiposSlot: ['2.1', '2.2', '2.2/GRUPO', 'PRIMERA', 'SEGUIMIENTO', 'SEGUIMIENTO/GRUPO', 'DESCANSO']
   };
 }
 
