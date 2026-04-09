@@ -63,37 +63,51 @@ function crearPacienteSegunModalidad_({
     modalidad,
     fechaPrimeraConsulta
   }) {
-  const service = new PatientService();
+  const config = obtenerConfigModalidad_(modalidad);
 
-  const result = service.createPatient({
-    nombre, nhc, sexoGenero, motivoConsultaDiagnostico, 
-    motivoConsultaOtros, modalidad, fechaPrimeraConsulta
+  // 1. Caso INDIVIDUAL: Verificamos cupo y calculamos primera sesión
+  if (config.TipoModalidad === TIPOS_MODALIDAD.INDIVIDUAL) {
+    if (!hayCapacidadIndividual_()) {
+      const pacienteId = crearPacienteEnSheet_({
+        nombre, nhc, sexoGenero, motivoConsultaDiagnostico, motivoConsultaOtros,
+        modalidadSolicitada: modalidad, fechaPrimeraConsulta,
+        estadoPaciente: ESTADOS_PACIENTE.ESPERA, motivoEspera: 'SIN_CUPO_INDIVIDUAL',
+        sesionesPlanificadas: Number(config.SesionesPorCiclo || 0),
+        sesionesPendientes: Number(config.SesionesPorCiclo || 0)
+      });
+      return {
+        pacienteId,
+        mensaje: `Paciente creado en ESPERA.\nMotivo: SIN_CUPO_INDIVIDUAL`
+      };
+    }
+
+    const slot = calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad);
+    if (!slot) {
+      throw new Error('No se encontró un slot de agenda disponible para la modalidad individual.');
+    }
+
+    const pacienteId = crearPacienteEnSheet_({
+      nombre, nhc, sexoGenero, motivoConsultaDiagnostico, motivoConsultaOtros,
+      modalidadSolicitada: modalidad, fechaPrimeraConsulta,
+      estadoPaciente: ESTADOS_PACIENTE.ACTIVO,
+      fechaPrimeraSesionReal: slot.fecha,
+      proximaSesion: slot.fecha,
+      sesionesPlanificadas: Number(config.SesionesPorCiclo || 0),
+      sesionesPendientes: Number(config.SesionesPorCiclo || 0)
+    });
+
+    generarSesionesPacienteIndividual_(pacienteId);
+    return {
+      pacienteId,
+      mensaje: `Paciente creado correctamente.\nEstado: ACTIVO\nPrimera sesión: ${formatearFecha_(slot.fecha)} a las ${slot.hora}`
+    };
+  }
+
+  // 2. Caso GRUPO: Delegamos en la lógica ya existente de grupos
+  return procesarAltaGrupo_({
+    nombre, nhc, sexoGenero, motivoConsultaDiagnostico, motivoConsultaOtros,
+    modalidad, fechaPrimeraConsulta, config
   });
-
-  if (result.status === 'ACTIVE') {
-    generarSesionesPacienteIndividual_(result.pacienteId);
-    return {
-      pacienteId: result.pacienteId,
-      mensaje: `Paciente creado correctamente.\nEstado: ACTIVO\nPrimera sesión: ${formatearFecha_(result.firstSessionDate)}`
-    };
-  }
-
-  if (result.status === 'ACTIVE_PENDING') {
-    generarSesionesPacienteGrupo_(result.pacienteId, result.cicloId);
-    return {
-      pacienteId: result.pacienteId,
-      mensaje: `Paciente asignado al ciclo ${result.numeroCiclo}.\nEstado: PENDIENTE INICIO\nInicio: ${formatearFecha_(result.fechaInicio)}`
-    };
-  }
-
-  if (result.status === 'WAITING') {
-    return {
-      pacienteId: result.pacienteId,
-      mensaje: `Paciente en lista de ESPERA.\nMotivo: ${result.motivo}`
-    };
-  }
-
-  return result;
 }
 
 function calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad) {
