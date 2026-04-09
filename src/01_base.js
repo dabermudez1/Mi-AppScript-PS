@@ -824,9 +824,15 @@ function parseFechaHoraES_(texto) {
   return fecha;
 }
 
+/**
+ * Formateador de alto rendimiento para UI. 
+ * Evita la sobrecarga de Utilities.formatDate en bucles masivos.
+ */
 function formatearHora_(dateOrTimeString) {
   if (dateOrTimeString instanceof Date) {
-    return Utilities.formatDate(dateOrTimeString, Session.getScriptTimeZone(), 'HH:mm');
+    const h = dateOrTimeString.getHours().toString().padStart(2, '0');
+    const m = dateOrTimeString.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
   }
   return String(dateOrTimeString || '');
 }

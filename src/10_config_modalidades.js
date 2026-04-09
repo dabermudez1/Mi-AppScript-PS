@@ -206,6 +206,20 @@ function gestionarAgenda() {
 }
 
 /**
+ * Función unificada para carga inicial.
+ * Optimizada para reducir latencia y round-trips al servidor.
+ */
+function obtenerDatosInicialesAgenda() {
+  return {
+    catalogos: obtenerCatalogosAgenda(),
+    // Cargamos directamente los datos procesados para la UI
+    plantilla: obtenerAgendaPlantillaParaUI(),
+    excepciones: obtenerAgendaExcepcionesParaUI(),
+    fechaHoy: new Date().toISOString().split('T')[0]
+  };
+}
+
+/**
  * Obtiene todos los slots de la plantilla para la UI.
  */
 function obtenerAgendaPlantillaParaUI() {
@@ -290,12 +304,18 @@ function eliminarSlotPlantilla(row) {
  */
 function obtenerAgendaExcepcionesParaUI() {
   const repo = new AgendaExceptionRepository();
-  return repo.findAll().map(ex => ({
-    fecha: formatearFecha_(ex.Fecha),
-    horaInicio: formatearHora_(ex.HoraInicio),
-    tipoSlot: ex.TipoSlot,
-    row: ex._row
-  })).sort((a, b) => parseFechaES_(a.fecha) - parseFechaES_(b.fecha));
+  const data = repo.findAll();
+  
+  return data.map(ex => {
+    const dt = ex.Fecha instanceof Date ? ex.Fecha : new Date(ex.Fecha);
+    return {
+      fecha: formatearFecha_(dt),
+      timestamp: dt.getTime(), // Sort key pre-calculada
+      horaInicio: formatearHora_(ex.HoraInicio),
+      tipoSlot: ex.TipoSlot,
+      row: ex._row
+    };
+  }).sort((a, b) => a.timestamp - b.timestamp);
 }
 
 /**
