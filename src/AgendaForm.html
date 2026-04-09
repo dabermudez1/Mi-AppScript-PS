@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; color: #1f1f1f; background: #f7f7f7; }
+    h2 { margin-top: 0; margin-bottom: 16px; font-size: 20px; color: #303f9f; }
+    
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 16px; }
+    .tab { padding: 10px 20px; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-bottom: -2px; font-weight: bold; color: #666; }
+    .tab.active { color: #303f9f; border-color: #ddd; background: #fff; border-top: 3px solid #303f9f; border-radius: 4px 4px 0 0; }
+    .tab-content { display: none; background: #fff; border: 1px solid #ddd; padding: 16px; border-radius: 0 0 4px 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .tab-content.active { display: block; }
+
+    /* Form & Tables */
+    .editor-box { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end; background: #f0f2f1; padding: 12px; border-radius: 8px; border: 1px solid #ccc; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 12px; font-weight: bold; color: #555; }
+    select, input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+    th { background: #ececec; text-align: left; padding: 10px; border-bottom: 2px solid #ddd; position: sticky; top: 0; }
+    td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+    tr:hover { background: #f9f9f9; }
+
+    .actions { display: flex; gap: 8px; margin-top: 16px; }
+    button { padding: 8px 14px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; font-size: 13px; }
+    .btn-add { background: #d9ead3; border-color: #9bbb8f; color: #2e7d32; }
+    .btn-add:hover { background: #c9dbc2; }
+    .btn-del { color: #c62828; background: none; border: none; padding: 4px; }
+    .btn-del:hover { background: #ffebee; border-radius: 50%; }
+    .btn-secondary { background: #f3f3f3; }
+
+    .status { margin-top: 12px; font-size: 13px; font-style: italic; }
+    .error { color: #b00020; }
+    .success { color: #1b5e20; }
+
+    .scroll-area { max-height: 350px; overflow-y: auto; border: 1px solid #eee; }
+    .badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+    .badge-22 { background: #e8f5e9; color: #2e7d32; }
+    .badge-21 { background: #e3f2fd; color: #1565c0; }
+    .badge-grupo { background: #f3e5f5; color: #7b1fa2; }
+    .badge-descanso { background: #eeeeee; color: #616161; }
+    .badge-libre { background: #fffde7; color: #f57f17; border: 1px solid #fbc02d; }
+  </style>
+</head>
+<body>
+
+  <h2>Gestión de Agenda</h2>
+
+  <div class="tabs">
+    <div class="tab active" onclick="openTab(event, 'tab-plantilla')">Plantilla Semanal</div>
+    <div class="tab" onclick="openTab(event, 'tab-excepciones')">Excepciones</div>
+  </div>
+
+  <!-- PESTAÑA PLANTILLA -->
+  <div id="tab-plantilla" class="tab-content active">
+    <div class="editor-box">
+      <div class="field">
+        <label>Día</label>
+        <select id="tmpl-dia"></select>
+      </div>
+      <div class="field">
+        <label>Hora Inicio</label>
+        <input type="time" id="tmpl-hora">
+      </div>
+      <div class="field">
+        <label>Tipo de Slot</label>
+        <select id="tmpl-tipo"></select>
+      </div>
+      <button class="btn-add" onclick="saveTmpl()">Añadir a Plantilla</button>
+    </div>
+
+    <div class="scroll-area">
+      <table>
+        <thead>
+          <tr>
+            <th>Día de la Semana</th>
+            <th>Hora Inicio</th>
+            <th>Tipo de Slot</th>
+            <th style="width: 40px;"></th>
+          </tr>
+        </thead>
+        <tbody id="body-plantilla"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PESTAÑA EXCEPCIONES -->
+  <div id="tab-excepciones" class="tab-content">
+    <div class="editor-box">
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="exc-fecha">
+      </div>
+      <div class="field">
+        <label>Hora (opcional)</label>
+        <input type="time" id="exc-hora">
+      </div>
+      <div class="field">
+        <label>Tipo de Slot</label>
+        <select id="exc-tipo"></select>
+      </div>
+      <button class="btn-add" onclick="saveExc()">Añadir Excepción</button>
+    </div>
+    <p style="font-size: 11px; color: #666; margin-top: -8px;">* Deja la hora vacía para bloquear el día completo. Usa "LIBRE" para anular un slot de la plantilla.</p>
+
+    <div class="scroll-area">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Tipo de Slot</th>
+            <th style="width: 40px;"></th>
+          </tr>
+        </thead>
+        <tbody id="body-excepciones"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-secondary" onclick="loadAll()">Refrescar Datos</button>
+    <button class="btn-secondary" onclick="volverAlPanel()">Volver al Panel</button>
+    <button class="btn-secondary" onclick="google.script.host.close()">Cerrar</button>
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    let catalogos = {};
+
+    function openTab(evt, tabId) {
+      const contents = document.getElementsByClassName("tab-content");
+      for (let i = 0; i < contents.length; i++) contents[i].classList.remove("active");
+      const tabs = document.getElementsByClassName("tab");
+      for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
+      document.getElementById(tabId).classList.add("active");
+      evt.currentTarget.classList.add("active");
+      setStatus("");
+    }
+
+    function setStatus(msg, type) {
+      const s = document.getElementById("status");
+      s.textContent = msg;
+      s.className = "status " + (type || "");
+    }
+
+    function loadAll() {
+      setStatus("Cargando...", "");
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res) {
+            catalogos = res;
+            fillSelects();
+            refreshTables();
+          } else {
+            setStatus("Error: No se pudieron cargar los catálogos.", "error");
+          }
+        })
+        .withFailureHandler(err => setStatus(err.message, "error"))
+        .obtenerCatalogosAgenda();
+    }
+
+    function fillSelects() {
+      const dias = document.getElementById("tmpl-dia");
+      dias.innerHTML = catalogos.diasSemana.map(d => `<option value="${d}">${d}</option>`).join("");
+      
+      const tipos = catalogos.tiposSlot;
+      const options = tipos.map(t => `<option value="${t}">${t}</option>`).join("");
+      document.getElementById("tmpl-tipo").innerHTML = options;
+      
+      // Excepciones incluyen "LIBRE"
+      document.getElementById("exc-tipo").innerHTML = options + `<option value="LIBRE">LIBRE (Anular Plantilla)</option>`;
+    }
+
+    function refreshTables() {
+      // Cargar Plantilla
+      google.script.run
+        .withSuccessHandler(data => {
+          const body = document.getElementById("body-plantilla");
+          body.innerHTML = data.map(item => `
+            <tr>
+              <td>${item.diaSemana}</td>
+              <td>${item.horaInicio}</td>
+              <td>${getBadge(item.tipoSlot)}</td>
+              <td><button class="btn-del" onclick="deleteTmpl(${item.row})">🗑️</button></td>
+            </tr>
+          `).join("");
+        })
+        .withFailureHandler(err => console.error("Error cargando plantilla:", err)
+        .obtenerAgendaPlantillaParaUI();
+
+      // Cargar Excepciones
+      google.script.run
+        .withSuccessHandler(data => {
+          const body = document.getElementById("body-excepciones");
+          body.innerHTML = data.map(item => `
+            <tr>
+              <td>${item.fecha}</td>
+              <td>${item.horaInicio || 'Todo el día'}</td>
+              <td>${getBadge(item.tipoSlot)}</td>
+              <td><button class="btn-del" onclick="deleteExc(${item.row})">🗑️</button></td>
+            </tr>
+          `).join("");
+          setStatus("");
+        })
+        .withFailureHandler(err => console.error("Error cargando excepciones:", err))
+        .obtenerAgendaExcepcionesParaUI();
+    }
+
+    function getBadge(tipo) {
+      let cls = "badge";
+      if (tipo === '2.2' || tipo === 'SEGUIMIENTO') cls += " badge-22";
+      else if (tipo === '2.1' || tipo === 'PRIMERA') cls += " badge-21";
+      else if (tipo === '2.2/GRUPO' || tipo === 'SEGUIMIENTO/GRUPO') cls += " badge-grupo";
+      else if (tipo === 'DESCANSO') cls += " badge-descanso";
+      else if (tipo === 'LIBRE') cls += " badge-libre";
+      return `<span class="${cls}">${tipo}</span>`;
+    }
+
+    function saveTmpl() {
+      const dia = document.getElementById("tmpl-dia").value;
+      const hora = document.getElementById("tmpl-hora").value;
+      const tipo = document.getElementById("tmpl-tipo").value;
+
+      if (!hora) { alert("Indica la hora"); return; }
+
+      setStatus("Guardando...", "");
+      google.script.run
+        .withSuccessHandler(res => {
+          setStatus(res.mensaje, "success");
+          refreshTables();
+        })
+        .withFailureHandler(err => setStatus(err.message, "error"))
+        .guardarSlotPlantilla({ diaSemana: dia, horaInicio: hora, tipoSlot: tipo });
+    }
+
+    function deleteTmpl(row) {
+      if (!confirm("¿Eliminar este slot de la plantilla?")) return;
+      google.script.run
+        .withSuccessHandler(() => refreshTables())
+        .eliminarSlotPlantilla(row);
+    }
+
+    function saveExc() {
+      const fecha = document.getElementById("exc-fecha").value;
+      const hora = document.getElementById("exc-hora").value;
+      const tipo = document.getElementById("exc-tipo").value;
+
+      if (!fecha) { alert("Indica la fecha"); return; }
+
+      setStatus("Guardando...", "");
+      google.script.run
+        .withSuccessHandler(res => {
+          setStatus(res.mensaje, "success");
+          refreshTables();
+        })
+        .withFailureHandler(err => setStatus(err.message, "error"))
+        .guardarExcepcionAgenda({ fecha: fecha, horaInicio: hora, tipoSlot: tipo });
+    }
+
+    function deleteExc(row) {
+      if (!confirm("¿Eliminar esta excepción?")) return;
+      google.script.run
+        .withSuccessHandler(() => refreshTables())
+        .eliminarExcepcionAgenda(row);
+    }
+
+    function volverAlPanel() {
+      google.script.run
+        .withSuccessHandler(() => google.script.host.close())
+        .abrirHomeDashboardDesdePantalla();
+    }
+
+    function obtenerCatalogosAgenda() {
+        return {
+        diasSemana: obtenerValoresCatalogo_('DIAS_SEMANA'),
+        // Sincronizamos los tipos de slot con los que el usuario ya usa en su tabla
+        tiposSlot: ['2.1', '2.2', '2.2/GRUPO', 'PRIMERA', 'SEGUIMIENTO', 'SEGUIMIENTO/GRUPO', 'DESCANSO']
+        };
+    }
+
+
+
+    // Inicializar
+    loadAll();
+  </script>
+</body>
+</html>
+

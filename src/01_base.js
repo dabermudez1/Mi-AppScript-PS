@@ -744,7 +744,7 @@ function normalizarFechaHora_(date, timeString) {
     // Si el split falla, simplemente mantenemos la hora que ya trajera el objeto
   } else {
     // Si no se proporciona timeString, se normaliza la fecha y hora existentes
-    d.setHours(date.getHours(), date.getMinutes(), 0, 0);
+    d.setHours(d.getHours(), d.getMinutes(), 0, 0);
   }
   return d;
 }

@@ -73,11 +73,11 @@ class AvailabilityService {
     if (agendaSlot.type === 'DESCANSO') return false;
 
     if (modality === MODALIDADES.INDIVIDUAL) {
-      // Individual busca slots '2.2'
-      if (agendaSlot.type !== '2.2') return false;
+      // Individual busca slots '2.2' o 'SEGUIMIENTO' (por compatibilidad con etiquetas del usuario)
+      if (agendaSlot.type !== '2.2' && agendaSlot.type !== 'SEGUIMIENTO' && agendaSlot.type !== '2.1' && agendaSlot.type !== 'PRIMERA') return false;
     } else if (modality.startsWith('GRUPO')) {
-      // Grupos buscan slots '2.2/GRUPO'
-      if (agendaSlot.type !== '2.2/GRUPO') return false;
+      // Grupos buscan slots '2.2/GRUPO' o 'SEGUIMIENTO/GRUPO'
+      if (agendaSlot.type !== '2.2/GRUPO' && agendaSlot.type !== 'SEGUIMIENTO/GRUPO') return false;
     } else {
       // Otras modalidades no soportadas por la generación automática
       return false;
