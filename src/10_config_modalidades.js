@@ -189,3 +189,108 @@ function guardarConfigModalidadFormulario(formData) {
 
   throw new Error('No se encontró la modalidad a actualizar.');
 }
+
+/***********************
+ * GESTIÓN DE AGENDA UI
+ ***********************/
+
+/**
+ * Abre el diálogo unificado para gestionar la agenda.
+ */
+function gestionarAgenda() {
+  const html = HtmlService
+    .createHtmlOutputFromFile('AgendaForm')
+    .setWidth(850)
+    .setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Gestión de Agenda');
+}
+
+/**
+ * Obtiene todos los slots de la plantilla para la UI.
+ */
+function obtenerAgendaPlantillaParaUI() {
+  const repo = new AgendaTemplateRepository();
+  return repo.findAll().map(slot => ({
+    diaSemana: slot.DiaSemana,
+    horaInicio: slot.HoraInicio,
+    tipoSlot: slot.TipoSlot,
+    row: slot._row
+  }));
+}
+
+/**
+ * Obtiene los catálogos necesarios para la agenda.
+ */
+function obtenerCatalogosAgenda() {
+  return {
+    diasSemana: obtenerValoresCatalogo_('DIAS_SEMANA'),
+    // Tipos de slot fijos para la lógica de planificación
+    tiposSlot: ['2.1', '2.2', '2.2/GRUPO', 'DESCANSO']
+  };
+}
+
+/**
+ * Guarda o actualiza un slot en la plantilla semanal.
+ */
+function guardarSlotPlantilla(formData) {
+  const repo = new AgendaTemplateRepository();
+  const slot = {
+    DiaSemana: formData.diaSemana,
+    HoraInicio: formData.horaInicio,
+    TipoSlot: formData.tipoSlot,
+    _row: formData.row ? Number(formData.row) : null
+  };
+  repo.save(slot);
+  return { mensaje: 'Slot de plantilla guardado correctamente.' };
+}
+
+/**
+ * Elimina un slot de la plantilla.
+ */
+function eliminarSlotPlantilla(row) {
+  const repo = new AgendaTemplateRepository();
+  repo.delete({ _row: Number(row) });
+  return { mensaje: 'Slot eliminado.' };
+}
+
+/**
+ * Obtiene las excepciones para la UI.
+ */
+function obtenerAgendaExcepcionesParaUI() {
+  const repo = new AgendaExceptionRepository();
+  return repo.findAll().map(ex => ({
+    fecha: formatearFecha_(ex.Fecha),
+    horaInicio: ex.HoraInicio,
+    tipoSlot: ex.TipoSlot,
+    row: ex._row
+  })).sort((a, b) => parseFechaES_(a.fecha) - parseFechaES_(b.fecha));
+}
+
+/**
+ * Guarda una excepción (semana concreta o día específico).
+ */
+function guardarExcepcionAgenda(formData) {
+  const repo = new AgendaExceptionRepository();
+  const fecha = parseFechaISO_(formData.fecha);
+  
+  if (!fecha) throw new Error('Fecha no válida.');
+
+  const excepcion = {
+    Fecha: fecha,
+    HoraInicio: formData.horaInicio || '', // Si es vacío, afecta a todo el día
+    TipoSlot: formData.tipoSlot,
+    _row: formData.row ? Number(formData.row) : null
+  };
+  
+  repo.save(excepcion);
+  return { mensaje: 'Excepción guardada correctamente.' };
+}
+
+/**
+ * Elimina una excepción.
+ */
+function eliminarExcepcionAgenda(row) {
+  const repo = new AgendaExceptionRepository();
+  repo.delete({ _row: Number(row) });
+  return { mensaje: 'Excepción eliminada.' };
+}

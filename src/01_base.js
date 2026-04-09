@@ -223,6 +223,8 @@ function onOpen() {
       .addItem('Gestionar catálogos', 'gestionarCatalogos')
       .addItem('Gestionar configuración modalidades', 'gestionarConfigModalidades')
       .addItem('Gestionar días bloqueados', 'gestionarDiasBloqueados')
+      .addSeparator()
+      .addItem('Gestionar Agenda (Slots y Excepciones)', 'gestionarAgenda')
   );
 
   menu.addSubMenu(
