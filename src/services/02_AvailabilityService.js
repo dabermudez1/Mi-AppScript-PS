@@ -119,4 +119,39 @@ class AvailabilityService {
       (agendaSlot.startDateTime < occ.end && slotEnd > occ.start)
     );
   }
+
+  /**
+   * Genera un resumen de huecos libres para los próximos 7 días.
+   * @returns {Array<Object>} Resumen por día.
+   */
+  getFreeSlotsSummary() {
+    const today = new Date();
+    const summary = [];
+    
+    for (let i = 0; i < 7; i++) {
+      const date = sumarDiasNaturales_(today, i);
+      if (esFechaBloqueada_(date)) continue;
+
+      const agendaForDay = this.agendaService.getAgendaForDay(date);
+      const sessionsForDay = this.sessionRepo.findAll().filter(s =>
+        s.FechaSesion instanceof Date && 
+        normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(date).getTime() &&
+        s.EstadoSesion !== ESTADOS_SESION.CANCELADA
+      );
+
+      const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
+      const freeSlots = agendaForDay.filter(slot => 
+        slot.type !== 'DESCANSO' && !this._isSlotOccupied(slot, occupiedSlots)
+      );
+
+      if (freeSlots.length > 0) {
+        summary.push({
+          fecha: formatearFecha_(date),
+          diaSemana: convertirDiaSemanaATexto_(date),
+          slots: freeSlots.map(s => ({ hora: formatearHora_(s.startDateTime), tipo: s.type }))
+        });
+      }
+    }
+    return summary;
+  }
 }
