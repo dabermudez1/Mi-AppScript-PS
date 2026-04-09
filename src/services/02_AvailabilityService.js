@@ -163,6 +163,7 @@ class AvailabilityService {
 
     for (let i = 0; i < 7; i++) {
       const date = sumarDiasNaturales_(today, i);
+      const isToday = i === 0;
       const dateKey = obtenerClaveFecha_(date);
       
       // Saltamos si el día está bloqueado (Festivos/Fines de semana)
@@ -172,9 +173,12 @@ class AvailabilityService {
       const sessionsForDay = sessionsMap[dateKey] || [];
       const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
 
-      const freeSlots = agendaForDay.filter(slot => 
-        slot.type !== 'DESCANSO' && !this._isSlotOccupied(slot, occupiedSlots)
-      );
+      const freeSlots = agendaForDay.filter(slot => {
+        if (slot.type === 'DESCANSO') return false;
+        // Si es hoy, solo mostramos slots futuros
+        if (isToday && slot.startDateTime.getTime() <= today.getTime()) return false;
+        return !this._isSlotOccupied(slot, occupiedSlots);
+      });
 
       if (freeSlots.length > 0) {
         const diaSemanaStr = convertirDiaSemanaATexto_(date);

@@ -385,19 +385,34 @@
             'homeActualizarEstadosAutomaticos': 'updateStates',
             'generarSesionesFaltantes': 'generateSessions'
           };
+          const uiActions = [
+            'homeNuevoPaciente', 'homeEditarPaciente', 'homeFichaClinicaPaciente',
+            'homeAltaPaciente', 'homeEliminarPacientePorError', 'homeEliminarCicloPorError',
+            'homeCrearCicloGrupo', 'homeGestionEsperaYCicloPaciente', 'homeAbrirPantallaPacientes',
+            'homeAbrirPantallaCiclos', 'homeAbrirPantallaSesiones', 'gestionarAgenda',
+            'homeGestionarConfigModalidades', 'homeGestionarCatalogos', 'homeGestionarDiasBloqueados',
+            'homeAbrirReprogramarSesion', 'homeVerIncidenciasCalendario'
+          ];
           const taskKey = backgroundTasks[fn];
+          const isUiAction = uiActions.includes(fn);
+
+          if (taskKey && this.data.taskStatus[taskKey].running) return;
 
           if (taskKey) {
-            if (this.data.taskStatus[taskKey].running) return;
             this.data.taskStatus[taskKey].running = true;
             this.data.taskStatus[taskKey].progress = 0;
             this.showToast("Iniciando tarea en segundo plano...");
-          } else { this.loading = true; }
+          } else if (!isUiAction) { 
+            this.loading = true; 
+          }
 
           google.script.run
             .withSuccessHandler(() => {
-              if (taskKey) this.startPolling();
-              else this.load();
+              if (taskKey) {
+                this.startPolling();
+              } else if (!isUiAction) {
+                this.load();
+              }
             })
             .withFailureHandler(err => {
               if (taskKey) this.data.taskStatus[taskKey].running = false;

@@ -52,7 +52,10 @@ class AgendaService {
     const dayOfWeek = convertirDiaSemanaATexto_(normalizedDate);
 
     const templateSlots = this.getWeeklyTemplate()
-      .filter(slot => slot.DiaSemana === dayOfWeek)
+      .filter(slot => {
+        const slotDay = String(slot.DiaSemana || '').trim().toUpperCase();
+        return slotDay === dayOfWeek;
+      })
       .map(slot => ({
         startDateTime: normalizarFechaHora_(normalizedDate, slot.HoraInicio),
         type: slot.TipoSlot,
