@@ -328,7 +328,6 @@ function generarSesionesPacienteIndividual_(pacienteId) {
       NombrePaciente: paciente.Nombre,
       NumeroSesion: i + 1,
       FechaSesion: nextSlot.startDateTime,
-      HoraInicio: formatearHora_(nextSlot.startDateTime),
       EstadoSesion: ESTADOS_SESION.PENDIENTE,
       FechaOriginal: nextSlot.startDateTime, // La primera vez es la misma
       ModificadaManual: false,
@@ -337,14 +336,15 @@ function generarSesionesPacienteIndividual_(pacienteId) {
       CalendarSyncStatus: '',
       CalendarLastSync: '',
       CalendarEventTitle: '',
-      CalendarHash: ''
+      CalendarHash: '',
+      HoraInicio: formatearHora_(nextSlot.startDateTime) // Se mueve al final para coincidir con HEADERS
     };
     generatedSessions.push(nuevaSesion);
 
     // Para la siguiente búsqueda, empezar después de este slot
     currentSearchDateTime = sumarMinutos_(nextSlot.startDateTime, nextSlot.durationMinutes);
-    // Y luego avanzar los días de frecuencia
-    currentSearchDateTime = sumarDiasNaturales_(currentSearchDateTime, frecuenciaDias);
+    // Avanzar los días de frecuencia preservando la hora para la siguiente búsqueda
+    currentSearchDateTime.setDate(currentSearchDateTime.getDate() + frecuenciaDias);
   }
 
   sessionRepo.saveAll(generatedSessions);
