@@ -157,23 +157,28 @@
       setStatus("Cargando...", "");
       google.script.run
         .withSuccessHandler(data => {
-          catalogos = data.catalogos;
-          currentTemplate = data.plantilla;
-          fillSelects();
-          renderGrid();
-          renderExceptions(data.excepciones);
-          
-          const excFecha = document.getElementById("exc-fecha");
-          if (excFecha && !excFecha.value) excFecha.value = data.fechaHoy;
-          
-          setStatus("");
+          try {
+            if (!data) throw new Error("No se recibieron datos del servidor.");
+            catalogos = data.catalogos || {};
+            currentTemplate = data.plantilla || [];
+            fillSelects();
+            renderGrid();
+            renderExceptions(data.excepciones || []);
+            
+            const excFecha = document.getElementById("exc-fecha");
+            if (excFecha && !excFecha.value) excFecha.value = data.fechaHoy;
+            
+            setStatus("");
+          } catch (e) {
+            setStatus("Error al procesar datos: " + e.message, "error");
+          }
         })
         .withFailureHandler(err => setStatus(err.message, "error"))
         .obtenerDatosInicialesAgenda();
     }
 
     function fillSelects() {
-      const tipos = catalogos.tiposSlot;
+      const tipos = catalogos.tiposSlot || [];
       if (!tipos) return;
       const options = tipos.map(t => `<option value="${t}">${t}</option>`).join("");
       
@@ -207,7 +212,7 @@
       const tbody = document.getElementById("body-grid-plantilla");
       let html = "";
       
-      const tipos = ["", ...catalogos.tiposSlot];
+      const tipos = ["", ...(catalogos.tiposSlot || [])];
       
       // OPTIMIZACIÓN: Crear un Mapa para búsqueda O(1) en lugar de usar .find() en cada celda
       const templateMap = currentTemplate.reduce((acc, slot) => {
@@ -247,9 +252,17 @@
     function saveTemplateGrid() {
       const selects = document.querySelectorAll(".grid-select");
       const dataToSave = [];
+      const seen = new Set();
       
       selects.forEach(sel => {
         if (sel.value) {
+          const key = `${sel.dataset.day}|${sel.dataset.time}`;
+          if (seen.has(key)) {
+            // Esto no debería ocurrir con la rejilla, pero validamos por seguridad
+            console.warn("Duplicado detectado en UI:", key);
+            return;
+          }
+          seen.add(key);
           dataToSave.push({
             diaSemana: sel.dataset.day,
             horaInicio: sel.dataset.time,

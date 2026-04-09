@@ -273,6 +273,16 @@ function actualizarPlantillaCompleta(listaSlots) {
   
   if (!listaSlots || listaSlots.length === 0) return { mensaje: 'Plantilla vaciada.' };
 
+  // Validar duplicados Día + Hora antes de procesar
+  const seen = new Set();
+  listaSlots.forEach(slot => {
+    const key = `${slot.diaSemana}|${slot.horaInicio}`;
+    if (seen.has(key)) {
+      throw new Error(`Error: Hora duplicada en la plantilla para el ${slot.diaSemana} a las ${slot.horaInicio}`);
+    }
+    seen.add(key);
+  });
+
   // 2. Preparar filas para guardado masivo
   const headers = HEADERS[SHEET_AGENDA_PLANTILLA];
   const idx = indexByHeader_(headers);
@@ -307,10 +317,12 @@ function obtenerAgendaExcepcionesParaUI() {
   const data = repo.findAll();
   
   return data.map(ex => {
-    const dt = ex.Fecha instanceof Date ? ex.Fecha : new Date(ex.Fecha);
+    // Mejoramos el parseo de fecha para evitar Invalid Date que bloquea la UI
+    const dt = ex.Fecha instanceof Date ? ex.Fecha : (parseFechaES_(ex.Fecha) || new Date(ex.Fecha));
+    const timestamp = (dt && !isNaN(dt.getTime())) ? dt.getTime() : 0;
     return {
       fecha: formatearFecha_(dt),
-      timestamp: dt.getTime(), // Sort key pre-calculada
+      timestamp: timestamp,
       horaInicio: formatearHora_(ex.HoraInicio),
       tipoSlot: ex.TipoSlot,
       row: ex._row
@@ -326,6 +338,17 @@ function guardarExcepcionAgenda(formData) {
   const fecha = parseFechaISO_(formData.fecha);
   
   if (!fecha) throw new Error('Fecha no válida.');
+
+  // Validación de duplicados: No permitir dos excepciones para la misma Fecha y Hora
+  const exceptions = repo.findAll();
+  const duplicado = exceptions.find(ex => 
+    normalizarFecha_(ex.Fecha).getTime() === normalizarFecha_(fecha).getTime() && 
+    formatearHora_(ex.HoraInicio) === formatearHora_(formData.horaInicio)
+  );
+
+  if (duplicado && (!formData.row || duplicado._row !== Number(formData.row))) {
+    throw new Error(`Ya existe una excepción registrada para el día ${formatearFecha_(fecha)} a las ${formData.horaInicio || 'todo el día'}.`);
+  }
 
   const excepcion = {
     Fecha: fecha,
