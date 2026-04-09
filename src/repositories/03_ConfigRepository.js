@@ -8,6 +8,6 @@ class ConfigRepository extends BaseRepository {
 
   findByModalidad(modalidad) {
     const all = this.findAll();
-    return all.find(cfg => cfg.Modalidad === modality) || null;
+    return all.find(cfg => cfg.Modalidad === modalidad) || null;
   }
 }
