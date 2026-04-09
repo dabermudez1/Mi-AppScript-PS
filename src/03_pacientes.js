@@ -110,7 +110,7 @@ function calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad) {
   const availabilityService = new AvailabilityService();
   // Buscar el primer slot '2.2' a partir de la fecha de primera consulta + intervalo
   const startSearchDate = sumarDiasNaturales_(fechaPrimeraConsulta, intervaloDias);
-  const slot = availabilityService.findNextAvailableSlot(startSearchDate, modalidad, 30); // 30 min para 2.2
+  const slot = availabilityService.findNextAvailableSlot(startSearchDate, modalidad, 30);
 
   return slot ? { fecha: slot.startDateTime, hora: formatearHora_(slot.startDateTime) } : null;
 }

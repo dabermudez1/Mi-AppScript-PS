@@ -179,15 +179,15 @@ function guardarCicloGrupoDesdeFormulario(formData) {
   validarConfigGrupo_(modalidad, config);
   validarFechaInicioCiclo_(fechaInicio, config);
 
-  const resultadoFechas = generarFechasCiclo_({
+  const slots = generarSlotsCiclo_({
   fechaInicio,
-  diaSemana: config.DiaSemana,
-  frecuenciaDias: config.FrecuenciaDias,
-  sesiones: config.SesionesPorCiclo
+  horaInicio: config.HoraBase,
+  modalidad: modalidad
   });
 
-const fechas = resultadoFechas.fechas;
-const avisos = resultadoFechas.avisos || [];
+  // Temporalmente usamos la fecha de inicio para el resto de la lógica hasta completar el stub
+  const fechas = slots.length > 0 ? slots.map(s => s.startDateTime) : [fechaInicio];
+  const avisos = [];
 
   const ciclo = crearCicloEnSheet_({
     modalidad,
