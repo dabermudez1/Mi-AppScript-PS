@@ -156,60 +156,51 @@
     function loadAll() {
       setStatus("Cargando...", "");
       google.script.run
-        .withSuccessHandler(res => {
-          if (res) {
-            catalogos = res;
-            fillSelects();
-            refreshTables();
-          } else {
-            setStatus("Error: No se pudieron cargar los catálogos.", "error");
-          }
+        .withSuccessHandler(data => {
+          catalogos = data.catalogos;
+          currentTemplate = data.plantilla;
+          fillSelects();
+          renderGrid();
+          renderExceptions(data.excepciones);
+          
+          const excFecha = document.getElementById("exc-fecha");
+          if (excFecha && !excFecha.value) excFecha.value = data.fechaHoy;
+          
+          setStatus("");
         })
         .withFailureHandler(err => setStatus(err.message, "error"))
-        .obtenerCatalogosAgenda();
+        .obtenerDatosInicialesAgenda();
     }
 
     function fillSelects() {
-      const dias = document.getElementById("tmpl-dia");
-      dias.innerHTML = catalogos.diasSemana.map(d => `<option value="${d}">${d}</option>`).join("");
-      
       const tipos = catalogos.tiposSlot;
+      if (!tipos) return;
       const options = tipos.map(t => `<option value="${t}">${t}</option>`).join("");
-      document.getElementById("tmpl-tipo").innerHTML = options;
       
-      // Excepciones incluyen "LIBRE"
-      document.getElementById("exc-tipo").innerHTML = options + `<option value="LIBRE">LIBRE (Anular Plantilla)</option>`;
+      // Solo rellenamos los campos de Excepciones (los de plantilla ya no existen en el HTML)
+      const excTipo = document.getElementById("exc-tipo");
+      if (excTipo) excTipo.innerHTML = options + `<option value="LIBRE">LIBRE (Anular Plantilla)</option>`;
+      
       const timeOptions = timeSlots.map(t => `<option value="${t}">${t}</option>`).join("");
-      document.getElementById("tmpl-hora").innerHTML = timeOptions;
-      document.getElementById("exc-hora").innerHTML = `<option value="">Todo el día</option>` + timeOptions;
+      const excHora = document.getElementById("exc-hora");
+      if (excHora) excHora.innerHTML = `<option value="">Todo el día</option>` + timeOptions;
     }
 
     function refreshTables() {
-      // Cargar Plantilla
-      google.script.run
-        .withSuccessHandler(data => {
-          currentTemplate = data;
-          renderGrid();
-        })
-        .withFailureHandler(err => console.error("Error cargando plantilla:", err))
-        .obtenerAgendaPlantillaParaUI();
+      loadAll(); // Redirigimos a la carga optimizada por lotes
+    }
 
-      // Cargar Excepciones
-      google.script.run
-        .withSuccessHandler(data => {
-          const body = document.getElementById("body-excepciones");
-          body.innerHTML = data.map(item => `
-            <tr>
-              <td>${item.fecha}</td>
-              <td>${item.horaInicio || 'Todo el día'}</td>
-              <td>${getBadge(item.tipoSlot)}</td>
-              <td><button class="btn-del" onclick="deleteExc(${item.row})">🗑️</button></td>
-            </tr>
-          `).join("");
-          setStatus("");
-        })
-        .withFailureHandler(err => console.error("Error cargando excepciones:", err))
-        .obtenerAgendaExcepcionesParaUI();
+    function renderExceptions(data) {
+      const body = document.getElementById("body-excepciones");
+      if (!body) return;
+      body.innerHTML = data.map(item => `
+        <tr>
+          <td>${item.fecha}</td>
+          <td>${item.horaInicio || 'Todo el día'}</td>
+          <td>${getBadge(item.tipoSlot)}</td>
+          <td><button class="btn-del" onclick="deleteExc(${item.row})">🗑️</button></td>
+        </tr>
+      `).join("");
     }
 
     function renderGrid() {
@@ -218,11 +209,16 @@
       
       const tipos = ["", ...catalogos.tiposSlot];
       
+      // OPTIMIZACIÓN: Crear un Mapa para búsqueda O(1) en lugar de usar .find() en cada celda
+      const templateMap = currentTemplate.reduce((acc, slot) => {
+        acc[`${slot.diaSemana}|${slot.horaInicio}`] = slot.tipoSlot;
+        return acc;
+      }, {});
+      
       timeSlots.forEach(time => {
         html += `<tr><td class="time-col">${time}</td>`;
         workDays.forEach(day => {
-          const slot = currentTemplate.find(s => s.diaSemana === day && s.horaInicio === time);
-          const val = slot ? slot.tipoSlot : "";
+          const val = templateMap[`${day}|${time}`] || "";
           const cellClass = getCellClass(val);
           
           html += `<td class="${cellClass}">
