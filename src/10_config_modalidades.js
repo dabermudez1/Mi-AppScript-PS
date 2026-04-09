@@ -210,13 +210,18 @@ function gestionarAgenda() {
  * Optimizada para reducir latencia y round-trips al servidor.
  */
 function obtenerDatosInicialesAgenda() {
-  return {
-    catalogos: obtenerCatalogosAgenda(),
-    // Cargamos directamente los datos procesados para la UI
-    plantilla: obtenerAgendaPlantillaParaUI(),
-    excepciones: obtenerAgendaExcepcionesParaUI(),
-    fechaHoy: new Date().toISOString().split('T')[0]
-  };
+  try {
+    const data = {
+      catalogos: obtenerCatalogosAgenda() || {},
+      plantilla: obtenerAgendaPlantillaParaUI() || [],
+      excepciones: obtenerAgendaExcepcionesParaUI() || [],
+      fechaHoy: new Date().toISOString().split('T')[0]
+    };
+    return data;
+  } catch (e) {
+    Logger.log("Error en obtenerDatosInicialesAgenda: " + e.message);
+    throw new Error("Error interno al cargar la agenda: " + e.message);
+  }
 }
 
 /**
@@ -224,12 +229,14 @@ function obtenerDatosInicialesAgenda() {
  */
 function obtenerAgendaPlantillaParaUI() {
   const repo = new AgendaTemplateRepository();
-  return repo.findAll().map(slot => ({
-    diaSemana: slot.DiaSemana,
-    horaInicio: formatearHora_(slot.HoraInicio),
-    tipoSlot: slot.TipoSlot,
-    row: slot._row
-  }));
+  return repo.findAll()
+    .filter(slot => slot.DiaSemana && slot.HoraInicio) // Ignorar filas totalmente vacías
+    .map(slot => ({
+      diaSemana: slot.DiaSemana,
+      horaInicio: formatearHora_(slot.HoraInicio),
+      tipoSlot: slot.TipoSlot,
+      row: slot._row
+    }));
 }
 
 /**
@@ -314,14 +321,17 @@ function eliminarSlotPlantilla(row) {
  */
 function obtenerAgendaExcepcionesParaUI() {
   const repo = new AgendaExceptionRepository();
-  const data = repo.findAll();
+  const data = repo.findAll().filter(ex => ex.Fecha); // Ignorar filas sin fecha
   
   return data.map(ex => {
-    // Mejoramos el parseo de fecha para evitar Invalid Date que bloquea la UI
-    const dt = ex.Fecha instanceof Date ? ex.Fecha : (parseFechaES_(ex.Fecha) || new Date(ex.Fecha));
-    const timestamp = (dt && !isNaN(dt.getTime())) ? dt.getTime() : 0;
+    let dt = ex.Fecha instanceof Date ? ex.Fecha : parseFechaES_(ex.Fecha);
+    if (!dt || isNaN(dt.getTime())) dt = new Date(ex.Fecha);
+    
+    const timestamp = (dt instanceof Date && !isNaN(dt.getTime())) ? dt.getTime() : 0;
+    const fechaTexto = (dt instanceof Date && !isNaN(dt.getTime())) ? formatearFecha_(dt) : String(ex.Fecha || '');
+
     return {
-      fecha: formatearFecha_(dt),
+      fecha: fechaTexto,
       timestamp: timestamp,
       horaInicio: formatearHora_(ex.HoraInicio),
       tipoSlot: ex.TipoSlot,
