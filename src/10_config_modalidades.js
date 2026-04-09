@@ -200,8 +200,8 @@ function guardarConfigModalidadFormulario(formData) {
 function gestionarAgenda() {
   const html = HtmlService
     .createHtmlOutputFromFile('AgendaForm')
-    .setWidth(850)
-    .setHeight(600);
+    .setWidth(1000)
+    .setHeight(750);
   SpreadsheetApp.getUi().showModalDialog(html, 'Gestión de Agenda');
 }
 
