@@ -70,8 +70,8 @@ function validarFechaInicioCiclo_(fechaInicio, config) {
 function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   const config = obtenerConfigModalidad_(modalidad);
   const sesiones = Number(config.SesionesPorCiclo || 7);
-  // Convertimos FrecuenciaDias (7 o 15) a semanas (1 o 2). Mínimo 1 para evitar bucles infinitos.
-  const frecuenciaSemanas = Math.max(1, Math.round(Number(config.FrecuenciaDias || 7) / 7));
+  // Si es grupo, FrecuenciaDias ya viene en semanas (1 o 2). Si no, calculamos.
+  const frecuenciaSemanas = modalidad.startsWith('GRUPO') ? Number(config.FrecuenciaDias || 1) : Math.max(1, Math.round(Number(config.FrecuenciaDias || 7) / 7));
   
   const availabilityService = new AvailabilityService();
   const slots = [];

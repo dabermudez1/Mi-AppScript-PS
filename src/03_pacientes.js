@@ -269,7 +269,10 @@ function procesarAltaGrupo_({
     estadoAsignacion: ESTADOS_ASIGNACION.RESERVADO,
     observaciones: 'Asignación automática al crear paciente'
   });
-  generarSesionesPacienteGrupo_(pacienteId, ciclo.CicloID);
+
+  // Intentar generar sesiones, pero capturar error para no romper la creación del paciente si falla la agenda
+  try { generarSesionesPacienteGrupo_(pacienteId, ciclo.CicloID); } 
+  catch (e) { console.error("Error generando sesiones de grupo: " + e.message); }
   
   return {
     pacienteId,
@@ -391,7 +394,7 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const patientRepo = new PatientRepository();
   const cicloRepo = new CicloRepository();
   const sessionService = new SessionService();
-  
+
   const paciente = patientRepo.findById(pacienteId);
   const ciclo = cicloRepo.findOneBy('CicloID', cicloId);
   
@@ -403,7 +406,7 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
   const horaBase = config.HoraBase || '09:00';
   
-  const slots = generarSlotsCiclo_({ // Aseguramos que llame a la función correcta
+  const slots = generarSlotsCiclo_({ 
     fechaInicio: ciclo.FechaInicioCiclo,
     horaInicio: horaBase,
     modalidad: paciente.ModalidadSolicitada

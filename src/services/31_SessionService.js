@@ -45,6 +45,9 @@ class SessionService {
    * Crea sesiones masivamente para un paciente (Alta inicial).
    */
   createInitialSessions(paciente, fechas, cicloId = '') {
+    const modalidad = paciente.ModalidadSolicitada || '';
+    const duracionDefault = modalidad.startsWith('GRUPO') ? 90 : 30;
+
     const sesiones = fechas.map((fecha, index) => {
       const nuevaSesion = {
         SesionID: generarId_('SES'),
@@ -64,7 +67,8 @@ class SessionService {
         CalendarLastSync: '',
         CalendarEventTitle: '',
         CalendarHash: '',
-        HoraInicio: formatearHora_(fecha)
+        HoraInicio: formatearHora_(fecha),
+        Duracion: duracionDefault
       };
       return nuevaSesion;
     });
