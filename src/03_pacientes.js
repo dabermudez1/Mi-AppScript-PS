@@ -303,10 +303,11 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   const frecuenciaDias = Number(config.FrecuenciaDias || 0);
   const duracionSlot = 30; // Minutos estándar para 2.2
 
-  console.log(`Iniciando generación para ${paciente.Nombre}. Planificadas: ${sesionesPlanificadas}, Frecuencia: ${frecuenciaDias}`);
+  console.log(`Iniciando generación para ${paciente.Nombre || 'Paciente'}. ID: ${pacienteId}. Planificadas: ${sesionesPlanificadas}`);
 
   if (sesionesPlanificadas <= 0) {
-    throw new Error('Sesiones planificadas no válidas para la modalidad ' + paciente.ModalidadSolicitada);
+    console.warn('No hay sesiones planificadas configuradas para esta modalidad.');
+    return;
   }
 
   // Limpiar cualquier sesión previa por error para evitar duplicados si se reintenta
@@ -320,7 +321,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   const generatedSessions = [];
 
   for (let i = 0; i < sesionesPlanificadas; i++) {
-    console.log(`Buscando slot para sesión ${i + 1} a partir de ${currentSearchDateTime}`);
+    console.log(`Buscando slot ${i + 1}/${sesionesPlanificadas} desde: ${currentSearchDateTime}`);
     const nextSlot = availabilityService.findNextAvailableSlot(
       currentSearchDateTime,
       paciente.ModalidadSolicitada,
@@ -328,7 +329,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     );
 
     if (!nextSlot) {
-      console.error("CRÍTICO: No se encontró slot disponible.");
+      console.error(`CRÍTICO: No hay slots para la sesión ${i+1}. Búsqueda falló en ${currentSearchDateTime}`);
       throw new Error(`Error de Planificación: No hay huecos libres en la agenda para la sesión ${i + 1} de ${paciente.Nombre}. ` +
                       `Revisa la 'Plantilla de Agenda' y que existan slots de tipo '2.2' o 'SEGUIMIENTO'. ` +
                       `Búsqueda iniciada en: ${formatearFecha_(currentSearchDateTime)}`);
