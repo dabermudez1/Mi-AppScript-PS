@@ -116,8 +116,8 @@ class AgendaService {
     switch (type) {
       case '2.2': case 'SEGUIMIENTO': return 30;
       case '2.1': case 'PRIMERA': return 60; // 2 slots de 30 min
-      case '2.2/GRUPO': case 'SEGUIMIENTO/GRUPO': return 90; 
-      case 'GRUPO_1': case 'GRUPO_2': case 'GRUPO_3': return 90; // Bloques de 90 min
+      case '2.2/GRUPO': case 'SEGUIMIENTO/GRUPO': case 'GRUPO': return 90; 
+      case 'GRUPO_1': case 'GRUPO_2': case 'GRUPO_3': return 90; 
       case 'DESCANSO': return 30; // Aunque bloquea, un slot de descanso es de 30 min
       default: return 30; // Por defecto, 30 minutos
     }

@@ -92,10 +92,9 @@ class AvailabilityService {
       // Las sesiones 2.2 generadas solo deben ir en slots tipo 2.2 o SEGUIMIENTO
       if (slotType !== '2.2' && slotType !== 'SEGUIMIENTO' && slotType !== '2.1' && slotType !== 'PRIMERA') return false;
     } else if (mod.startsWith('GRUPO')) {
-      // Grupos buscan slots de grupo
-      // Ahora permitimos que el slot se llame exactamente como la modalidad (GRUPO_1, GRUPO_2, etc.)
-      // o que use el nombre genérico si se prefiere.
-      if (slotType !== mod && slotType !== '2.2/GRUPO' && slotType !== 'SEGUIMIENTO/GRUPO') return false;
+      // Un ciclo (ej. GRUPO_1) puede usar slots específicos o el genérico 'GRUPO'
+      const tiposValidos = [mod, 'GRUPO', '2.2/GRUPO', 'SEGUIMIENTO/GRUPO'];
+      if (!tiposValidos.includes(slotType)) return false;
     } else {
       // Otras modalidades no soportadas por la generación automática
       return false;
@@ -125,8 +124,7 @@ class AvailabilityService {
         let duration = Number(s.Duracion);
         
         if (!duration) {
-          // Si no hay duración guardada, inferimos según modalidad
-          let sessionSlotType = s.Modalidad === MODALIDADES.INDIVIDUAL ? '2.2' : s.Modalidad;
+          let sessionSlotType = s.Modalidad === MODALIDADES.INDIVIDUAL ? '2.2' : '2.2/GRUPO';
           duration = this.agendaService._getSlotDuration(sessionSlotType);
         }
 

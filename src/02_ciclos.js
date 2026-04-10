@@ -78,12 +78,11 @@ function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   let currentSearchDateTime = normalizarFechaHora_(fechaInicio, "00:00");
 
   for (let i = 0; i < sesiones; i++) {
-    // Los grupos ahora ocupan 90 min (3 slots de 30)
+    // El motor busca el siguiente MARTES (por ejemplo) que no tenga sesión de otro grupo
     const slot = availabilityService.findNextAvailableSlot(currentSearchDateTime, modalidad, 90);
     
     if (!slot) {
-      Logger.log(`No se encontró slot para sesión ${i + 1} del ciclo ${modalidad}`);
-      break; 
+      throw new Error(`No se pudo completar la planificación del ciclo ${modalidad}. No hay suficientes slots libres.`);
     }
     
     slots.push(slot);
