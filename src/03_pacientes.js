@@ -493,6 +493,7 @@ function crearPacienteEnSheet_(params) {
 
   repo.save(nuevoPaciente);
   SpreadsheetApp.flush(); // Forzar escritura inmediata
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_PACIENTES] = null;
   eliminarCacheDashboard_(); // Limpiar caché de UI para que el nuevo paciente aparezca
   return pacienteId;
 }

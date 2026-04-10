@@ -6,6 +6,13 @@
 /***************
  * HOJAS
  ***************/
+// Objeto global para caché de ejecución. Evita lecturas repetidas a Sheets en el mismo script.
+const __EXECUTION_CACHE__ = {
+  [SHEET_PACIENTES]: null,
+  [SHEET_SESIONES]: null,
+  [SHEET_CICLOS]: null
+};
+
 const SHEET_CATALOGOS = 'CATALOGOS';
 const SHEET_CONFIG_MODALIDADES = 'CONFIG_MODALIDADES';
 const SHEET_PACIENTES = 'PACIENTES';

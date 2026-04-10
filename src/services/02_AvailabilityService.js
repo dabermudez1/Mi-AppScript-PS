@@ -6,8 +6,7 @@ class AvailabilityService {
   constructor() {
     this.agendaService = new AgendaService();
     this.sessionRepo = new SessionRepository();
-    // Podríamos necesitar un repositorio para días bloqueados si queremos consultar el motivo
-    // this.diasBloqueadosRepo = new DiasBloqueadosRepository();
+    this._allSessions = null; // Caché interna de la instancia
   }
 
   /**
@@ -23,7 +22,16 @@ class AvailabilityService {
     // Reducimos el límite de búsqueda a 180 días para evitar Timeouts en Apps Script (límite 30s)
     let searchLimitDate = sumarDiasNaturales_(currentDateTime, 180); 
 
-    const allSessions = this.sessionRepo.findAll(); 
+    // OPTIMIZACIÓN: Solo cargamos todas las sesiones una vez por cada AvailabilityService
+    if (!this._allSessions) {
+      this._allSessions = this.sessionRepo.findAll();
+    }
+    const allSessions = this._allSessions;
+
+    // VALIDACIÓN PREVIA: Si no hay slots de esta modalidad en la plantilla, no busques (evita loops inútiles)
+    const hasTemplate = this.agendaService.getWeeklyTemplate().some(s => this._isSlotCompatible(s, modality, requiredDurationMinutes));
+    if (!hasTemplate) throw new Error(`No hay slots de tipo ${modality} configurados en la 'Plantilla de Agenda'.`);
+
     const sessionsMap = {};
     allSessions.forEach(s => {
       // Intentamos parsear la fecha si no es objeto Date (seguridad extra)
