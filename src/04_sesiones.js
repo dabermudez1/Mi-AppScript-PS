@@ -9,31 +9,6 @@
 // Eliminada duplicidad: La lógica principal reside en 03_pacientes.js 
 // para asegurar el uso del nuevo AvailabilityService.
 
-function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
-  const patientRepo = new PatientRepository();
-  const cicloRepo = new CicloRepository();
-  const sessionService = new SessionService();
-  const paciente = patientRepo.findById(pacienteId);
-  const ciclo = cicloRepo.findOneBy('CicloID', cicloId);
-
-  if (!paciente || !ciclo) {
-    throw new Error('Paciente o ciclo no encontrado.');
-  }
-
-  const resultado = generarFechasCiclo_({
-    fechaInicio: ciclo.FechaInicioCiclo,
-    diaSemana: ciclo.DiaSemana,
-    frecuenciaDias: ciclo.FrecuenciaDias,
-    sesiones: ciclo.SesionesPorCiclo
-  });
-
-  sessionService.createInitialSessions(paciente, resultado.fechas, cicloId);
-
-  return {
-    avisos: resultado.avisos || []
-  };
-}
-
 /***************
  * MANTENIMIENTO
  ***************/
