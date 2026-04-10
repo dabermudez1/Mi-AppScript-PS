@@ -93,7 +93,9 @@ class AvailabilityService {
       if (slotType !== '2.2' && slotType !== 'SEGUIMIENTO' && slotType !== '2.1' && slotType !== 'PRIMERA') return false;
     } else if (mod.startsWith('GRUPO')) {
       // Grupos buscan slots de grupo
-      if (slotType !== '2.2/GRUPO' && slotType !== 'SEGUIMIENTO/GRUPO') return false;
+      // Ahora permitimos que el slot se llame exactamente como la modalidad (GRUPO_1, GRUPO_2, etc.)
+      // o que use el nombre genérico si se prefiere.
+      if (slotType !== mod && slotType !== '2.2/GRUPO' && slotType !== 'SEGUIMIENTO/GRUPO') return false;
     } else {
       // Otras modalidades no soportadas por la generación automática
       return false;
@@ -123,7 +125,8 @@ class AvailabilityService {
         let duration = Number(s.Duracion);
         
         if (!duration) {
-          let sessionSlotType = s.Modalidad === MODALIDADES.INDIVIDUAL ? '2.2' : '2.2/GRUPO';
+          // Si no hay duración guardada, inferimos según modalidad
+          let sessionSlotType = s.Modalidad === MODALIDADES.INDIVIDUAL ? '2.2' : s.Modalidad;
           duration = this.agendaService._getSlotDuration(sessionSlotType);
         }
 

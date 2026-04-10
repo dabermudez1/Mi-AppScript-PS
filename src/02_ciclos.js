@@ -74,11 +74,12 @@ function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   
   const availabilityService = new AvailabilityService();
   const slots = [];
-  let currentSearchDateTime = normalizarFechaHora_(fechaInicio, horaInicio);
+  // Buscamos desde la fecha de inicio a las 00:00 para que la Agenda encuentre el primer slot del día
+  let currentSearchDateTime = normalizarFechaHora_(fechaInicio, "00:00");
 
   for (let i = 0; i < sesiones; i++) {
-    // Los grupos suelen ocupar 60 min (2 slots de 30) según la lógica de AgendaService
-    const slot = availabilityService.findNextAvailableSlot(currentSearchDateTime, modalidad, 60);
+    // Los grupos ahora ocupan 90 min (3 slots de 30)
+    const slot = availabilityService.findNextAvailableSlot(currentSearchDateTime, modalidad, 90);
     
     if (!slot) {
       Logger.log(`No se encontró slot para sesión ${i + 1} del ciclo ${modalidad}`);
@@ -87,9 +88,10 @@ function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
     
     slots.push(slot);
     
-    // Avanzar a la misma hora pero N semanas después
+    // Avanzar a la siguiente ocurrencia según frecuencia (semanal o quincenal)
+    // Reseteamos a las 00:00 del día destino para que el buscador encuentre el slot exacto en la plantilla
     const siguienteFecha = sumarSemanasManteniendoDia_(slot.startDateTime, frecuenciaSemanas);
-    currentSearchDateTime = normalizarFechaHora_(siguienteFecha, horaInicio);
+    currentSearchDateTime = normalizarFechaHora_(siguienteFecha, "00:00");
   }
   
   return slots;
@@ -196,16 +198,15 @@ function guardarCicloGrupoDesdeFormulario(formData) {
 
   const config = obtenerConfigModalidad_(modalidad);
   validarConfigGrupo_(modalidad, config);
-  validarFechaInicioCiclo_(fechaInicio, config);
 
   const slots = generarSlotsCiclo_({
   fechaInicio,
-  horaInicio: config.HoraBase,
+  horaInicio: config.HoraBase, // Se mantiene como referencia pero manda la agenda
   modalidad: modalidad
   });
 
-  // Temporalmente usamos la fecha de inicio para el resto de la lógica hasta completar el stub
-  const fechas = slots.length > 0 ? slots.map(s => s.startDateTime) : [fechaInicio];
+  if (slots.length === 0) throw new Error("No se encontraron slots de grupo disponibles en la agenda.");
+  const fechas = slots.map(s => s.startDateTime);
   const avisos = [];
 
   const ciclo = crearCicloEnSheet_({
