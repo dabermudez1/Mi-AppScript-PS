@@ -303,7 +303,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   const frecuenciaDias = Number(config.FrecuenciaDias || 0);
   const duracionSlot = 30; // Minutos estándar para 2.2
 
-  Logger.log(`Iniciando generación para ${paciente.Nombre}. Planificadas: ${sesionesPlanificadas}, Frecuencia: ${frecuenciaDias}`);
+  console.log(`Iniciando generación para ${paciente.Nombre}. Planificadas: ${sesionesPlanificadas}, Frecuencia: ${frecuenciaDias}`);
 
   if (sesionesPlanificadas <= 0) {
     throw new Error('Sesiones planificadas no válidas para la modalidad ' + paciente.ModalidadSolicitada);
@@ -320,7 +320,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   const generatedSessions = [];
 
   for (let i = 0; i < sesionesPlanificadas; i++) {
-    Logger.log(`Buscando slot para sesión ${i + 1} a partir de ${currentSearchDateTime}`);
+    console.log(`Buscando slot para sesión ${i + 1} a partir de ${currentSearchDateTime}`);
     const nextSlot = availabilityService.findNextAvailableSlot(
       currentSearchDateTime,
       paciente.ModalidadSolicitada,
@@ -328,7 +328,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     );
 
     if (!nextSlot) {
-      Logger.log("CRÍTICO: No se encontró slot disponible.");
+      console.error("CRÍTICO: No se encontró slot disponible.");
       throw new Error(`Error de Planificación: No hay huecos libres en la agenda para la sesión ${i + 1} de ${paciente.Nombre}. ` +
                       `Revisa la 'Plantilla de Agenda' y que existan slots de tipo '2.2' o 'SEGUIMIENTO'. ` +
                       `Búsqueda iniciada en: ${formatearFecha_(currentSearchDateTime)}`);
@@ -363,10 +363,13 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     currentSearchDateTime = normalizarFechaHora_(proximaFechaBusqueda, "00:00");
   }
 
-  Logger.log(`Insertando ${generatedSessions.length} sesiones en la hoja.`);
-  // Guardado masivo para evitar lentitud
-  sessionRepo.insertAll(generatedSessions); // Usar insertAll para nuevas sesiones
-  SpreadsheetApp.flush(); // Forzar escritura antes de actualizar el paciente
+  if (generatedSessions.length > 0) {
+    console.log(`Insertando ${generatedSessions.length} sesiones en la hoja.`);
+    sessionRepo.insertAll(generatedSessions);
+    SpreadsheetApp.flush(); 
+  } else {
+    console.warn("No se generaron sesiones. Verifica la configuración de la modalidad.");
+  }
 
   // Actualizar la próxima sesión del paciente
   if (generatedSessions.length > 0) {
@@ -1434,14 +1437,13 @@ function borrarSesionesPaciente_(pacienteId) {
   const pidStr = String(pacienteId);
 
   const filtrados = data.filter((row, i) => i === 0 || String(row[idx.PacienteID]) !== pidStr);
+  const soloDatos = filtrados.slice(1);
 
   if (filtrados.length !== data.length) {
-    // En lugar de clearContents, borramos solo las filas de datos para preservar formatos/encabezados
     if (sheet.getLastRow() > 1) {
       sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
     }
-    if (filtrados.length > 1) {
-      const soloDatos = filtrados.slice(1);
+    if (soloDatos.length > 0) {
       sheet.getRange(2, 1, soloDatos.length, data[0].length).setValues(soloDatos);
     }
     __EXECUTION_CACHE__[SHEET_SESIONES] = null;

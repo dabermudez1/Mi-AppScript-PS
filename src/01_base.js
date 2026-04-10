@@ -936,11 +936,13 @@ class AgendaExceptionRepository {
 }
 
 class PatientRepository {
-  constructor() { this.sheetName = SHEET_PACIENTES; }
+  constructor() { 
+    this.sheetName = SHEET_PACIENTES; 
+    this.headers = HEADERS[SHEET_PACIENTES];
+  }
   findAll() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
-    const data = sheet.getDataRange().getValues();
-    if (data.length < 2) return [];
+    const data = sheet.getDataRange().getValues(); if (data.length < 2) return [];
     const idx = indexByHeader_(data[0]);
     return data.slice(1).map((row, i) => {
       const obj = { _row: i + 2 };
@@ -951,20 +953,20 @@ class PatientRepository {
   findById(id) { return this.findAll().find(p => String(p.PacienteID) === String(id)); }
   save(paciente) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
-    const headers = HEADERS[this.sheetName];
-    const idx = indexByHeader_(headers);
-    const values = headers.map(h => paciente[h] || '');
+    const values = this.headers.map(h => paciente[h] === undefined ? '' : paciente[h]);
     if (paciente._row) {
-      sheet.getRange(paciente._row, 1, 1, headers.length).setValues([values]);
+      sheet.getRange(paciente._row, 1, 1, this.headers.length).setValues([values]);
     } else {
       sheet.appendRow(values);
     }
   }
-  saveAll(pacientes) { pacientes.forEach(p => this.save(p)); }
 }
 
 class SessionRepository {
-  constructor() { this.sheetName = SHEET_SESIONES; }
+  constructor() { 
+    this.sheetName = SHEET_SESIONES;
+    this.headers = HEADERS[SHEET_SESIONES];
+  }
   findAll() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
     const data = sheet.getDataRange().getValues();
