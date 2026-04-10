@@ -147,7 +147,9 @@ function obtenerDatosHomeDashboard() {
       PacienteID: p.PacienteID, 
       Nombre: p.Nombre, 
       EstadoPaciente: p.EstadoPaciente, 
-      ProximaSesion: formatearFecha_(p.ProximaSesion) 
+      ProximaSesion: p.ProximaSesion instanceof Date ? 
+        formatearFecha_(p.ProximaSesion) + ' ' + formatearHora_(p.ProximaSesion) : 
+        formatearFecha_(p.ProximaSesion)
     }));
 
   const alertas = construirAlertasHome_(pacientes, ciclos, sesiones, hoy);
