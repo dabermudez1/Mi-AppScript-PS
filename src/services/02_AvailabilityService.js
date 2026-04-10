@@ -20,7 +20,8 @@ class AvailabilityService {
   findNextAvailableSlot(startSearchDateTime, modality, requiredDurationMinutes) {
     // Aseguramos que empezamos a buscar con la hora correcta
     let currentDateTime = new Date(startSearchDateTime.getTime());
-    let searchLimitDate = sumarDiasNaturales_(currentDateTime, 365); // Buscar hasta 1 año en el futuro
+    // Reducimos el límite de búsqueda a 180 días para evitar Timeouts en Apps Script (límite 30s)
+    let searchLimitDate = sumarDiasNaturales_(currentDateTime, 180); 
 
     const allSessions = this.sessionRepo.findAll(); 
     const sessionsMap = {};

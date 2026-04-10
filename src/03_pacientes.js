@@ -270,7 +270,10 @@ function procesarAltaGrupo_({
     observaciones: 'Asignación automática al crear paciente'
   });
 
-  // Intentar generar sesiones, pero capturar error para no romper la creación del paciente si falla la agenda
+  // Forzar guardado de asignación antes de generar sesiones
+  SpreadsheetApp.flush();
+
+  // Generar sesiones automáticas
   try { generarSesionesPacienteGrupo_(pacienteId, ciclo.CicloID); } 
   catch (e) { console.error("Error generando sesiones de grupo: " + e.message); }
   
@@ -653,7 +656,8 @@ function obtenerCiclosDisponiblesParaPacienteEnEspera_(paciente) {
       c.Modalidad === paciente.ModalidadSolicitada &&
       c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO &&
       (fechaInicio instanceof Date) &&
-      (normalizarFecha_(fechaInicio).getTime() > normalizarFecha_(paciente.FechaPrimeraConsulta).getTime()) &&
+      // CAMBIO: Permitir ciclos que empiecen el mismo día de la consulta
+      (normalizarFecha_(fechaInicio).getTime() >= normalizarFecha_(paciente.FechaPrimeraConsulta).getTime()) &&
       libresReales > 0
     );
   });

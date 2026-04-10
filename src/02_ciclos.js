@@ -70,16 +70,16 @@ function validarFechaInicioCiclo_(fechaInicio, config) {
 function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   const config = obtenerConfigModalidad_(modalidad);
   const sesiones = Number(config.SesionesPorCiclo || 7);
-  // Si es grupo, FrecuenciaDias ya viene en semanas (1 o 2). Si no, calculamos.
-  const frecuenciaSemanas = modalidad.startsWith('GRUPO') ? Number(config.FrecuenciaDias || 1) : Math.max(1, Math.round(Number(config.FrecuenciaDias || 7) / 7));
+  // Aseguramos que frecuencia sea al menos 1 semana para evitar bucles infinitos
+  const freqRaw = Number(config.FrecuenciaDias || 1);
+  const frecuenciaSemanas = modalidad.startsWith('GRUPO') ? Math.max(1, freqRaw) : Math.max(1, Math.round(freqRaw / 7));
   
   const availabilityService = new AvailabilityService();
   const slots = [];
-  // Buscamos desde la fecha de inicio a las 00:00 para que la Agenda encuentre el primer slot del día
   let currentSearchDateTime = normalizarFechaHora_(fechaInicio, "00:00");
 
   for (let i = 0; i < sesiones; i++) {
-    // El motor busca el siguiente MARTES (por ejemplo) que no tenga sesión de otro grupo
+    // Buscamos con un límite de 180 días para evitar Timeouts en la UI
     const slot = availabilityService.findNextAvailableSlot(currentSearchDateTime, modalidad, 90);
     
     if (!slot) {
@@ -124,6 +124,7 @@ function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {
   };
 
   cicloRepo.save(nuevoCiclo);
+  SpreadsheetApp.flush(); 
 
   return {
     cicloId,
