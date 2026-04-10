@@ -104,7 +104,9 @@ class BaseRepository {
         return val;
       });
     });
-    sheet.appendRows(rowsToAppend);
+
+    const lastRow = sheet.getLastRow();
+    sheet.getRange(lastRow + 1, 1, rowsToAppend.length, headerRow.length).setValues(rowsToAppend);
     __EXECUTION_CACHE__[this.sheetName] = null; // Invalida caché
   }
 

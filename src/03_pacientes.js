@@ -307,9 +307,9 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     throw new Error('Sesiones planificadas no válidas para la modalidad ' + paciente.ModalidadSolicitada);
   }
 
-  // Empezar a buscar desde la fecha de primera consulta. 
-  // Si la consulta fue hoy, buscar a partir de ahora mismo.
-  let startSearch = normalizarFechaHora_(paciente.FechaPrimeraConsulta, "00:00");
+  // Sincronizar inicio de búsqueda: Fecha consulta + intervalo de frecuencia configurado
+  const intervaloDias = Number(config.FrecuenciaDias || 0);
+  let startSearch = sumarDiasNaturales_(paciente.FechaPrimeraConsulta, intervaloDias);
   let currentSearchDateTime = startSearch;
   
   const generatedSessions = [];
@@ -356,6 +356,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
 
   // Guardado masivo para evitar lentitud
   sessionRepo.insertAll(generatedSessions); // Usar insertAll para nuevas sesiones
+  SpreadsheetApp.flush(); // Forzar escritura antes de actualizar el paciente
 
   // Actualizar la próxima sesión del paciente
   if (generatedSessions.length > 0) {

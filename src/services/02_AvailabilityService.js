@@ -105,7 +105,12 @@ class AvailabilityService {
     const occupied = [];
     sessions.forEach(s => {
       if (s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
-        const start = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
+        // Aseguramos que HoraInicio se trate correctamente tanto si es String como Date
+        let horaStr = s.HoraInicio;
+        if (horaStr instanceof Date) {
+          horaStr = formatearHora_(horaStr);
+        }
+        const start = normalizarFechaHora_(s.FechaSesion, horaStr);
                 
         let sessionSlotType;
         if (s.Modalidad === MODALIDADES.INDIVIDUAL) {
