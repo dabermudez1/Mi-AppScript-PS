@@ -9,7 +9,7 @@ class SessionService {
   /**
    * Reprograma una sesión específica.
    */
-  rescheduleSession(pacienteId, numeroSesion, nuevaFecha) {
+  rescheduleSession(pacienteId, numeroSesion, nuevaFecha, nuevaHora) {
     const sesiones = this.sessionRepo.findPendientesByPaciente(pacienteId);
     const sesion = sesiones.find(s => Number(s.NumeroSesion) === Number(numeroSesion));
 
@@ -21,7 +21,7 @@ class SessionService {
     }
 
     sesion.FechaSesion = normalizarFecha_(nuevaFecha);
-    sesion.HoraInicio = formatearHora_(nuevaFecha);
+    sesion.HoraInicio = nuevaHora || formatearHora_(sesion.HoraInicio);
     sesion.ModificadaManual = true;
     sesion.EstadoSesion = ESTADOS_SESION.REPROGRAMADA;
 

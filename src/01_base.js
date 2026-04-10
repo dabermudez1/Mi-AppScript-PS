@@ -372,11 +372,18 @@ function asegurarEncabezadosExactos_(sheet, headersEsperados) {
   const coincideLongitud = lastColumn >= headersEsperados.length;
   const coincideContenido = headersEsperados.every((h, i) => headersActualesRecortados[i] === h);
 
-  if (!coincideLongitud || !coincideContenido) {
+  // Si el contenido coincide pero faltan columnas al final, las añadimos automáticamente
+  if (!coincideLongitud && coincideContenido) {
+    const columnasFaltantes = headersEsperados.slice(lastColumn);
+    sheet.getRange(1, lastColumn + 1, 1, columnasFaltantes.length).setValues([columnasFaltantes]);
+    console.log(`Hoja ${sheet.getName()}: Se han añadido las columnas faltantes: ${columnasFaltantes.join(', ')}`);
+    return;
+  }
+
+  if (!coincideContenido) {
     throw new Error(
-      `Los encabezados de la hoja ${sheet.getName()} no coinciden con la estructura esperada.\n\n` +
-      `Esperados:\n${headersEsperados.join(' | ')}\n\n` +
-      `Actuales:\n${headersActualesRecortados.join(' | ')}`
+      `Conflicto crítico de estructura en ${sheet.getName()}.\n` +
+      `Los encabezados actuales no siguen el orden esperado. Por favor, revisa la hoja manualmente.`
     );
   }
 }
