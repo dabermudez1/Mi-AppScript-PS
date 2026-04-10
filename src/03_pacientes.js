@@ -303,6 +303,8 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   const frecuenciaDias = Number(config.FrecuenciaDias || 0);
   const duracionSlot = 30; // Minutos estándar para 2.2
 
+  Logger.log(`Iniciando generación para ${paciente.Nombre}. Planificadas: ${sesionesPlanificadas}, Frecuencia: ${frecuenciaDias}`);
+
   if (sesionesPlanificadas <= 0) {
     throw new Error('Sesiones planificadas no válidas para la modalidad ' + paciente.ModalidadSolicitada);
   }
@@ -318,6 +320,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   const generatedSessions = [];
 
   for (let i = 0; i < sesionesPlanificadas; i++) {
+    Logger.log(`Buscando slot para sesión ${i + 1} a partir de ${currentSearchDateTime}`);
     const nextSlot = availabilityService.findNextAvailableSlot(
       currentSearchDateTime,
       paciente.ModalidadSolicitada,
@@ -325,6 +328,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     );
 
     if (!nextSlot) {
+      Logger.log("CRÍTICO: No se encontró slot disponible.");
       throw new Error(`Error de Planificación: No hay huecos libres en la agenda para la sesión ${i + 1} de ${paciente.Nombre}. ` +
                       `Revisa la 'Plantilla de Agenda' y que existan slots de tipo '2.2' o 'SEGUIMIENTO'. ` +
                       `Búsqueda iniciada en: ${formatearFecha_(currentSearchDateTime)}`);
@@ -359,6 +363,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     currentSearchDateTime = normalizarFechaHora_(proximaFechaBusqueda, "00:00");
   }
 
+  Logger.log(`Insertando ${generatedSessions.length} sesiones en la hoja.`);
   // Guardado masivo para evitar lentitud
   sessionRepo.insertAll(generatedSessions); // Usar insertAll para nuevas sesiones
   SpreadsheetApp.flush(); // Forzar escritura antes de actualizar el paciente

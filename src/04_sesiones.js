@@ -6,42 +6,8 @@
 /***************
  * ENTRY POINTS
  ***************/
-function generarSesionesPacienteIndividual_(pacienteId) {
-  const patientRepo = new PatientRepository();
-  const configRepo = new ConfigRepository();
-  const sessionService = new SessionService();
-  const paciente = patientRepo.findById(pacienteId);
-
-  if (!paciente) {
-    throw new Error('Paciente no encontrado: ' + pacienteId);
-  }
-
-  if (paciente.EstadoPaciente !== ESTADOS_PACIENTE.ACTIVO) {
-    return { avisos: [] };
-  }
-
-  const config = configRepo.findByModalidad(paciente.ModalidadSolicitada);
-  const intervaloDias = Number(config.FrecuenciaDias || 0);
-
-  if (intervaloDias <= 0) {
-    throw new Error(
-      'La frecuencia de la modalidad individual no es válida.\n\n' +
-      'Modalidad: ' + paciente.ModalidadSolicitada
-    );
-  }
-
-  const resultado = generarFechasIndividualConAvisos_({
-    fechaInicio: paciente.FechaPrimeraSesionReal,
-    intervaloDias: intervaloDias,
-    sesiones: paciente.SesionesPlanificadas
-  });
-
-  sessionService.createInitialSessions(paciente, resultado.fechas);
-
-  return {
-    avisos: resultado.avisos || []
-  };
-}
+// Eliminada duplicidad: La lógica principal reside en 03_pacientes.js 
+// para asegurar el uso del nuevo AvailabilityService.
 
 function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const patientRepo = new PatientRepository();
