@@ -172,7 +172,7 @@ function obtenerSlotsDisponiblesParaReprogramacion(fechaISO, modalidad) {
   );
   
   const occupiedSlots = availabilityService._getOccupiedSlotsFromSessions(sessionsForDay);
-  const requiredDuration = (modalidad === MODALIDADES.INDIVIDUAL) ? 30 : 60;
+  const requiredDuration = (modalidad === MODALIDADES.INDIVIDUAL) ? 30 : 90;
 
   return agendaForDay
     .filter(slot => {

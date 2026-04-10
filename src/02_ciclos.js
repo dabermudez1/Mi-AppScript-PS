@@ -6,7 +6,7 @@ function crearCicloGrupo() {
   const html = HtmlService
     .createHtmlOutputFromFile('CrearCicloGrupoForm')
     .setWidth(420)
-    .setHeight(320);
+    .setHeight(380);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Crear ciclo de grupo');
 }
