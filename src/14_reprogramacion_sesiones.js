@@ -112,7 +112,7 @@ function reprogramarSesionGrupo_(data) {
   let cambios = 0;
   const sesiones = sessionRepo.findByCicloId(cicloId).filter(s => 
     Number(s.NumeroSesion) === numeroSesion && 
-    s.EstadoSesion === ESTADOS_SESION.PENDIENTE
+    (s.EstadoSesion === ESTADOS_SESION.PENDIENTE || s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA)
   );
 
   sesiones.forEach(sesion => {
@@ -123,6 +123,18 @@ function reprogramarSesionGrupo_(data) {
     if (nuevaHora) sesion.HoraInicio = nuevaHora;
     sesion.ModificadaManual = true;
     sessionRepo.save(sesion);
+    
+    // Actualizar métricas del paciente afectado
+    const paciente = patientRepo.findById(sesion.PacienteID);
+    if (paciente) stateService.refreshPatientMetrics(paciente);
+    
+    cambios++;
+  });
+
+  return {
+    mensaje: 'Sesión grupal reprogramada.\nSesiones afectadas: ' + cambios
+  };
+}
 
 /**
  * Obtiene los slots libres para una fecha y modalidad específica.
@@ -159,18 +171,6 @@ function obtenerSlotsDisponiblesParaReprogramacion(fechaISO, modalidad) {
       label: `${formatearHora_(slot.startDateTime)} (${slot.type})`
     }));
 }
-    
-    // Actualizar métricas del paciente afectado
-    const paciente = patientRepo.findById(sesion.PacienteID);
-    if (paciente) stateService.refreshPatientMetrics(paciente);
-    
-    cambios++;
-  });
-
-  return {
-    mensaje: 'Sesión grupal reprogramada.\nSesiones afectadas: ' + cambios
-  };
-}
 
 function obtenerSesionesPendientesIndividualFormulario(pacienteId) {
   const sessionRepo = new SessionRepository();
@@ -185,7 +185,10 @@ function obtenerSesionesPendientesIndividualFormulario(pacienteId) {
 
 function obtenerSesionesPendientesGrupoFormulario(cicloId) {
   const sessionRepo = new SessionRepository();
-  const sesiones = sessionRepo.findByCicloId(cicloId).filter(s => s.EstadoSesion === ESTADOS_SESION.PENDIENTE);
+  const sesiones = sessionRepo.findByCicloId(cicloId).filter(s => 
+    s.EstadoSesion === ESTADOS_SESION.PENDIENTE || 
+    s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA
+  );
 
   // Agrupar por número de sesión para el dropdown (ya que la sesión es común al grupo)
   const unicas = [...new Map(sesiones.map(s => [s.NumeroSesion, s])).values()];
@@ -245,8 +248,8 @@ function obtenerSesionParaReprogramacionFormulario(sesionId) {
     throw new Error('No se encontró la sesión indicada.');
   }
 
-  if (sesion.EstadoSesion !== ESTADOS_SESION.PENDIENTE) {
-    throw new Error('Solo se pueden abrir para reprogramación sesiones en estado PENDIENTE.');
+  if (sesion.EstadoSesion !== ESTADOS_SESION.PENDIENTE && sesion.EstadoSesion !== ESTADOS_SESION.REPROGRAMADA) {
+    throw new Error('Solo se pueden abrir para reprogramación sesiones en estado PENDIENTE o REPROGRAMADA.');
   }
 
   return {
