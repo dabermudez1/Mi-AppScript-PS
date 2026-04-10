@@ -104,8 +104,13 @@ class BaseRepository {
         return val;
       });
     });
+    
+    // Obtener la verdadera última fila con contenido en la columna A
+    // Esto evita escribir en la fila 1000 si hay formatos perdidos
+    const values = sheet.getRange("A:A").getValues();
+    let lastRow = values.filter(String).length;
+    if (lastRow === 0) lastRow = 1; // Seguridad por si la hoja está totalmente vacía
 
-    const lastRow = sheet.getLastRow();
     sheet.getRange(lastRow + 1, 1, rowsToAppend.length, headerRow.length).setValues(rowsToAppend);
     __EXECUTION_CACHE__[this.sheetName] = null; // Invalida caché
   }

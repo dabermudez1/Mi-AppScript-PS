@@ -1429,8 +1429,14 @@ function borrarSesionesPaciente_(pacienteId) {
   const filtrados = data.filter((row, i) => i === 0 || String(row[idx.PacienteID]) !== pidStr);
 
   if (filtrados.length !== data.length) {
-    sheet.clearContents();
-    sheet.getRange(1, 1, filtrados.length, data[0].length).setValues(filtrados);
+    // En lugar de clearContents, borramos solo las filas de datos para preservar formatos/encabezados
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+    }
+    if (filtrados.length > 1) {
+      const soloDatos = filtrados.slice(1);
+      sheet.getRange(2, 1, soloDatos.length, data[0].length).setValues(soloDatos);
+    }
     __EXECUTION_CACHE__[SHEET_SESIONES] = null;
   }
 }
