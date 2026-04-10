@@ -307,6 +307,9 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     throw new Error('Sesiones planificadas no válidas para la modalidad ' + paciente.ModalidadSolicitada);
   }
 
+  // Limpiar cualquier sesión previa por error para evitar duplicados si se reintenta
+  borrarSesionesPaciente_(pacienteId);
+
   // Sincronizar inicio de búsqueda: Fecha consulta + intervalo de frecuencia configurado
   const intervaloDias = Number(config.FrecuenciaDias || 0);
   let startSearch = sumarDiasNaturales_(paciente.FechaPrimeraConsulta, intervaloDias);

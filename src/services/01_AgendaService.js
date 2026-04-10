@@ -58,7 +58,7 @@ class AgendaService {
       })
       .map(slot => ({
         startDateTime: normalizarFechaHora_(normalizedDate, slot.HoraInicio),
-        type: slot.TipoSlot,
+        type: String(slot.TipoSlot || '').trim().toUpperCase(),
         durationMinutes: this._getSlotDuration(slot.TipoSlot)
       }));
 
@@ -111,8 +111,9 @@ class AgendaService {
   }
 
   _getSlotDuration(slotType) {
+    const type = String(slotType || '').trim().toUpperCase();
     // Reglas de duración de slots
-    switch (slotType) {
+    switch (type) {
       case '2.2': case 'SEGUIMIENTO': return 30;
       case '2.1': case 'PRIMERA': return 60; // 2 slots de 30 min
       case '2.2/GRUPO': case 'SEGUIMIENTO/GRUPO': return 60; // 2 slots de 30 min (según nueva instrucción)

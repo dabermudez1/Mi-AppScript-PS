@@ -78,15 +78,18 @@ class AvailabilityService {
    * @returns {boolean} True si es compatible, false en caso contrario.
    */
   _isSlotCompatible(agendaSlot, modality, requiredDurationMinutes) {
-    // Reglas de compatibilidad de tipo de slot
-    if (agendaSlot.type === 'DESCANSO') return false;
+    const slotType = String(agendaSlot.type || '').trim().toUpperCase();
+    const mod = String(modality || '').trim().toUpperCase();
 
-    if (modality === MODALIDADES.INDIVIDUAL) {
+    // Reglas de compatibilidad de tipo de slot
+    if (slotType === 'DESCANSO') return false;
+
+    if (mod === 'INDIVIDUAL') {
       // Las sesiones 2.2 generadas solo deben ir en slots tipo 2.2 o SEGUIMIENTO
-      if (agendaSlot.type !== '2.2' && agendaSlot.type !== 'SEGUIMIENTO') return false;
-    } else if (modality.startsWith('GRUPO')) {
+      if (slotType !== '2.2' && slotType !== 'SEGUIMIENTO') return false;
+    } else if (mod.startsWith('GRUPO')) {
       // Grupos buscan slots de grupo
-      if (agendaSlot.type !== '2.2/GRUPO' && agendaSlot.type !== 'SEGUIMIENTO/GRUPO') return false;
+      if (slotType !== '2.2/GRUPO' && slotType !== 'SEGUIMIENTO/GRUPO') return false;
     } else {
       // Otras modalidades no soportadas por la generación automática
       return false;
