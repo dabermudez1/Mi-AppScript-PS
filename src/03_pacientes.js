@@ -96,7 +96,9 @@ function crearPacienteSegunModalidad_({
       sesionesPendientes: Number(config.SesionesPorCiclo || 0)
     });
 
-    generarSesionesPacienteIndividual_(pacienteId);
+    const pCompleto = repo.findById(pacienteId); // Forzar recarga
+    if (pCompleto) generarSesionesPacienteIndividual_(pacienteId);
+    
     return {
       pacienteId,
       mensaje: `Paciente creado correctamente.\nEstado: ACTIVO\nPrimera sesión: ${formatearFecha_(slot.fecha)} a las ${slot.hora}`
@@ -371,7 +373,10 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const paciente = patientRepo.findById(pacienteId);
   const ciclo = cicloRepo.findOneBy('CicloID', cicloId);
   
-  if (!paciente || !ciclo) return;
+  if (!paciente || !ciclo) {
+    Logger.log(`CRÍTICO: No se pudo generar sesiones de grupo. Paciente: ${pacienteId}, Ciclo: ${cicloId}`);
+    return;
+  }
 
   const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
   const horaBase = config.HoraBase || '09:00';
@@ -449,11 +454,17 @@ function crearPacienteEnSheet_(params) {
     SesionesCompletadas: 0,
     SesionesPendientes: Number(params.sesionesPendientes || 0),
     ProximaSesion: params.proximaSesion,
+    FechaCierre: params.fechaCierre || '',
+    FechaAltaEfectiva: '',
+    MotivoAltaCodigo: '',
+    MotivoAltaTexto: '',
+    ComentarioAlta: '',
     Observaciones: params.observaciones || '',
     RecalcularSecuencia: params.recalcularSecuencia === true
   };
 
   repo.save(nuevoPaciente);
+  SpreadsheetApp.flush(); // Forzar escritura inmediata
   eliminarCacheDashboard_(); // Limpiar caché de UI para que el nuevo paciente aparezca
   return pacienteId;
 }

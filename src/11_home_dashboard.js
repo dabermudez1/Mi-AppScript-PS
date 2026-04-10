@@ -161,6 +161,7 @@ function obtenerDatosHomeDashboard() {
     esperaPorModalidad,
     proximosCiclos,
     proximosPacientes,
+    disponibilidadSemanal: new AvailabilityService().getFreeSlotsSummary(),
     resumenIncidenciasCalendario: obtenerResumenIncidenciasCalendario(sesiones),
     taskStatus: getBackgroundTaskStatus_(),
     calendarUrl: (typeof obtenerCalendarConsultaUrl_ === 'function') ? obtenerCalendarConsultaUrl_() : null,
