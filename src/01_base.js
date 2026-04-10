@@ -247,7 +247,6 @@ function onOpen() {
     ui.createMenu('Espera y ciclos')
       .addItem('Gestionar espera / cambio de grupo', 'gestionarEsperaYCicloPaciente')
       .addItem('Recalcular ocupación ciclos', 'recalcularOcupacionCiclos')
-      .addItem('Generar sesiones faltantes', 'generarSesionesFaltantes')
   );
 
   menu.addSubMenu(

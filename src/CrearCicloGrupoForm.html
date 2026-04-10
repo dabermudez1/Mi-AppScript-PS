@@ -95,7 +95,7 @@
         google.script.host.close();
       })
       .withFailureHandler(function(err) {
-        alert('Error: ' + err.message);
+        alert('Error en la planificación: ' + err.message);
         btn.disabled = false;
         btn.textContent = 'Crear Ciclo';
         loader.style.display = 'none';

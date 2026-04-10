@@ -403,7 +403,7 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
   const horaBase = config.HoraBase || '09:00';
   
-  const slots = generarSlotsCiclo_({
+  const slots = generarSlotsCiclo_({ // Aseguramos que llame a la función correcta
     fechaInicio: ciclo.FechaInicioCiclo,
     horaInicio: horaBase,
     modalidad: paciente.ModalidadSolicitada
