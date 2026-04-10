@@ -60,22 +60,23 @@ class BaseRepository {
    * Crea o actualiza un registro a partir de un objeto.
    */
   save(obj, idPropertyName) {
+    __EXECUTION_CACHE__[this.sheetName] = null; // Invalida caché SIEMPRE al guardar
+    
     const sheet = this.getSheet();
-    const data = sheet.getDataRange().getValues();
-    const headerRow = data[0];
+    const headerRow = this.headers; // Usar headers definidos en el constructor para consistencia
     const idx = this._indexHeaders(headerRow);
 
-    // Invalidar caché de ejecución para forzar re-lectura en la próxima consulta
-    __EXECUTION_CACHE__[this.sheetName] = null;
-
-    // Convertir objeto a array de fila respetando el orden de los headers reales
-    const rowValues = headerRow.map(h => (obj[h] !== undefined ? obj[h] : ""));
+    const rowValues = headerRow.map(h => {
+      let val = obj[h];
+      if (val === undefined || val === null) return "";
+      // Normalización de fechas para Sheets
+      if (val instanceof Date) return val; 
+      return val;
+    });
 
     if (obj._row) {
-      // Actualización
       sheet.getRange(obj._row, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
-      // Creación
       sheet.appendRow(rowValues);
       obj._row = sheet.getLastRow();
     }

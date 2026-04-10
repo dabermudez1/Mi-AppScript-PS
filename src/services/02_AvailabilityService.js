@@ -18,11 +18,11 @@ class AvailabilityService {
    * @returns {AgendaSlot|null} El primer slot disponible encontrado, o null si no hay.
    */
   findNextAvailableSlot(startSearchDateTime, modality, requiredDurationMinutes) {
-    let currentDateTime = normalizarFechaHora_(startSearchDateTime);
+    // Aseguramos que empezamos a buscar con la hora correcta
+    let currentDateTime = new Date(startSearchDateTime.getTime());
     let searchLimitDate = sumarDiasNaturales_(currentDateTime, 365); // Buscar hasta 1 año en el futuro
 
-    // OPTIMIZACIÓN: Cargar todas las sesiones una sola vez fuera del bucle
-    const allSessions = this.sessionRepo.findAll();
+    const allSessions = this.sessionRepo.findAll(); 
     const sessionsMap = {};
     allSessions.forEach(s => {
       if (s.FechaSesion instanceof Date && s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
@@ -41,7 +41,7 @@ class AvailabilityService {
 
       for (const agendaSlot of agendaForDay) {
         // Si el slot de la agenda ya pasó la hora de inicio de búsqueda, o es el mismo slot
-        if (compararFechasHoras_(agendaSlot.startDateTime, currentDateTime) >= 0) {
+        if (agendaSlot.startDateTime.getTime() >= currentDateTime.getTime()) {
           // Verificar si el slot es compatible con la modalidad y duración
           if (this._isSlotCompatible(agendaSlot, modality, requiredDurationMinutes)) {
             // Verificar si el slot está ocupado por una sesión existente
