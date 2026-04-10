@@ -73,6 +73,13 @@ function reprogramarSesionIndividual_(data) {
 
   new StateService().refreshPatientMetrics(new PatientRepository().findById(pacienteId));
 
+  // Refrescar caché del dashboard para actualizar incidencias y métricas en el panel
+  try {
+    refrescarDashboard();
+  } catch (e) {
+    eliminarCacheDashboard_();
+  }
+
   return {
     mensaje: 'Sesión individual reprogramada correctamente.'
   };
@@ -130,6 +137,13 @@ function reprogramarSesionGrupo_(data) {
     
     cambios++;
   });
+
+  // Refrescar caché del dashboard para actualizar incidencias y métricas en el panel
+  try {
+    refrescarDashboard();
+  } catch (e) {
+    eliminarCacheDashboard_();
+  }
 
   return {
     mensaje: 'Sesión grupal reprogramada.\nSesiones afectadas: ' + cambios
