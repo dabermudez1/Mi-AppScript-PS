@@ -67,14 +67,13 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
     const color = obtenerColorPorModalidad_(sesion.Modalidad);
     const fecha = normalizarFecha_(sesion.FechaSesion);
     const horaInicioStr = sesion.HoraInicio; // Nuevo campo
+    const duracion = Number(sesion.Duracion || 30); // Minutos
 
     let startTime = null;
     let endTime = null;
     if (horaInicioStr) {
       startTime = normalizarFechaHora_(sesion.FechaSesion, horaInicioStr);
-      // Asumimos una duración por defecto de 30 minutos para sesiones 2.2 si no se especifica
-      // TODO: Obtener la duración real del slot de la configuración de modalidad o tipo de slot
-      endTime = sumarMinutos_(startTime, 30);
+      endTime = sumarMinutos_(startTime, duracion);
     }
 
     let ev = (sesion.CalendarEventId && sesion.CalendarEventId !== "") 
@@ -250,6 +249,7 @@ function construirDescripcionEventoSesion_(sesion) {
     'MODALIDAD: ' + modalidad,
     'ESTADO: ' + (sesion.EstadoSesion || ''),
     'HORA: ' + (sesion.HoraInicio || '-'), // Nuevo
+    'DURACION: ' + (sesion.Duracion || '30') + ' min',
     'FECHA (DIA ENTERO): ' + formatearFecha_(sesion.FechaSesion),
     'FECHA ORIGINAL: ' + formatearFecha_(sesion.FechaOriginal),
     'CICLO: ' + (sesion.CicloID || '-'),
@@ -268,6 +268,7 @@ function generarHashSesionCalendar_(sesion) {
     sesion.Modalidad || '',
     sesion.NumeroSesion || '',
     sesion.HoraInicio || '', // Nuevo
+    sesion.Duracion || '',
     sesion.FechaSesion instanceof Date ? normalizarFecha_(sesion.FechaSesion).getTime() : '',
     sesion.EstadoSesion || '',
     sesion.Notas || '',

@@ -190,7 +190,8 @@ const HEADERS = {
     'CalendarLastSync',
     'CalendarEventTitle',
     'CalendarHash',
-    'HoraInicio' // Añadido por el usuario
+    'HoraInicio',
+    'Duracion'
   ],
 
   [SHEET_AGENDA_PLANTILLA]: [

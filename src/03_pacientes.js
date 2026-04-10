@@ -7,7 +7,7 @@ function nuevoPaciente() {
   const html = HtmlService
     .createHtmlOutputFromFile('NuevoPacienteForm')
     .setWidth(420)
-    .setHeight(500);
+    .setHeight(800);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Nuevo paciente');
 }
@@ -354,7 +354,8 @@ function generarSesionesPacienteIndividual_(pacienteId) {
       CalendarLastSync: '',
       CalendarEventTitle: '',
       CalendarHash: '',
-      HoraInicio: formatearHora_(nextSlot.startDateTime)
+      HoraInicio: formatearHora_(nextSlot.startDateTime),
+      Duracion: nextSlot.durationMinutes || duracionSlot
     };
     generatedSessions.push(nuevaSesion);
 

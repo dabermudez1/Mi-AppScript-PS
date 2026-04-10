@@ -59,6 +59,7 @@ function reprogramarSesionIndividual_(data) {
   const pacienteId = data.pacienteId;
   const numeroSesion = Number(data.numeroSesion);
   const nuevaFecha = parseFechaES_(data.fecha);
+  const nuevaHora = data.hora; // Capturamos la hora del formulario
 
   if (!nuevaFecha) {
     throw new Error('La nueva fecha no es válida. Usa formato dd/mm/yyyy.');
@@ -68,7 +69,7 @@ function reprogramarSesionIndividual_(data) {
     throw new Error(construirMensajeFechaNoOperativa_(nuevaFecha));
   }
 
-  sessionService.rescheduleSession(pacienteId, numeroSesion, nuevaFecha);
+  sessionService.rescheduleSession(pacienteId, numeroSesion, nuevaFecha, nuevaHora);
 
   new StateService().refreshPatientMetrics(new PatientRepository().findById(pacienteId));
 
@@ -88,6 +89,7 @@ function reprogramarSesionGrupo_(data) {
   const cicloId = data.cicloId;
   const numeroSesion = Number(data.numeroSesion);
   const nuevaFecha = parseFechaES_(data.fecha);
+  const nuevaHora = data.hora;
 
   if (!nuevaFecha) {
     throw new Error('La nueva fecha no es válida. Usa formato dd/mm/yyyy.');
@@ -118,6 +120,7 @@ function reprogramarSesionGrupo_(data) {
       sesion.FechaOriginal = sesion.FechaSesion;
     }
     sesion.FechaSesion = nuevaFecha;
+    if (nuevaHora) sesion.HoraInicio = nuevaHora;
     sesion.ModificadaManual = true;
     sessionRepo.save(sesion);
     

@@ -119,17 +119,14 @@ class AvailabilityService {
         }
         const start = normalizarFechaHora_(s.FechaSesion, horaStr);
                 
-        let sessionSlotType;
-        if (s.Modalidad === MODALIDADES.INDIVIDUAL) {
-          sessionSlotType = '2.2'; // Las sesiones individuales son de tipo 2.2
-        } else if (s.Modalidad.startsWith('GRUPO')) {
-          sessionSlotType = '2.2/GRUPO'; // Las sesiones de grupo son de tipo 2.2/GRUPO
-        } else {
-          sessionSlotType = 'DESCONOCIDO'; // Fallback para modalidades no reconocidas
+        // Preferimos la duración guardada en la sesión si existe
+        let duration = Number(s.Duracion);
+        
+        if (!duration) {
+          let sessionSlotType = s.Modalidad === MODALIDADES.INDIVIDUAL ? '2.2' : '2.2/GRUPO';
+          duration = this.agendaService._getSlotDuration(sessionSlotType);
         }
 
-        const duration = this.agendaService._getSlotDuration(sessionSlotType);
-        if (duration === 0) Logger.log(`Advertencia: Duración 0 para slotType ${sessionSlotType} de modalidad ${s.Modalidad}`);
         const end = sumarMinutos_(start, duration);
         occupied.push({ start, end });
       }
