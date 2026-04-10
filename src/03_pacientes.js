@@ -96,7 +96,8 @@ function crearPacienteSegunModalidad_({
       sesionesPendientes: Number(config.SesionesPorCiclo || 0)
     });
 
-    const pCompleto = repo.findById(pacienteId); // Forzar recarga
+    const patientRepo = new PatientRepository();
+    const pCompleto = patientRepo.findById(pacienteId); // Forzar recarga
     if (pCompleto) generarSesionesPacienteIndividual_(pacienteId);
     
     return {
@@ -300,20 +301,24 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
   const sesionesPlanificadas = Number(config.SesionesPorCiclo || 0);
   const frecuenciaDias = Number(config.FrecuenciaDias || 0);
+  const duracionSlot = 30; // Minutos estándar para 2.2
 
   if (sesionesPlanificadas <= 0) {
     throw new Error('Sesiones planificadas no válidas para la modalidad ' + paciente.ModalidadSolicitada);
   }
 
-  let currentSearchDateTime = normalizarFechaHora_(paciente.FechaPrimeraConsulta, '09:00'); // Empezar a buscar desde la primera consulta, hora por defecto
+  // Empezar a buscar desde la fecha de primera consulta. 
+  // Si la consulta fue hoy, buscar a partir de ahora mismo.
+  let startSearch = normalizarFechaHora_(paciente.FechaPrimeraConsulta, "00:00");
+  let currentSearchDateTime = startSearch;
+  
   const generatedSessions = [];
 
   for (let i = 0; i < sesionesPlanificadas; i++) {
-    const requiredDuration = 30; // 30 min para sesión 2.2 individual
     const nextSlot = availabilityService.findNextAvailableSlot(
       currentSearchDateTime,
       paciente.ModalidadSolicitada,
-      requiredDuration
+      duracionSlot
     );
 
     if (!nextSlot) {
@@ -339,16 +344,17 @@ function generarSesionesPacienteIndividual_(pacienteId) {
       CalendarLastSync: '',
       CalendarEventTitle: '',
       CalendarHash: '',
-      HoraInicio: formatearHora_(nextSlot.startDateTime) // Se mueve al final para coincidir con HEADERS
+      HoraInicio: formatearHora_(nextSlot.startDateTime)
     };
     generatedSessions.push(nuevaSesion);
 
-    // Para la siguiente búsqueda, empezar después de este slot
-    currentSearchDateTime = sumarMinutos_(nextSlot.startDateTime, nextSlot.durationMinutes);
-    // Avanzar los días de frecuencia preservando la hora para la siguiente búsqueda
-    currentSearchDateTime.setDate(currentSearchDateTime.getDate() + frecuenciaDias);
+    // IMPORTANTE: Para la siguiente sesión del ciclo, saltamos los días de frecuencia
+    // y reseteamos la hora a "00:00" para que busque desde el principio del día del siguiente hueco.
+    let proximaFechaBusqueda = sumarDiasNaturales_(nextSlot.startDateTime, frecuenciaDias);
+    currentSearchDateTime = normalizarFechaHora_(proximaFechaBusqueda, "00:00");
   }
 
+  // Guardado masivo para evitar lentitud
   sessionRepo.saveAll(generatedSessions);
 
   // Actualizar la próxima sesión del paciente
@@ -779,6 +785,9 @@ function confirmarAsignacionPacienteEnEsperaFormulario(formData) {
   }
 
   actualizarPacienteEsperaAAssignado_(paciente.PacienteID, ciclo);
+  
+  // Limpiar caché para que el cambio de estado se refleje en los siguientes pasos
+  __EXECUTION_CACHE__[SHEET_PACIENTES] = null;
 
   crearAsignacionCiclo_({
     pacienteId: paciente.PacienteID,
