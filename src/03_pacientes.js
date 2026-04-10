@@ -355,7 +355,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   }
 
   // Guardado masivo para evitar lentitud
-  sessionRepo.saveAll(generatedSessions);
+  sessionRepo.insertAll(generatedSessions); // Usar insertAll para nuevas sesiones
 
   // Actualizar la próxima sesión del paciente
   if (generatedSessions.length > 0) {

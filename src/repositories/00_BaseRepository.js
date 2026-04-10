@@ -5,7 +5,9 @@
  */
 
 // Objeto global para cachear lecturas durante una misma ejecución del script
-const __EXECUTION_CACHE__ = {};
+if (typeof __EXECUTION_CACHE__ === 'undefined') {
+  var __EXECUTION_CACHE__ = {};
+}
 
 class BaseRepository {
   constructor(sheetName, headers) {
@@ -81,6 +83,29 @@ class BaseRepository {
       obj._row = sheet.getLastRow();
     }
     return obj;
+  }
+
+  /**
+   * Inserta múltiples objetos nuevos en la hoja.
+   * Cada objeto se añade como una nueva fila.
+   * @param {Array<Object>} objects - Array de objetos a insertar.
+   */
+  insertAll(objects) {
+    if (!objects || objects.length === 0) return;
+
+    const sheet = this.getSheet();
+    const headerRow = this.headers;
+    
+    const rowsToAppend = objects.map(obj => {
+      return headerRow.map(h => {
+        let val = obj[h];
+        if (val === undefined || val === null) return "";
+        if (val instanceof Date) return val;
+        return val;
+      });
+    });
+    sheet.appendRows(rowsToAppend);
+    __EXECUTION_CACHE__[this.sheetName] = null; // Invalida caché
   }
 
   /**
