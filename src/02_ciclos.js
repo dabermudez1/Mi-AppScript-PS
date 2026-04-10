@@ -124,7 +124,12 @@ function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {
   };
 
   cicloRepo.save(nuevoCiclo);
-  SpreadsheetApp.flush(); 
+  
+  // Invalidar caché de ejecución para que el ciclo sea visible inmediatamente en las búsquedas
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') {
+    __EXECUTION_CACHE__[SHEET_CICLOS] = null;
+  }
+  SpreadsheetApp.flush();
 
   return {
     cicloId,

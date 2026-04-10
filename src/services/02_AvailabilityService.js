@@ -29,7 +29,13 @@ class AvailabilityService {
     const allSessions = this._allSessions;
 
     // VALIDACIÓN PREVIA: Si no hay slots de esta modalidad en la plantilla, no busques (evita loops inútiles)
-    const hasTemplate = this.agendaService.getWeeklyTemplate().some(s => this._isSlotCompatible(s, modality, requiredDurationMinutes));
+    const hasTemplate = this.agendaService.getWeeklyTemplate().some(s => {
+      // Mapeamos el slot de la plantilla al formato que espera _isSlotCompatible
+      return this._isSlotCompatible({
+        type: s.TipoSlot,
+        durationMinutes: this.agendaService._getSlotDuration(s.TipoSlot)
+      }, modality, requiredDurationMinutes);
+    });
     if (!hasTemplate) throw new Error(`No hay slots de tipo ${modality} configurados en la 'Plantilla de Agenda'.`);
 
     const sessionsMap = {};
