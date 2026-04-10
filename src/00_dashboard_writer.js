@@ -328,7 +328,9 @@ function escribirBloquePacientesActivos_(sheet, data) {
     p.EstadoPaciente || '',
     p.SesionesCompletadas || 0,
     p.SesionesPendientes || 0,
-    formatearFecha_(p.ProximaSesion),
+    p.ProximaSesion instanceof Date ? 
+      formatearFecha_(p.ProximaSesion) + ' ' + formatearHora_(p.ProximaSesion) : 
+      formatearFecha_(p.ProximaSesion),
     p.CicloActivoID || p.CicloObjetivoID || ''
   ]);
 
