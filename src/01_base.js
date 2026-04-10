@@ -846,12 +846,93 @@ function formatearHora_(dateOrTimeString) {
   return str.match(/^\d{1,2}:\d{2}/) ? str.substring(0, 5) : (str.substring(0, 5) || '');
 }
 
-/**
- * Stub temporal para evitar ReferenceError en AvailabilityService
- */
-function esFechaBloqueada_(fecha) {
-  // Por ahora asumimos que no hay bloqueos extra aparte de fines de semana
-  return false; 
+
+/***************
+ * REPOSITORIOS DE AGENDA
+ ***************/
+
+class AgendaTemplateRepository {
+  constructor() {
+    this.sheetName = SHEET_AGENDA_PLANTILLA;
+  }
+
+  findAll() {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
+    if (!sheet) return [];
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return [];
+    const idx = indexByHeader_(data[0]);
+    return data.slice(1).map((row, i) => ({
+      DiaSemana: String(row[idx.DiaSemana] || '').trim().toUpperCase(),
+      HoraInicio: row[idx.HoraInicio],
+      TipoSlot: String(row[idx.TipoSlot] || '').trim().toUpperCase(),
+      _row: i + 2
+    }));
+  }
+
+  save(slot) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
+    const headers = HEADERS[this.sheetName];
+    const idx = indexByHeader_(headers);
+    const values = new Array(headers.length).fill('');
+    values[idx.DiaSemana] = slot.DiaSemana;
+    values[idx.HoraInicio] = slot.HoraInicio;
+    values[idx.TipoSlot] = slot.TipoSlot;
+    if (slot._row) {
+      sheet.getRange(slot._row, 1, 1, headers.length).setValues([values]);
+    } else {
+      sheet.appendRow(values);
+    }
+  }
+
+  delete(query) {
+    if (query && query._row) {
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
+      sheet.deleteRow(query._row);
+    }
+  }
+}
+
+class AgendaExceptionRepository {
+  constructor() {
+    this.sheetName = SHEET_AGENDA_EXCEPCIONES;
+  }
+
+  findAll() {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
+    if (!sheet) return [];
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return [];
+    const idx = indexByHeader_(data[0]);
+    return data.slice(1).map((row, i) => ({
+      Fecha: row[idx.Fecha],
+      HoraInicio: row[idx.HoraInicio],
+      TipoSlot: String(row[idx.TipoSlot] || '').trim().toUpperCase(),
+      _row: i + 2
+    }));
+  }
+
+  save(ex) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
+    const headers = HEADERS[this.sheetName];
+    const idx = indexByHeader_(headers);
+    const values = new Array(headers.length).fill('');
+    values[idx.Fecha] = ex.Fecha;
+    values[idx.HoraInicio] = ex.HoraInicio;
+    values[idx.TipoSlot] = ex.TipoSlot;
+    if (ex._row) {
+      sheet.getRange(ex._row, 1, 1, headers.length).setValues([values]);
+    } else {
+      sheet.appendRow(values);
+    }
+  }
+
+  delete(query) {
+    if (query && query._row) {
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
+      sheet.deleteRow(query._row);
+    }
+  }
 }
 
 /***************
