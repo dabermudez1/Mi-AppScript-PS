@@ -62,6 +62,11 @@
   <input type="date" id="fecha">
 </div>
 
+<div class="form-group">
+  <label for="hora">Nueva Hora</label>
+  <input type="time" id="hora" name="hora" required>
+</div>
+
 <div style="display:flex; gap:10px; margin-top:12px;">
   <button onclick="guardar()">Guardar</button>
   <button onclick="volverAlPanel()">Volver al panel</button>
@@ -441,7 +446,13 @@
 
     cambiarModo();
   }
-
+  
+  // Al cargar los datos de la sesión actual en el formulario, 
+  // asegúrate de setear el valor por defecto de la hora.
+  function cargarDatosSesion(sesion) {
+    document.getElementById('fecha').value = sesion.fechaActualISO; // yyyy-MM-dd
+    document.getElementById('hora').value = sesion.horaActual;     // HH:mm
+  }
   cargarDatos();
 </script>
 
