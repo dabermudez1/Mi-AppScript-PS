@@ -123,6 +123,42 @@ function reprogramarSesionGrupo_(data) {
     if (nuevaHora) sesion.HoraInicio = nuevaHora;
     sesion.ModificadaManual = true;
     sessionRepo.save(sesion);
+
+/**
+ * Obtiene los slots libres para una fecha y modalidad específica.
+ * Utilizado por el formulario de reprogramación para ofrecer opciones válidas.
+ */
+function obtenerSlotsDisponiblesParaReprogramacion(fechaISO, modalidad) {
+  if (!fechaISO || !modalidad) return [];
+  
+  const availabilityService = new AvailabilityService();
+  const fecha = parseFechaISO_(fechaISO);
+  if (!fecha) return [];
+
+  const dateKey = obtenerClaveFecha_(fecha);
+  const agendaForDay = availabilityService.agendaService.getAgendaForDay(fecha);
+  
+  // Obtenemos sesiones del día para calcular huecos ocupados
+  const sessionsForDay = availabilityService.sessionRepo.findAll().filter(s => 
+    s.FechaSesion instanceof Date && 
+    obtenerClaveFecha_(s.FechaSesion) === dateKey &&
+    s.EstadoSesion !== ESTADOS_SESION.CANCELADA
+  );
+  
+  const occupiedSlots = availabilityService._getOccupiedSlotsFromSessions(sessionsForDay);
+  const requiredDuration = (modalidad === MODALIDADES.INDIVIDUAL) ? 30 : 60;
+
+  return agendaForDay
+    .filter(slot => {
+      if (slot.type === 'DESCANSO') return false;
+      if (!availabilityService._isSlotCompatible(slot, modalidad, requiredDuration)) return false;
+      return !availabilityService._isSlotOccupied(slot, occupiedSlots);
+    })
+    .map(slot => ({
+      hora: formatearHora_(slot.startDateTime),
+      label: `${formatearHora_(slot.startDateTime)} (${slot.type})`
+    }));
+}
     
     // Actualizar métricas del paciente afectado
     const paciente = patientRepo.findById(sesion.PacienteID);

@@ -59,12 +59,15 @@
 
 <div class="field">
   <label>Nueva fecha</label>
-  <input type="date" id="fecha">
+  <input type="date" id="fecha" onchange="buscarSlotsDisponibles()">
 </div>
 
-<div class="form-group">
-  <label for="hora">Nueva Hora</label>
-  <input type="time" id="hora" name="hora" required>
+<div class="field">
+  <label for="hora">Nueva Hora (Slots disponibles)</label>
+  <select id="hora" name="hora" required>
+    <option value="">-- Selecciona una fecha primero --</option>
+  </select>
+  <small id="statusSlots" style="color: #666; font-style: italic;"></small>
 </div>
 
 <div style="display:flex; gap:10px; margin-top:12px;">
@@ -227,6 +230,40 @@
     fechaActual.value = sesion ? sesion.fechaActual : '';
   }
 
+  function buscarSlotsDisponibles() {
+    const fecha = document.getElementById('fecha').value;
+    const modalidad = document.getElementById('modalidad').value;
+    const selectHora = document.getElementById('hora');
+    const status = document.getElementById('statusSlots');
+
+    if (!fecha || !modalidad) return;
+
+    selectHora.innerHTML = '<option value="">Cargando slots...</option>';
+    status.textContent = 'Consultando disponibilidad...';
+
+    google.script.run
+      .withSuccessHandler(function(slots) {
+        selectHora.innerHTML = '';
+        if (slots.length === 0) {
+          selectHora.innerHTML = '<option value="">Sin huecos disponibles</option>';
+          status.textContent = 'No hay slots libres para este día.';
+        } else {
+          status.textContent = slots.length + ' huecos encontrados.';
+          slots.forEach(s => {
+            let o = document.createElement('option');
+            o.value = s.hora;
+            o.textContent = s.label;
+            selectHora.appendChild(o);
+          });
+        }
+      })
+      .withFailureHandler(err => {
+        status.textContent = 'Error al buscar slots.';
+        alert(err.message);
+      })
+      .obtenerSlotsDisponiblesParaReprogramacion(fecha, modalidad);
+  }
+
   function guardar() {
     const modalidad = document.getElementById('modalidad').value;
 
@@ -236,6 +273,7 @@
         : document.getElementById('numeroSesionGrp').value;
 
     const fecha = document.getElementById('fecha').value;
+    const hora = document.getElementById('hora').value;
 
     if (!modalidad) {
       alert('Debes seleccionar una modalidad.');
@@ -244,6 +282,11 @@
 
     if (!numeroSesion) {
       alert('Debes seleccionar una sesión pendiente.');
+      return;
+    }
+
+    if (!hora) {
+      alert('Debes seleccionar un slot de hora disponible.');
       return;
     }
 
@@ -257,7 +300,8 @@
       pacienteId: document.getElementById('paciente').value,
       cicloId: document.getElementById('ciclo').value,
       numeroSesion: numeroSesion,
-      fecha: fecha.split('-').reverse().join('/')
+      fecha: fecha.split('-').reverse().join('/'),
+      hora: hora
     };
 
     google.script.run
