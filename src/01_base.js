@@ -845,6 +845,15 @@ function formatearHora_(dateOrTimeString) {
   const str = String(dateOrTimeString).trim();
   return str.match(/^\d{1,2}:\d{2}/) ? str.substring(0, 5) : (str.substring(0, 5) || '');
 }
+
+/**
+ * Stub temporal para evitar ReferenceError en AvailabilityService
+ */
+function esFechaBloqueada_(fecha) {
+  // Por ahora asumimos que no hay bloqueos extra aparte de fines de semana
+  return false; 
+}
+
 /***************
  * STUB TEMPORAL
  * Se rehace más adelante

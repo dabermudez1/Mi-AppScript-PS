@@ -25,8 +25,11 @@ class AvailabilityService {
     const allSessions = this.sessionRepo.findAll(); 
     const sessionsMap = {};
     allSessions.forEach(s => {
-      if (s.FechaSesion instanceof Date && s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
-        const key = obtenerClaveFecha_(s.FechaSesion);
+      // Intentamos parsear la fecha si no es objeto Date (seguridad extra)
+      const fecha = s.FechaSesion instanceof Date ? s.FechaSesion : parseFechaES_(s.FechaSesion);
+      
+      if (fecha && s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
+        const key = obtenerClaveFecha_(fecha);
         if (!sessionsMap[key]) sessionsMap[key] = [];
         sessionsMap[key].push(s);
       }
@@ -47,7 +50,8 @@ class AvailabilityService {
             // Verificar si el slot está ocupado por una sesión existente
             if (!this._isSlotOccupied(agendaSlot, occupiedSlots)) {
               // Verificar si el día está completamente bloqueado (ej. por DIAS_BLOQUEADOS)
-              if (!esFechaBloqueada_(agendaSlot.startDateTime)) { // Reutilizamos la función existente para días bloqueados
+              // FIX: Añadimos comprobación de existencia del helper para evitar ReferenceError
+              if (typeof esFechaBloqueada_ !== 'function' || !esFechaBloqueada_(agendaSlot.startDateTime)) {
                 return agendaSlot; // ¡Slot encontrado!
               }
             }
@@ -82,11 +86,11 @@ class AvailabilityService {
     const mod = String(modality || '').trim().toUpperCase();
 
     // Reglas de compatibilidad de tipo de slot
-    if (slotType === 'DESCANSO') return false;
+    if (slotType === 'DESCANSO' || slotType === '') return false;
 
     if (mod === 'INDIVIDUAL') {
       // Las sesiones 2.2 generadas solo deben ir en slots tipo 2.2 o SEGUIMIENTO
-      if (slotType !== '2.2' && slotType !== 'SEGUIMIENTO') return false;
+      if (slotType !== '2.2' && slotType !== 'SEGUIMIENTO' && slotType !== '2.1' && slotType !== 'PRIMERA') return false;
     } else if (mod.startsWith('GRUPO')) {
       // Grupos buscan slots de grupo
       if (slotType !== '2.2/GRUPO' && slotType !== 'SEGUIMIENTO/GRUPO') return false;

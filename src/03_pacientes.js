@@ -325,7 +325,9 @@ function generarSesionesPacienteIndividual_(pacienteId) {
     );
 
     if (!nextSlot) {
-      throw new Error(`No se encontró slot disponible para la sesión ${i + 1} del paciente ${paciente.Nombre}.`);
+      throw new Error(`Error de Planificación: No hay huecos libres en la agenda para la sesión ${i + 1} de ${paciente.Nombre}. ` +
+                      `Revisa la 'Plantilla de Agenda' y que existan slots de tipo '2.2' o 'SEGUIMIENTO'. ` +
+                      `Búsqueda iniciada en: ${formatearFecha_(currentSearchDateTime)}`);
     }
 
     const sesionId = generarId_('SES');
