@@ -6,13 +6,6 @@
 /***************
  * HOJAS
  ***************/
-// Objeto global para caché de ejecución. Evita lecturas repetidas a Sheets en el mismo script.
-const __EXECUTION_CACHE__ = {
-  [SHEET_PACIENTES]: null,
-  [SHEET_SESIONES]: null,
-  [SHEET_CICLOS]: null
-};
-
 const SHEET_CATALOGOS = 'CATALOGOS';
 const SHEET_CONFIG_MODALIDADES = 'CONFIG_MODALIDADES';
 const SHEET_PACIENTES = 'PACIENTES';
@@ -24,6 +17,13 @@ const SHEET_AGENDA_PLANTILLA = 'AGENDA_PLANTILLA';
 // El usuario ya ha añadido estas hojas y sus encabezados.
 // Necesitamos asegurarnos de que el sistema las reconozca.
 const SHEET_AGENDA_EXCEPCIONES = 'AGENDA_EXCEPCIONES';
+
+// Objeto global para caché de ejecución. Evita lecturas repetidas a Sheets en el mismo script.
+const __EXECUTION_CACHE__ = {
+  [SHEET_PACIENTES]: null,
+  [SHEET_SESIONES]: null,
+  [SHEET_CICLOS]: null
+};
 
 /***************
  * CALENDARIO
