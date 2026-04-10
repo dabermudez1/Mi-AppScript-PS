@@ -19,7 +19,9 @@ const SHEET_AGENDA_PLANTILLA = 'AGENDA_PLANTILLA';
 const SHEET_AGENDA_EXCEPCIONES = 'AGENDA_EXCEPCIONES';
 
 // Objeto global para caché de ejecución. Evita lecturas repetidas a Sheets en el mismo script.
-const __EXECUTION_CACHE__ = {
+// Usamos 'var' para evitar el SyntaxError: Identifier has already been declared, 
+// que es común en Apps Script cuando hay colisiones de archivos o push duplicados.
+var __EXECUTION_CACHE__ = {
   [SHEET_PACIENTES]: null,
   [SHEET_SESIONES]: null,
   [SHEET_CICLOS]: null
