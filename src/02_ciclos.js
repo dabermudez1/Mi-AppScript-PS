@@ -68,12 +68,31 @@ function validarFechaInicioCiclo_(fechaInicio, config) {
  * @returns {Array<AgendaSlot>} Lista de slots generados.
  */
 function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
-  // TODO: Implementar la lógica de generación de slots para grupos
-  // Esto implicará usar AvailabilityService.findNextAvailableSlot
-  // para cada sesión del ciclo, a partir de la fechaInicio y horaInicio dadas.
-  // Por ahora, devolver un array vacío para no romper la ejecución.
-  Logger.log(`[STUB] Generando slots para ciclo de grupo: ${modalidad} desde ${formatearFecha_(fechaInicio)} ${horaInicio}`);
-  return [];
+  const config = obtenerConfigModalidad_(modalidad);
+  const sesiones = Number(config.SesionesPorCiclo || 7);
+  const frecuenciaSemanas = Number(config.FrecuenciaDias || 1);
+  
+  const availabilityService = new AvailabilityService();
+  const slots = [];
+  let currentSearchDateTime = normalizarFechaHora_(fechaInicio, horaInicio);
+
+  for (let i = 0; i < sesiones; i++) {
+    // Los grupos suelen ocupar 60 min (2 slots de 30) según la lógica de AgendaService
+    const slot = availabilityService.findNextAvailableSlot(currentSearchDateTime, modalidad, 60);
+    
+    if (!slot) {
+      Logger.log(`No se encontró slot para sesión ${i + 1} del ciclo ${modalidad}`);
+      break; 
+    }
+    
+    slots.push(slot);
+    
+    // Avanzar a la misma hora pero N semanas después
+    const siguienteFecha = sumarSemanasManteniendoDia_(slot.startDateTime, frecuenciaSemanas);
+    currentSearchDateTime = normalizarFechaHora_(siguienteFecha, horaInicio);
+  }
+  
+  return slots;
 }
 
 function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {

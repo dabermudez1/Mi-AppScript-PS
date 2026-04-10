@@ -351,7 +351,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
 
   // Actualizar la próxima sesión del paciente
   if (generatedSessions.length > 0) {
-    paciente.ProximaSesion = generatedSessions[0].FechaSesion; // La primera sesión generada
+    paciente.ProximaSesion = normalizarFechaHora_(generatedSessions[0].FechaSesion, generatedSessions[0].HoraInicio);
     paciente.SesionesPlanificadas = sesionesPlanificadas;
     paciente.SesionesPendientes = sesionesPlanificadas;
     patientRepo.save(paciente);
@@ -364,15 +364,28 @@ function generarSesionesPacienteIndividual_(pacienteId) {
  * @param {string} cicloId - ID del ciclo al que está asignado el paciente.
  */
 function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
-  // TODO: Implementar la lógica de generación de sesiones de grupo
-  // Similar a individuales, pero usando la FechaInicioCiclo y HoraBase de la modalidad de grupo
-  // y buscando slots '2.2/GRUPO'.
-  // Por ahora, dejar un stub para no romper la llamada existente.
-  Logger.log(`[STUB] Generando sesiones de grupo para paciente ${pacienteId} en ciclo ${cicloId}`);
-  // Aquí se debería llamar a AvailabilityService.findNextAvailableSlot
-  // para cada sesión del ciclo, usando la FechaInicioCiclo y HoraBase
-  // de la configuración de la modalidad de grupo.
-  // La duración de un slot de grupo es 90 minutos.
+  const patientRepo = new PatientRepository();
+  const cicloRepo = new CicloRepository();
+  const sessionService = new SessionService();
+  
+  const paciente = patientRepo.findById(pacienteId);
+  const ciclo = cicloRepo.findOneBy('CicloID', cicloId);
+  
+  if (!paciente || !ciclo) return;
+
+  const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
+  const horaBase = config.HoraBase || '09:00';
+  
+  const slots = generarSlotsCiclo_({
+    fechaInicio: ciclo.FechaInicioCiclo,
+    horaInicio: horaBase,
+    modalidad: paciente.ModalidadSolicitada
+  });
+
+  if (slots.length > 0) {
+    const fechas = slots.map(s => s.startDateTime);
+    sessionService.createInitialSessions(paciente, fechas, cicloId);
+  }
 }
 
 function buscarPrimerCicloFuturoDisponible_(modalidad, fechaPrimeraConsulta) {
