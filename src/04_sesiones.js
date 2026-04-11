@@ -113,31 +113,6 @@ function generarSesionesFaltantes() {
   }
 }
 
-function generarFechasIndividualConAvisos_({
-  fechaInicio,
-  intervaloDias,
-  sesiones
-}) {
-  const fechas = [];
-  const avisos = [];
-
-  for (let i = 0; i < sesiones; i++) {
-    const base = sumarDiasNaturales_(fechaInicio, i * intervaloDias);
-    const ajuste = ajustarASiguienteFechaOperativaConAviso_(base);
-
-    fechas.push(ajuste.fecha);
-
-    if (ajuste.ajustada) {
-      avisos.push('Sesión ' + (i + 1) + ': ' + ajuste.aviso);
-    }
-  }
-
-  return {
-    fechas,
-    avisos
-  };
-}
-
 function obtenerConfigModalidadPorNombre_(modalidad) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONFIG_MODALIDADES);
   if (!sheet) {

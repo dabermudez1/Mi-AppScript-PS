@@ -105,6 +105,7 @@ function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {
   
   const numeroCiclo = obtenerSiguienteNumeroCiclo_(modalidad, todos);
   const cicloId = generarId_('CIC');
+  const fechaRealInicio = fechas[0];
   const fechaFin = fechas[fechas.length - 1];
 
   const nuevoCiclo = {
@@ -112,7 +113,7 @@ function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {
     Modalidad: modalidad,
     NumeroCiclo: numeroCiclo,
     EstadoCiclo: ESTADOS_CICLO.PLANIFICADO,
-    FechaInicioCiclo: normalizarFecha_(fechaInicio),
+    FechaInicioCiclo: normalizarFecha_(fechaRealInicio),
     FechaFinCiclo: normalizarFecha_(fechaFin),
     FechaBaseUsada: normalizarFecha_(config.FechaBase),
     DiaSemana: config.DiaSemana,
