@@ -70,23 +70,23 @@ function validarFechaInicioCiclo_(fechaInicio, config) {
 function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   const config = obtenerConfigModalidad_(modalidad);
   const sesiones = Number(config.SesionesPorCiclo || 7);
-  const freqRaw = Number(config.FrecuenciaDias || 1);
-  const frecuenciaSemanas = modalidad.includes('GRUPO') ? Math.max(1, freqRaw) : Math.max(1, Math.round(freqRaw / 7));
+  // Interpretamos la frecuencia: si es grupo suele venir en semanas (1 o 2)
+  const frecuenciaSemanas = modalidad.includes('GRUPO') ? Math.max(1, Number(config.FrecuenciaDias || 1)) : Math.max(1, Math.round(Number(config.FrecuenciaDias || 7) / 7));
   
   const availabilityService = new AvailabilityService();
   
-  // 1. Buscamos ÚNICAMENTE el primer slot disponible (donde arranca el ciclo)
+  
+  // 1. Buscamos ÚNICAMENTE el primer slot disponible para marcar el inicio real
   const firstSlot = availabilityService.findNextAvailableSlot(normalizarFechaHora_(fechaInicio, "00:00"), modalidad, 90);
   
   if (!firstSlot) {
-    throw new Error(`No se encontró un hueco disponible en la agenda para iniciar el ciclo ${modalidad} a partir de ${formatearFecha_(fechaInicio)}.`);
+    throw new Error(`No hay huecos de 90 min. para ${modalidad} en la agenda a partir del ${formatearFecha_(fechaInicio)}.`);
   }
   
   const slots = [firstSlot];
   let currentDateTime = firstSlot.startDateTime;
 
-  // 2. Proyectamos el resto de fechas basándonos en la frecuencia
-  // No realizamos búsqueda de disponibilidad para el resto, simplemente calculamos el calendario teórico del ciclo.
+  // 2. Proyectamos el resto de fechas matemáticamente para evitar Timeouts
   for (let i = 1; i < sesiones; i++) {
     currentDateTime = sumarSemanasManteniendoDia_(currentDateTime, frecuenciaSemanas);
     slots.push({
