@@ -70,28 +70,30 @@ function validarFechaInicioCiclo_(fechaInicio, config) {
 function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   const config = obtenerConfigModalidad_(modalidad);
   const sesiones = Number(config.SesionesPorCiclo || 7);
-  // Aseguramos que frecuencia sea al menos 1 semana para evitar bucles infinitos
   const freqRaw = Number(config.FrecuenciaDias || 1);
   const frecuenciaSemanas = modalidad.startsWith('GRUPO') ? Math.max(1, freqRaw) : Math.max(1, Math.round(freqRaw / 7));
   
   const availabilityService = new AvailabilityService();
-  const slots = [];
-  let currentSearchDateTime = normalizarFechaHora_(fechaInicio, "00:00");
+  
+  // 1. Buscamos ÚNICAMENTE el primer slot disponible (donde arranca el ciclo)
+  const firstSlot = availabilityService.findNextAvailableSlot(normalizarFechaHora_(fechaInicio, "00:00"), modalidad, 90);
+  
+  if (!firstSlot) {
+    throw new Error(`No se encontró un hueco disponible en la agenda para iniciar el ciclo ${modalidad} a partir de ${formatearFecha_(fechaInicio)}.`);
+  }
+  
+  const slots = [firstSlot];
+  let currentDateTime = firstSlot.startDateTime;
 
-  for (let i = 0; i < sesiones; i++) {
-    // Buscamos con un límite de 180 días para evitar Timeouts en la UI
-    const slot = availabilityService.findNextAvailableSlot(currentSearchDateTime, modalidad, 90);
-    
-    if (!slot) {
-      throw new Error(`No se pudo completar la planificación del ciclo ${modalidad}. No hay suficientes slots libres.`);
-    }
-    
-    slots.push(slot);
-    
-    // Avanzar a la siguiente ocurrencia según frecuencia (semanal o quincenal)
-    // Reseteamos a las 00:00 del día destino para que el buscador encuentre el slot exacto en la plantilla
-    const siguienteFecha = sumarSemanasManteniendoDia_(slot.startDateTime, frecuenciaSemanas);
-    currentSearchDateTime = normalizarFechaHora_(siguienteFecha, "00:00");
+  // 2. Proyectamos el resto de fechas basándonos en la frecuencia
+  // No realizamos búsqueda de disponibilidad para el resto, simplemente calculamos el calendario teórico del ciclo.
+  for (let i = 1; i < sesiones; i++) {
+    currentDateTime = sumarSemanasManteniendoDia_(currentDateTime, frecuenciaSemanas);
+    slots.push({
+      startDateTime: new Date(currentDateTime.getTime()),
+      type: firstSlot.type,
+      durationMinutes: firstSlot.durationMinutes
+    });
   }
   
   return slots;

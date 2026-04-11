@@ -6,9 +6,6 @@
 /***************
  * ENTRY POINTS
  ***************/
-// Eliminada duplicidad: La lógica principal reside en 03_pacientes.js 
-// para asegurar el uso del nuevo AvailabilityService.
-
 /***************
  * MANTENIMIENTO
  ***************/

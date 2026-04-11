@@ -409,6 +409,7 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
   const horaBase = config.HoraBase || '09:00';
   
+  // Usamos la función optimizada para obtener el calendario del ciclo
   const slots = generarSlotsCiclo_({ 
     fechaInicio: ciclo.FechaInicioCiclo,
     horaInicio: horaBase,
