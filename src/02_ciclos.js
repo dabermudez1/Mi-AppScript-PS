@@ -71,7 +71,7 @@ function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   const config = obtenerConfigModalidad_(modalidad);
   const sesiones = Number(config.SesionesPorCiclo || 7);
   const freqRaw = Number(config.FrecuenciaDias || 1);
-  const frecuenciaSemanas = modalidad.startsWith('GRUPO') ? Math.max(1, freqRaw) : Math.max(1, Math.round(freqRaw / 7));
+  const frecuenciaSemanas = modalidad.includes('GRUPO') ? Math.max(1, freqRaw) : Math.max(1, Math.round(freqRaw / 7));
   
   const availabilityService = new AvailabilityService();
   
@@ -128,11 +128,12 @@ function crearCicloEnSheet_({ modalidad, fechaInicio, fechas, config }) {
 
   cicloRepo.save(nuevoCiclo);
   
-  // Invalidar caché de ejecución para que el ciclo sea visible inmediatamente en las búsquedas
+  SpreadsheetApp.flush();
+
+  // Limpiar caché global para que el nuevo ciclo aparezca en reasignaciones
   if (typeof __EXECUTION_CACHE__ !== 'undefined') {
     __EXECUTION_CACHE__[SHEET_CICLOS] = null;
   }
-  SpreadsheetApp.flush();
 
   return {
     cicloId,

@@ -19,8 +19,8 @@ class AvailabilityService {
   findNextAvailableSlot(startSearchDateTime, modality, requiredDurationMinutes) {
     // Aseguramos que empezamos a buscar con la hora correcta
     let currentDateTime = new Date(startSearchDateTime.getTime());
-    // Reducimos el límite a 90 días para búsquedas iniciales, suficiente para encontrar un hueco
-    let searchLimitDate = sumarDiasNaturales_(currentDateTime, 90); 
+    // Para ciclos, 60 días de búsqueda es más que suficiente y evita Timeouts
+    let searchLimitDate = sumarDiasNaturales_(currentDateTime, 60); 
 
     // OPTIMIZACIÓN: Solo cargamos todas las sesiones una vez por cada AvailabilityService
     if (!this._allSessions) {
@@ -50,8 +50,14 @@ class AvailabilityService {
       }
     });
 
+    const weeklyTemplate = this.agendaService.getWeeklyTemplate();
+
     while (compararFechasHoras_(currentDateTime, searchLimitDate) <= 0) {
-      const agendaForDay = this.agendaService.getAgendaForDay(currentDateTime);
+      const dayOfWeek = convertirDiaSemanaATexto_(currentDateTime);
+      
+      // Solo procesamos si el día de la semana existe en la plantilla (vía rápida)
+      if (weeklyTemplate.some(t => t.DiaSemana === dayOfWeek)) {
+        const agendaForDay = this.agendaService.getAgendaForDay(currentDateTime);
       const sessionsForDay = sessionsMap[obtenerClaveFecha_(currentDateTime)] || [];
 
       // Obtener slots ocupados por sesiones existentes
@@ -72,6 +78,7 @@ class AvailabilityService {
             }
           }
         }
+      }
       }
 
       // Si no se encontró slot en el día actual, avanzar al siguiente día a la primera hora de la plantilla

@@ -272,10 +272,10 @@ function procesarAltaGrupo_({
 
   // Forzar guardado de asignación antes de generar sesiones
   SpreadsheetApp.flush();
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_ASIGNACIONES_CICLO] = null;
 
-  // Generar sesiones automáticas
-  try { generarSesionesPacienteGrupo_(pacienteId, ciclo.CicloID); } 
-  catch (e) { console.error("Error generando sesiones de grupo: " + e.message); }
+  // Generar sesiones automáticas (sin try-catch para ver errores reales en desarrollo)
+  generarSesionesPacienteGrupo_(pacienteId, ciclo.CicloID);
   
   return {
     pacienteId,
@@ -409,10 +409,10 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
   const horaBase = config.HoraBase || '09:00';
   
-  // Usamos la función optimizada para obtener el calendario del ciclo
+  // ¡IMPORTANTE! Usamos los datos del CICLO ya guardado para no tener que buscar slots de nuevo
   const slots = generarSlotsCiclo_({ 
     fechaInicio: ciclo.FechaInicioCiclo,
-    horaInicio: horaBase,
+    horaInicio: ciclo.HoraInicio || horaBase,
     modalidad: paciente.ModalidadSolicitada
   });
 
