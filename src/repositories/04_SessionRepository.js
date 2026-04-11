@@ -31,4 +31,15 @@ class SessionRepository extends BaseRepository {
     });
     return map;
   }
+
+  /**
+   * Inserción masiva de sesiones para optimizar velocidad.
+   */
+  insertAll(sesiones) {
+    if (!sesiones || sesiones.length === 0) return;
+    const sheet = this.getSheet();
+    const headers = HEADERS[SHEET_SESIONES];
+    const values = sesiones.map(s => headers.map(h => s[h] === undefined ? '' : s[h]));
+    sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values);
+  }
 }

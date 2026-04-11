@@ -81,7 +81,10 @@ function generarSesionesFaltantes() {
           paciente.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO) &&
           cicloId
         ) {
-          const resultadoGrupo = generarSesionesPacienteGrupo_(paciente.PacienteID, cicloId);
+          // Llamamos a la lógica moderna de 03_pacientes.js
+          generarSesionesPacienteGrupo_(paciente.PacienteID, cicloId);
+          
+          const resultadoGrupo = { avisos: [] }; // Mock para compatibilidad con el resto del bucle
 
           if (resultadoGrupo && resultadoGrupo.avisos && resultadoGrupo.avisos.length) {
             avisos = avisos.concat(

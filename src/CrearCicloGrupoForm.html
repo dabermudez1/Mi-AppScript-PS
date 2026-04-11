@@ -88,14 +88,10 @@
     google.script.run
       .withSuccessHandler(function(res) {
         alert(res.mensaje);
-        // Refrescar el panel principal si existe la función
-        if (window.top && window.top.refrescarPanel) {
-          window.top.refrescarPanel();
-        }
-        google.script.host.close();
+        google.script.run.withSuccessHandler(() => google.script.host.close()).abrirHomeDashboard();
       })
       .withFailureHandler(function(err) {
-        alert('Error en la planificación: ' + err.message);
+        alert('Error: ' + err.message);
         btn.disabled = false;
         btn.textContent = 'Crear Ciclo';
         loader.style.display = 'none';
