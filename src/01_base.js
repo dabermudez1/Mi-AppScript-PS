@@ -249,7 +249,7 @@ function onOpen() {
     .addItem('Pantalla sesiones', 'abrirPantallaSesiones')
     .addItem('Crear ciclo de grupo', 'crearCicloGrupo')
     .addItem('Actualizar estados automáticos', 'actualizarEstadosAutomaticos')
-    .addItem('Refrescar dashboard', 'refrescarDashboard')
+    .addItem('Refrescar panel y datos', 'refrescarDashboard')
   );
 
   menu.addSubMenu(
@@ -955,8 +955,19 @@ class AgendaExceptionRepository {
  * STUB TEMPORAL
  * Se rehace más adelante
  ***************/
-function refrescarDashboard() { // Este es el entry point del menú
-  construirDashboardReal_(); // Llama a la función que escribe el dashboard en la hoja
+/**
+ * Punto de entrada unificado para refrescar todos los datos del sistema.
+ * Limpia cachés de memoria y persistencia, y actualiza la hoja Dashboard.
+ */
+function refrescarDashboard() {
+  // 1. Limpiar caché de la ejecución actual para forzar lectura de Sheets
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') {
+    Object.keys(__EXECUTION_CACHE__).forEach(key => __EXECUTION_CACHE__[key] = null);
+  }
+  // 2. Limpiar caché persistente del Dashboard HTML
+  eliminarCacheDashboard_();
+  // 3. Reconstruir la hoja Dashboard
+  construirDashboardReal_();
 }
 
 /***************

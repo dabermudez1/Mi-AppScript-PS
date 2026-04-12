@@ -332,7 +332,13 @@ function homeRefrescarDashboardHoja() { refrescarDashboard(); }
 function abrirHomeDashboardDesdePantalla() {  abrirHomeDashboard(); }
 function homeAbrirReprogramarSesion() { abrirReprogramarSesion(); }
 function homeAltaPaciente() { altaPaciente(); }
-function refrescarPanel() {  abrirHomeDashboard(); }
+/**
+ * Unificado: Limpia caché y reabre el dashboard para asegurar datos frescos.
+ */
+function refrescarPanel() {
+  refrescarDashboard();
+  abrirHomeDashboard();
+}
 function homeEstadisticasFichasPacientes() { estadisticasFichasPacientes(); }
 function homeRecalcularEstadosAutomaticamente() { recalcularEstadosAutomaticamenteConModal(); }
 function homeFichaClinicaPaciente() { fichaClinicaPaciente(); }
