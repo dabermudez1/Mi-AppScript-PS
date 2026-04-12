@@ -74,7 +74,8 @@ class SessionService {
     });
 
     if (sesiones.length > 0) {
-      this.sessionRepo.saveAll(sesiones);
+      // Cambiamos saveAll por insertAll para usar la persistencia masiva (batch)
+      this.sessionRepo.insertAll(sesiones);
     }
     return sesiones.length;
   }

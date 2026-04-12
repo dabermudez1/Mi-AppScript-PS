@@ -409,6 +409,8 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
   const horaBase = config.HoraBase || '09:00';
   
+  console.log(`Generando sesiones grupales para paciente ${pacienteId} en ciclo ${cicloId}`);
+  
   // ¡IMPORTANTE! Usamos los datos del CICLO ya guardado para no tener que buscar slots de nuevo
   const slots = generarSlotsCiclo_({ 
     fechaInicio: ciclo.FechaInicioCiclo,
@@ -418,7 +420,9 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
 
   if (slots.length > 0) {
     const fechas = slots.map(s => s.startDateTime);
+    console.log(`Slots encontrados: ${fechas.length}. Procediendo a crear sesiones.`);
     sessionService.createInitialSessions(paciente, fechas, cicloId);
+    SpreadsheetApp.flush(); // Forzar sincronización con la hoja
   }
 }
 
