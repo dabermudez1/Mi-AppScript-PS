@@ -22,6 +22,10 @@ class AvailabilityService {
     // Para ciclos, 60 días de búsqueda es más que suficiente y evita Timeouts
     let searchLimitDate = sumarDiasNaturales_(currentDateTime, 60); 
 
+    // Cargar configuración para validar restricciones de día de la semana (Grupo)
+    const config = (new ConfigRepository()).findByModalidad(modality);
+    const targetDay = (config && config.TipoModalidad === 'GRUPO') ? String(config.DiaSemana).trim().toUpperCase() : null;
+
     // OPTIMIZACIÓN: Solo cargamos todas las sesiones una vez por cada AvailabilityService
     if (!this._allSessions) {
       this._allSessions = this.sessionRepo.findAll();
@@ -55,6 +59,12 @@ class AvailabilityService {
     while (compararFechasHoras_(currentDateTime, searchLimitDate) <= 0) {
       const dayOfWeek = convertirDiaSemanaATexto_(currentDateTime);
       
+      // Si es un grupo con día fijo configurado, saltamos los días que no coincidan
+      if (targetDay && dayOfWeek !== targetDay) {
+        currentDateTime = sumarDiasNaturales_(currentDateTime, 1);
+        continue;
+      }
+
       // Solo procesamos si el día de la semana existe en la plantilla (vía rápida)
       if (weeklyTemplate.some(t => t.DiaSemana === dayOfWeek)) {
         const agendaForDay = this.agendaService.getAgendaForDay(currentDateTime);
