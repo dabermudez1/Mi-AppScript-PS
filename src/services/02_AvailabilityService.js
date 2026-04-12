@@ -26,6 +26,9 @@ class AvailabilityService {
     const config = (new ConfigRepository()).findByModalidad(modality);
     const targetDay = (config && config.TipoModalidad === 'GRUPO') ? String(config.DiaSemana).trim().toUpperCase() : null;
 
+    // Si estamos en una ejecución larga, forzamos limpieza de caché de sesiones antes de empezar un ciclo
+    if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_SESIONES] = null;
+
     // OPTIMIZACIÓN: Solo cargamos todas las sesiones una vez por cada AvailabilityService
     if (!this._allSessions) {
       this._allSessions = this.sessionRepo.findAll();

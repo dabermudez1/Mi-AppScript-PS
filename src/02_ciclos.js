@@ -74,26 +74,23 @@ function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   const frecuenciaSemanas = modalidad.includes('GRUPO') ? Math.max(1, Number(config.FrecuenciaDias || 1)) : Math.max(1, Math.round(Number(config.FrecuenciaDias || 7) / 7));
   
   const availabilityService = new AvailabilityService();
-  
-  
-  // 1. Buscamos ÚNICAMENTE el primer slot disponible para marcar el inicio real
-  const firstSlot = availabilityService.findNextAvailableSlot(normalizarFechaHora_(fechaInicio, "00:00"), modalidad, 90);
-  
-  if (!firstSlot) {
-    throw new Error(`No hay huecos de 90 min. para ${modalidad} en la agenda a partir del ${formatearFecha_(fechaInicio)}.`);
-  }
-  
-  const slots = [firstSlot];
-  let currentDateTime = firstSlot.startDateTime;
+  const slots = [];
+  let currentSearchStart = normalizarFechaHora_(fechaInicio, "00:00");
 
-  // 2. Proyectamos el resto de fechas matemáticamente para evitar Timeouts
-  for (let i = 1; i < sesiones; i++) {
-    currentDateTime = sumarSemanasManteniendoDia_(currentDateTime, frecuenciaSemanas);
-    slots.push({
-      startDateTime: new Date(currentDateTime.getTime()),
-      type: firstSlot.type,
-      durationMinutes: firstSlot.durationMinutes
-    });
+  for (let i = 0; i < sesiones; i++) {
+    // Buscamos el siguiente slot disponible para CADA sesión
+    const slot = availabilityService.findNextAvailableSlot(currentSearchStart, modalidad, 90);
+
+    if (!slot) {
+      throw new Error(`No se encontró disponibilidad para la sesión ${i + 1} de ${sesiones} del ciclo ${modalidad}. Revise la agenda o posibles solapamientos.`);
+    }
+
+    slots.push(slot);
+
+    // Para la siguiente sesión, calculamos la fecha mínima según la frecuencia
+    // y buscamos a partir de ahí (00:00 del día resultante)
+    let proximaFechaMinima = sumarSemanasManteniendoDia_(slot.startDateTime, frecuenciaSemanas);
+    currentSearchStart = normalizarFechaHora_(proximaFechaMinima, "00:00");
   }
   
   return slots;
