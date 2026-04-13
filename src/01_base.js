@@ -960,13 +960,24 @@ class AgendaExceptionRepository {
  * Limpia cachés de memoria y persistencia, y actualiza la hoja Dashboard.
  */
 function refrescarDashboard() {
-  // 1. Limpiar caché de la ejecución actual para forzar lectura de Sheets
+  // 1. Limpiar caché de memoria de la ejecución actual
   if (typeof __EXECUTION_CACHE__ !== 'undefined') {
     Object.keys(__EXECUTION_CACHE__).forEach(key => __EXECUTION_CACHE__[key] = null);
   }
-  // 2. Limpiar caché persistente del Dashboard HTML
+
+  // 2. Forzar recálculo de ocupación de ciclos (Mantenimiento profundo)
+  try {
+    if (typeof MaintenanceService === 'function') {
+      new MaintenanceService().recalculateCycleOccupancy();
+    }
+  } catch (e) {
+    console.warn("No se pudo completar el recálculo de ciclos: " + e.message);
+  }
+
+  // 3. Limpiar caché persistente (Dashboard HTML y lock de métricas)
   eliminarCacheDashboard_();
-  // 3. Reconstruir la hoja Dashboard
+
+  // 4. Reconstruir la hoja Dashboard (Esto internamente ejecuta StateService.runAutomaticTransitions)
   construirDashboardReal_();
 }
 

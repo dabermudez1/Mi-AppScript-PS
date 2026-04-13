@@ -179,6 +179,7 @@ function obtenerDatosHomeDashboard() {
 function eliminarCacheDashboard_() {
   const cache = CacheService.getScriptCache();
   cache.remove('dashboard_full_data_cache');
+  cache.remove('metricasBasicas_home_lastRun'); // Permite que el panel vuelva a ejecutar transiciones inmediatamente
 }
 
 function construirAlertasHome_(pacientes, ciclos, sesiones, hoy) {
