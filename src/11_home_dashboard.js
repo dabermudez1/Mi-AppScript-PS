@@ -7,7 +7,7 @@ function abrirHomeDashboard() {
   const html = HtmlService
     .createHtmlOutputFromFile('HomeDashboard')
     .setWidth(1280)
-    .setHeight(820);
+    .setHeight(970);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Panel de control');
 }
