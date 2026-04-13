@@ -324,7 +324,6 @@ function homeSincronizarGoogleCalendar() {
   sincronizarDiasBloqueadosAGoogleCalendar(calendar);
 }
 function homeActualizarEstadosAutomaticos() { actualizarEstadosAutomaticos(); }
-function homeRefrescarDashboardHoja() { refrescarDashboard(); }
 function abrirHomeDashboardDesdePantalla() {  abrirHomeDashboard(); }
 function homeAbrirReprogramarSesion() { abrirReprogramarSesion(); }
 function homeAltaPaciente() { altaPaciente(); }

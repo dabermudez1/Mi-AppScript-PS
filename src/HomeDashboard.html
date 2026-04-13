@@ -54,7 +54,7 @@
           </template>
         </div>
         
-        <button @click="load()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition flex items-center">
+        <button @click="refreshAll()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition flex items-center">
           <span class="mr-2">🔄</span>
           Refrescar Panel
         </button>
@@ -209,8 +209,6 @@
           <button @click="callAction('homeGestionarConfigModalidades')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🛠️ Config Modalidades</button>
           <button @click="callAction('homeGestionarCatalogos')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">📚 Catálogos</button>
           <button @click="callAction('homeGestionarDiasBloqueados')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🚫 Gestión Festivos y Ausencias</button>
-          <hr class="my-1 border-gray-100">
-          <button @click="callAction('homeRefrescarDashboardHoja')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-500 text-xs transition underline underline-offset-4">Refrescar datos dashboard</button>
         </div>
       </div>
     </div>
@@ -359,6 +357,19 @@
               this.loading = false;
             })
             .obtenerDatosHomeDashboard();
+        },
+        refreshAll() {
+          this.loading = true;
+          this.showToast("Realizando mantenimiento profundo y refrescando datos...");
+          google.script.run
+            .withSuccessHandler(() => {
+              this.load(); // Recarga los datos en la UI ahora que la caché ha sido invalidada
+            })
+            .withFailureHandler(err => {
+              this.showToast("Error al refrescar: " + err.message, true);
+              this.loading = false;
+            })
+            .refrescarDashboard();
         },
         showToast(msg, isError = false) {
           this.toast.message = msg;
