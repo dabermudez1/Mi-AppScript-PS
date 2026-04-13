@@ -297,11 +297,6 @@ function getBackgroundTaskStatus_() {
       running: props.getProperty('TASK_UPDATE_STATES_RUNNING') === 'true',
       progress: parseInt(props.getProperty('TASK_UPDATE_STATES_PROGRESS') || '0'),
       lastResult: props.getProperty('TASK_UPDATE_STATES_RESULT') || ''
-    },
-    generateSessions: {
-      running: props.getProperty('TASK_GENERATE_SESSIONS_RUNNING') === 'true',
-      progress: parseInt(props.getProperty('TASK_GENERATE_SESSIONS_PROGRESS') || '0'),
-      lastResult: props.getProperty('TASK_GENERATE_SESSIONS_RESULT') || ''
     }
   };
 }

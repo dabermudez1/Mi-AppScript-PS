@@ -90,13 +90,6 @@
   <textarea id="detallePaciente" readonly></textarea>
 </div>
 
-<div class="field">
-  <label for="tipoAccion">Acción</label>
-  <select id="tipoAccion" onchange="onTipoAccionChange()">
-    <option value="ASIGNAR">Asignar a grupo</option>
-    <option value="REASIGNAR">Cambiar de grupo</option>
-  </select>
-</div>
 
 <div class="field">
   <label for="ciclo">Grupo destino</label>
@@ -342,18 +335,6 @@
       });
   }
 
-  function onTipoAccionChange() {
-  const pacienteId = document.getElementById('paciente').value;
-  if (!pacienteId) return;
-
-  estadoActual.tipoAccion = document.getElementById('tipoAccion').value;
-
-  limpiarCiclos();
-  setGuardarEnabled(false);
-  setStatus('', '');
-
-  cargarCiclosPaciente(pacienteId);
-  }
 
   init();
 </script>

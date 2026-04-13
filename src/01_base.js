@@ -249,6 +249,7 @@ function onOpen() {
     .addItem('Pantalla sesiones', 'abrirPantallaSesiones')
     .addItem('Crear ciclo de grupo', 'crearCicloGrupo')
     .addItem('Actualizar estados automáticos', 'actualizarEstadosAutomaticos')
+    .addItem('Generar sesiones faltantes (Mantenimiento)', 'generarSesionesFaltantes')
     .addItem('Refrescar panel y datos', 'refrescarDashboard')
   );
 

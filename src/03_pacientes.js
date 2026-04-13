@@ -274,8 +274,9 @@ function procesarAltaGrupo_({
   SpreadsheetApp.flush();
   if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_ASIGNACIONES_CICLO] = null;
 
-  // Generar sesiones automáticas (sin try-catch para ver errores reales en desarrollo)
-  generarSesionesPacienteGrupo_(pacienteId, ciclo.CicloID);
+  // Generar sesiones automáticas
+  try { generarSesionesPacienteGrupo_(pacienteId, ciclo.CicloID); } 
+  catch (e) { console.error("Error generando sesiones de grupo: " + e.message); }
   
   return {
     pacienteId,
@@ -409,20 +410,15 @@ function generarSesionesPacienteGrupo_(pacienteId, cicloId) {
   const config = obtenerConfigModalidad_(paciente.ModalidadSolicitada);
   const horaBase = config.HoraBase || '09:00';
   
-  console.log(`Generando sesiones grupales para paciente ${pacienteId} en ciclo ${cicloId}`);
-  
-  // ¡IMPORTANTE! Usamos los datos del CICLO ya guardado para no tener que buscar slots de nuevo
   const slots = generarSlotsCiclo_({ 
     fechaInicio: ciclo.FechaInicioCiclo,
-    horaInicio: ciclo.HoraInicio || horaBase,
+    horaInicio: horaBase,
     modalidad: paciente.ModalidadSolicitada
   });
 
   if (slots.length > 0) {
     const fechas = slots.map(s => s.startDateTime);
-    console.log(`Slots encontrados: ${fechas.length}. Procediendo a crear sesiones.`);
     sessionService.createInitialSessions(paciente, fechas, cicloId);
-    SpreadsheetApp.flush(); // Forzar sincronización con la hoja
   }
 }
 
@@ -498,7 +494,6 @@ function crearPacienteEnSheet_(params) {
 
   repo.save(nuevoPaciente);
   SpreadsheetApp.flush(); // Forzar escritura inmediata
-  if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_PACIENTES] = null;
   eliminarCacheDashboard_(); // Limpiar caché de UI para que el nuevo paciente aparezca
   return pacienteId;
 }
@@ -662,8 +657,7 @@ function obtenerCiclosDisponiblesParaPacienteEnEspera_(paciente) {
       c.Modalidad === paciente.ModalidadSolicitada &&
       c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO &&
       (fechaInicio instanceof Date) &&
-      // CAMBIO: Permitir ciclos que empiecen el mismo día de la consulta
-      (normalizarFecha_(fechaInicio).getTime() >= normalizarFecha_(paciente.FechaPrimeraConsulta).getTime()) &&
+      (normalizarFecha_(fechaInicio).getTime() > normalizarFecha_(paciente.FechaPrimeraConsulta).getTime()) &&
       libresReales > 0
     );
   });
@@ -1524,14 +1518,18 @@ function obtenerDetallePacienteGestionEsperaCicloFormulario(pacienteId) {
   const detalle = obtenerDetallePacienteReasignacionFormulario(pacienteId);
 
   let tipoAccion = 'ASIGNAR';
+  let labelAccion = 'Asignación a nuevo ciclo (desde Espera)';
 
   if (detalle.cicloActivoId || detalle.cicloObjetivoId) {
     tipoAccion = 'REASIGNAR';
+    labelAccion = 'Cambio de grupo / Reasignación';
   }
 
   return {
     ...detalle,
     tipoAccion
+    tipoAccion,
+    labelAccion
   };
 }
 
