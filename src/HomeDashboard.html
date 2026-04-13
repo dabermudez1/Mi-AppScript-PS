@@ -99,7 +99,7 @@
         <h3 class="text-3xl font-bold mt-1" x-text="data.resumen.espera"></h3>
       </div>
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <p class="text-sm text-gray-400 font-medium">Ciclos en Curso</p>
+        <p class="text-sm text-gray-400 font-medium">Grupos en Curso</p>
         <h3 class="text-3xl font-bold mt-1 text-indigo-600" x-text="data.resumen.gruposEnCurso"></h3>
       </div>
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:bg-red-50 transition" @click="callAction('homeVerIncidenciasCalendario')">
@@ -187,10 +187,6 @@
         <div class="flex flex-col gap-2">
           <button @click="callAction('homeAbrirPantallaSesiones')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 text-sm transition">🔎 Pantalla Sesiones</button>
           <button @click="callAction('homeAbrirReprogramarSesion')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-orange-50 text-orange-700 text-sm transition">🗓️ Reprogramar Sesión</button>
-          <button @click="callAction('homeActualizarEstadosAutomaticos')" 
-                  :disabled="data.taskStatus?.updateStates?.running"
-                  :class="data.taskStatus?.updateStates?.running ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-50 text-blue-700'"
-                  class="w-full text-left px-3 py-2 rounded-lg font-bold text-sm transition">⚙️ Actualizar Estados</button>
           <hr class="my-1 border-gray-100">
                   <button @click="callAction('homeSincronizarGoogleCalendar')" 
                   :disabled="data.taskStatus?.syncCalendar?.running"
