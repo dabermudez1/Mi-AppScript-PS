@@ -42,7 +42,7 @@ function obtenerConfigModalidadesFormulario() {
       diaSemana: row[idx.DiaSemana] || '',
       frecuenciaDias: Number(row[idx.FrecuenciaDias] || 0),
       fechaBase: formatearFechaISOInput_(row[idx.FechaBase]),
-      horaBase: row[idx.HoraBase] || '', // Nuevo campo
+      horaBase: idx.HoraBase !== undefined ? (row[idx.HoraBase] || '') : '', 
       capacidadMaxima: Number(row[idx.CapacidadMaxima] || 0),
       sesionesPorCiclo: Number(row[idx.SesionesPorCiclo] || 0),
       notas: row[idx.Notas] || ''

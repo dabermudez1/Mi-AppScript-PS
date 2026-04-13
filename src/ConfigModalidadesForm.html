@@ -156,7 +156,15 @@
               En modalidades de grupo, la fecha base debe caer exactamente en el día de la modalidad.
             </div>
           </div>
-
+          
+          <div class="field">
+            <label for="horaBase">Hora base</label>
+            <input id="horaBase" type="time" />
+            <div class="hint">
+              Hora de inicio del primer slot para esta modalidad.
+            </div>
+          </div>
+          
           <div class="field">
             <label for="capacidadMaxima">Capacidad máxima</label>
             <input id="capacidadMaxima" type="number" min="0" />
@@ -260,6 +268,7 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
         document.getElementById('diaSemana').value = '';
         document.getElementById('frecuenciaDias').value = '';
         document.getElementById('fechaBase').value = '';
+        document.getElementById('horaBase').value = '';
         document.getElementById('capacidadMaxima').value = '';
         document.getElementById('sesionesPorCiclo').value = '';
         document.getElementById('notas').value = '';
@@ -285,6 +294,7 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
         document.getElementById('diaSemana').value = item.diaSemana || '';
         document.getElementById('frecuenciaDias').value = item.frecuenciaDias || '';
         document.getElementById('fechaBase').value = item.fechaBase || '';
+        document.getElementById('horaBase').value = item.horaBase || '';
         document.getElementById('capacidadMaxima').value = item.capacidadMaxima || 0;
         document.getElementById('sesionesPorCiclo').value = item.sesionesPorCiclo || 0;
         document.getElementById('notas').value = item.notas || '';
@@ -295,6 +305,7 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
       function aplicarRestriccionesTipo(tipoModalidad) {
         const diaSemana = document.getElementById('diaSemana');
         const fechaBase = document.getElementById('fechaBase');
+        const horaBase = document.getElementById('horaBase');
         const labelFrecuencia = document.getElementById('labelFrecuencia');
         const hintFrecuencia = document.getElementById('hintFrecuencia');
         const hintFechaBase = document.getElementById('hintFechaBase');
@@ -303,6 +314,7 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
 
         diaSemana.disabled = !esGrupo;
         fechaBase.disabled = !esGrupo;
+        horaBase.disabled = !esGrupo;
 
         if (esGrupo) {
           labelFrecuencia.textContent = 'Frecuencia (semanas)';
@@ -317,6 +329,7 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
         if (!esGrupo) {
           diaSemana.value = '';
           fechaBase.value = '';
+          horaBase.value = '';
         }
       }
 
@@ -331,6 +344,7 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
         const tipoModalidad = document.getElementById('tipoModalidad').value;
         const diaSemana = document.getElementById('diaSemana').value;
         const fechaBase = document.getElementById('fechaBase').value;
+        const horaBase = document.getElementById('horaBase').value;
         const frecuenciaDias = document.getElementById('frecuenciaDias').value;
 
         if (!frecuenciaDias || Number(frecuenciaDias) < 1) {
@@ -346,6 +360,11 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
 
           if (!fechaBase) {
             setStatus('Debes indicar una fecha base para una modalidad de grupo.', 'error');
+            return;
+          }
+
+          if (!horaBase) {
+            setStatus('Debes indicar la hora base para el grupo.', 'error');
             return;
           }
         }
@@ -366,6 +385,7 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
             diaSemana: document.getElementById('diaSemana').value,
             frecuenciaDias: document.getElementById('frecuenciaDias').value,
             fechaBase: document.getElementById('fechaBase').value,
+            horaBase: horaBase,
             capacidadMaxima: document.getElementById('capacidadMaxima').value,
             sesionesPorCiclo: document.getElementById('sesionesPorCiclo').value,
             notas: document.getElementById('notas').value
