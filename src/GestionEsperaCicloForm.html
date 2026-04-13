@@ -90,6 +90,10 @@
   <textarea id="detallePaciente" readonly></textarea>
 </div>
 
+<div class="field">
+  <label>Operación a realizar</label>
+  <div id="displayAccion" style="padding: 8px; background: #f0f0f0; border-radius: 4px; font-weight: bold; font-size: 13px; border: 1px solid #ccc;">-- Selecciona un paciente --</div>
+</div>
 
 <div class="field">
   <label for="ciclo">Grupo destino</label>
@@ -141,7 +145,9 @@
 
   function limpiarDetallePaciente() {
   document.getElementById('detallePaciente').value = '';
-  document.getElementById('tipoAccion').value = 'ASIGNAR';
+  const display = document.getElementById('displayAccion');
+  display.textContent = '-- Selecciona un paciente --';
+  display.style.background = '#f0f0f0';
   estadoActual.paciente = null;
   estadoActual.tipoAccion = null;
   }
@@ -233,7 +239,11 @@
           'Próxima sesión: ' + (detalle.proximaSesion || '') + '\n' +
           'Observaciones: ' + (detalle.observaciones || '');
 
-        document.getElementById('tipoAccion').value = detalle.tipoAccion || 'ASIGNAR';
+        const displayAccion = document.getElementById('displayAccion');
+        displayAccion.textContent = detalle.labelAccion;
+        displayAccion.style.background = (detalle.tipoAccion === 'REASIGNAR') ? '#fff3e0' : '#e8f5e9';
+        displayAccion.style.color = (detalle.tipoAccion === 'REASIGNAR') ? '#e65100' : '#1b5e20';
+        displayAccion.style.borderColor = (detalle.tipoAccion === 'REASIGNAR') ? '#ffe0b2' : '#c8e6c9';
 
         cargarCiclosPaciente(pacienteId);
       })
@@ -250,7 +260,7 @@
       const select = document.getElementById('ciclo');
       select.innerHTML = '';
 
-      const accion = document.getElementById('tipoAccion').value;
+      const accion = estadoActual.tipoAccion;
 
       const placeholder = document.createElement('option');
       placeholder.value = '';
@@ -285,7 +295,7 @@
     })
     .obtenerCiclosGestionEsperaCicloFormulario(
       pacienteId,
-      document.getElementById('tipoAccion').value
+      estadoActual.tipoAccion
     );
   }
 
@@ -331,7 +341,7 @@
       .confirmarGestionEsperaCicloFormulario({
         pacienteId: pacienteId,
         cicloId: cicloId,
-        tipoAccion: document.getElementById('tipoAccion').value
+        tipoAccion: estadoActual.tipoAccion
       });
   }
 

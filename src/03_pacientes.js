@@ -1527,7 +1527,6 @@ function obtenerDetallePacienteGestionEsperaCicloFormulario(pacienteId) {
 
   return {
     ...detalle,
-    tipoAccion
     tipoAccion,
     labelAccion
   };
