@@ -526,6 +526,7 @@ function cargarConfiguracionModalidadesBase_() {
         DIAS_SEMANA.MARTES,
         15,
         '',
+        '09:00', // HoraBase añadida
         5,
         7,
         'Grupo alterno 1. Requiere fecha base. Solo entrada al inicio de ciclo.'
@@ -537,6 +538,7 @@ function cargarConfiguracionModalidadesBase_() {
         DIAS_SEMANA.MARTES,
         15,
         '',
+        '09:00', // HoraBase añadida
         5,
         7,
         'Grupo alterno 2. Requiere fecha base. Solo entrada al inicio de ciclo.'
@@ -548,6 +550,7 @@ function cargarConfiguracionModalidadesBase_() {
         DIAS_SEMANA.JUEVES,
         7,
         '',
+        '17:00', // HoraBase añadida
         5,
         7,
         'Grupo semanal. Requiere fecha base. Solo entrada al inicio de ciclo.'

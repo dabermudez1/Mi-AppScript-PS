@@ -227,8 +227,13 @@
 }
 
 function cargarDatosConSeleccion(modalidadASeleccionar) {
+  setStatus('Cargando configuraciones...', '');
   google.script.run
     .withSuccessHandler(function(resultado) {
+      if (!resultado || !resultado.modalidades || resultado.modalidades.length === 0) {
+        setStatus('No se encontraron modalidades configuradas. Ejecuta "Inicializar sistema" en el menú.', 'error');
+        return;
+      }
       configData = resultado.modalidades || [];
       catalogos = resultado.catalogos || { diasSemana: [], tiposModalidad: [], modalidades: [] };
 
@@ -253,6 +258,7 @@ function cargarDatosConSeleccion(modalidadASeleccionar) {
         selectModalidad.value = modalidadASeleccionar;
         cargarDetalleModalidad();
       } else {
+        setStatus('', '');
         limpiarFormulario();
       }
     })

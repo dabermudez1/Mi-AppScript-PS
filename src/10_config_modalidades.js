@@ -7,7 +7,7 @@ function gestionarConfigModalidades() {
   const html = HtmlService
     .createHtmlOutputFromFile('ConfigModalidadesForm')
     .setWidth(860)
-    .setHeight(640);
+    .setHeight(840);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Configuración de modalidades');
 }
@@ -38,11 +38,11 @@ function obtenerConfigModalidadesFormulario() {
     modalidades.push({
       modalidad: modalidad,
       tipoModalidad: row[idx.TipoModalidad] || '',
-      activa: row[idx.Activa] === true,
+      activa: row[idx.Activa] === true || row[idx.Activa] === 'TRUE',
       diaSemana: row[idx.DiaSemana] || '',
       frecuenciaDias: Number(row[idx.FrecuenciaDias] || 0),
-      fechaBase: formatearFechaISOInput_(row[idx.FechaBase]),
-      horaBase: idx.HoraBase !== undefined ? (row[idx.HoraBase] || '') : '', 
+      fechaBase: idx.FechaBase !== undefined ? formatearFechaISOInput_(row[idx.FechaBase]) : '',
+      horaBase: (idx.HoraBase !== undefined && row[idx.HoraBase]) ? formatearHora_(row[idx.HoraBase]) : '', 
       capacidadMaxima: Number(row[idx.CapacidadMaxima] || 0),
       sesionesPorCiclo: Number(row[idx.SesionesPorCiclo] || 0),
       notas: row[idx.Notas] || ''
