@@ -240,12 +240,12 @@ const HEADERS = {
     'SituacionLaboralPrevia',
     'CambioSituacionLaboralAlta',
     'CambioFarmacologicoAlta',
-    'GAD7_Pre',
-    'PHQ9_Pre',
-    'WHOQOL_Pre',
-    'GAD7Post',
-    'PHQ9_Post',
-    'WHOQOL_Post',
+    'GAD7_PRE',
+    'PHQ9_PRE',
+    'WHOQOLBREF_PRE',
+    'GAD7_POST',
+    'PHQ9_POST',
+    'WHOQOLBREF_POST',
     'EscalaSatisfaccion',
     'OtrosComentarios'
   ]
