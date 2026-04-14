@@ -3,76 +3,23 @@
 <head>
   <base target="_top">
   <style>
-  body {
-    font-family: Arial, sans-serif;
-    padding: 16px;
-    color: #1f1f1f;
-  }
-
-  h2 {
-    margin-top: 0;
-    margin-bottom: 16px;
-    font-size: 20px;
-  }
-
-  .field {
-    margin-bottom: 14px;
-  }
-
-  label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 6px;
-  }
-
-  select, textarea, input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px;
-    font-size: 14px;
-  }
-
-  textarea {
-    resize: none;
-    height: 96px;
-    background: #fafafa;
-  }
-
-  .actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 18px;
-  }
-
-  button {
-    padding: 10px 14px;
-    font-size: 14px;
-    cursor: pointer;
-  }
-
-  .primary {
-    background: #d9ead3;
-    border: 1px solid #9bbb8f;
-  }
-
-  .secondary {
-    background: #f3f3f3;
-    border: 1px solid #cccccc;
-  }
-
-  .status {
-    margin-top: 12px;
-    font-size: 13px;
-    white-space: pre-line;
-  }
-
-  .error {
-    color: #b00020;
-  }
-
-  .success {
-    color: #1b5e20;
-  }
+    :root { --primary: #4f46e5; --primary-hover: #4338ca; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; color: #1f2937; background-color: #f9fafb; }
+    h2 { color: #111827; margin-top: 0; font-size: 1.25rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
+    .field { margin-bottom: 16px; }
+    label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.875rem; color: #374151; }
+    select, textarea, input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 0.875rem; background: white; }
+    textarea { resize: none; height: 90px; background: #fdfdfd; }
+    .actions { display: flex; gap: 10px; margin-top: 24px; }
+    button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.875rem; }
+    .primary { background-color: var(--primary); color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+    .primary:hover { background-color: var(--primary-hover); }
+    .primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; }
+    .secondary:hover { background-color: #f3f4f6; }
+    .status { margin-top: 12px; font-size: 0.875rem; min-height: 1.25rem; font-style: italic; text-align: center; }
+    .error { color: #dc2626; font-weight: bold; }
+    .success { color: #16a34a; font-weight: bold; }
   </style>
 </head>
 
@@ -92,7 +39,7 @@
 
 <div class="field">
   <label>Operación a realizar</label>
-  <div id="displayAccion" style="padding: 8px; background: #f0f0f0; border-radius: 4px; font-weight: bold; font-size: 13px; border: 1px solid #ccc;">-- Selecciona un paciente --</div>
+  <div id="displayAccion" style="padding: 10px; background: #f3f4f6; border-radius: 8px; font-weight: bold; font-size: 13px; border: 1px solid #d1d5db; color: #4b5563;">-- Selecciona un paciente --</div>
 </div>
 
 <div class="field">
@@ -107,8 +54,8 @@
 
 <div class="actions">
   <button id="btnGuardar" class="primary" onclick="guardar()" disabled>Guardar cambios</button>
-  <button class="secondary" onclick="volverPanel()">Volver al panel</button>
-  <button class="secondary" onclick="cerrar()">Cerrar</button>
+  <button id="btnVolver" class="secondary" onclick="volverPanel()">Volver al panel</button>
+  <button id="btnCerrar" class="secondary" onclick="cerrar()">Cerrar</button>
 </div>
 
 <div id="status" class="status"></div>
@@ -327,16 +274,28 @@
       return;
     }
 
-    setGuardarEnabled(false);
+    const btn = document.getElementById('btnGuardar');
+    const btnVolver = document.getElementById('btnVolver');
+    const btnCerrar = document.getElementById('btnCerrar');
+    
+    btn.disabled = true;
+    btn.innerText = 'Procesando...';
+    btnVolver.disabled = true;
+    btnCerrar.disabled = true;
     setStatus('', '');
+    setStatus('⏳ Guardando cambios en el sistema...', '');
 
     google.script.run
       .withSuccessHandler(function(res) {
+        btn.innerText = 'Guardar cambios';
         setStatus((res && res.mensaje) || 'Guardado correctamente.', 'success');
       })
       .withFailureHandler(function(err) {
+        btn.innerText = 'Guardar cambios';
         setStatus(err.message || String(err), 'error');
         setGuardarEnabled(true);
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
       })
       .confirmarGestionEsperaCicloFormulario({
         pacienteId: pacienteId,
