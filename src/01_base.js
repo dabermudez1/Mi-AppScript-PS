@@ -876,8 +876,14 @@ class AgendaTemplateRepository {
     this.sheetName = SHEET_AGENDA_PLANTILLA;
   }
 
-  findAll() {
+  getSheet() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
+    if (!sheet) throw new Error("No existe la hoja " + this.sheetName);
+    return sheet;
+  }
+
+  findAll() {
+    const sheet = this.getSheet();
     if (!sheet) return [];
     const data = sheet.getDataRange().getValues();
     if (data.length < 2) return [];
@@ -918,8 +924,14 @@ class AgendaExceptionRepository {
     this.sheetName = SHEET_AGENDA_EXCEPCIONES;
   }
 
-  findAll() {
+  getSheet() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(this.sheetName);
+    if (!sheet) throw new Error("No existe la hoja " + this.sheetName);
+    return sheet;
+  }
+
+  findAll() {
+    const sheet = this.getSheet();
     if (!sheet) return [];
     const data = sheet.getDataRange().getValues();
     if (data.length < 2) return [];
