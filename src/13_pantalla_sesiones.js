@@ -31,6 +31,7 @@ function obtenerDatosPantallaSesiones() {
       nombrePaciente: s.NombrePaciente,
       numeroSesion: Number(s.NumeroSesion || 0),
       fechaSesion: formatearFecha_(s.FechaSesion),
+      horaInicio: formatearHora_(s.HoraInicio),
       estadoSesion: s.EstadoSesion,
       fechaOriginal: formatearFecha_(s.FechaOriginal),
       modificadaManual: s.ModificadaManual === true,

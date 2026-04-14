@@ -347,7 +347,7 @@
     .guardarReprogramacion(data);
   }
 
-  function volverPanel() {
+  function volverAlPanel() {
     if (origenPantalla === 'SESIONES') {
       google.script.run
         .withSuccessHandler(function() {
@@ -357,6 +357,18 @@
           alert(error.message || String(error));
         })
         .abrirPantallaSesionesDesdePantalla();
+      return;
+    }
+
+    if (origenPantalla === 'INCIDENCIAS') {
+      google.script.run
+        .withSuccessHandler(function() {
+          google.script.host.close();
+        })
+        .withFailureHandler(function(error) {
+          alert(error.message || String(error));
+        })
+        .verIncidenciasCalendario();
       return;
     }
 
