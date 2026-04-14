@@ -211,6 +211,11 @@
   <select id="escalaSatisfaccion"></select>
 </div>
 
+<div class="field">
+  <label for="otrosComentarios">Otros comentarios (comodín)</label>
+  <textarea id="otrosComentarios" placeholder="Cualquier información adicional relevante..."></textarea>
+</div>
+
 <div class="actions">
   <button class="primary" onclick="guardar()">Guardar cambios</button>
   <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
@@ -361,6 +366,7 @@
         document.getElementById('phq9Post').value = ficha.phq9Post || '';
         document.getElementById('whoqolPost').value = ficha.whoqolPost || '';
         document.getElementById('escalaSatisfaccion').value = ficha.escalaSatisfaccion || '';
+        document.getElementById('otrosComentarios').value = ficha.otrosComentarios || '';
 
         if (catalogos && Object.keys(catalogos).length > 0) {
           document.getElementById('sexoGenero').value = ficha.sexoGenero || '';
@@ -443,7 +449,8 @@
         gad7Post: document.getElementById('gad7Post').value,
         phq9Post: document.getElementById('phq9Post').value,
         whoqolPost: document.getElementById('whoqolPost').value,
-        escalaSatisfaccion: document.getElementById('escalaSatisfaccion').value
+        escalaSatisfaccion: document.getElementById('escalaSatisfaccion').value,
+        otrosComentarios: document.getElementById('otrosComentarios').value
       });
   }
 

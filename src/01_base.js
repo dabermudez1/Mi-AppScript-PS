@@ -17,6 +17,7 @@ const SHEET_AGENDA_PLANTILLA = 'AGENDA_PLANTILLA';
 // El usuario ya ha añadido estas hojas y sus encabezados.
 // Necesitamos asegurarnos de que el sistema las reconozca.
 const SHEET_AGENDA_EXCEPCIONES = 'AGENDA_EXCEPCIONES';
+const SHEET_DATOS_CLINICOS_PACIENTES = 'DATOS_CLINICOS_PACIENTES';
 
 // Objeto global para caché de ejecución. Evita lecturas repetidas a Sheets en el mismo script.
 // Usamos 'var' para evitar el SyntaxError: Identifier has already been declared, 
@@ -213,6 +214,39 @@ const HEADERS = {
     'Fecha',
     'HoraInicio',
     'TipoSlot'
+  ],
+
+  [SHEET_DATOS_CLINICOS_PACIENTES]: [
+    'PacienteID',
+    'Nombre',
+    'NHC',
+    'FechaAltaPrograma',
+    'FechaPrimeraConsulta',
+    'FechaAltaEfectiva',
+    'EstadoPacienteActual',
+    'TipoIntervencionPrincipal',
+    'FinTratamientoTexto',
+    'NumeroSesionesTotal',
+    'TiempoEsperaHastaPrimeraConsultaDias',
+    'SexoGenero',
+    'Edad',
+    'NivelEstudios',
+    'MotivoConsultaDiagnostico',
+    'Comorbilidad',
+    'MotivoConsultaOtros',
+    'AntecedentesSM',
+    'Psicofarmacos',
+    'SituacionLaboralPrevia',
+    'CambioSituacionLaboralAlta',
+    'CambioFarmacologicoAlta',
+    'GAD7Pre',
+    'PHQ9Pre',
+    'WHOQOLPre',
+    'GAD7Post',
+    'PHQ9Post',
+    'WHOQOLPost',
+    'EscalaSatisfaccion',
+    'OtrosComentarios'
   ]
 };
 
@@ -329,7 +363,8 @@ function crearHojasSiNoExisten_() {
     SHEET_SESIONES,
     SHEET_DASHBOARD,
     SHEET_AGENDA_PLANTILLA, // Nueva hoja
-    SHEET_AGENDA_EXCEPCIONES // Nueva hoja
+    SHEET_AGENDA_EXCEPCIONES, // Nueva hoja
+    SHEET_DATOS_CLINICOS_PACIENTES
   ];
 
   const existentes = ss.getSheets().map(s => s.getName());
