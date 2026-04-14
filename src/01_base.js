@@ -225,6 +225,7 @@ const HEADERS = {
     'FechaAltaEfectiva',
     'EstadoPacienteActual',
     'TipoIntervencionPrincipal',
+    'FinTratamientoCodigo',
     'FinTratamientoTexto',
     'NumeroSesionesTotal',
     'TiempoEsperaHastaPrimeraConsultaDias',
@@ -1000,4 +1001,5 @@ function obtenerValoresCatalogo_(nombreCatalogo) {
   } catch (e) { /* Ignorar errores de caché */ }
 
   return valores;
+} return valores;
 }

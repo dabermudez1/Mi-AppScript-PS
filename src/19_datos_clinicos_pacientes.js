@@ -3,8 +3,6 @@
  * DATOS CLÍNICOS PACIENTES
  ***********************/
 
-const SHEET_DATOS_CLINICOS_PACIENTES = 'DATOS_CLINICOS_PACIENTES';
-
 function fichaClinicaPaciente() {
   const template = HtmlService.createTemplateFromFile('DatosClinicosPacienteForm');
   template.pacientePreseleccionadoId = '';
@@ -139,13 +137,14 @@ function obtenerFichaClinicaPacienteFormulario(pacienteId) {
       situacionLaboralPrevia: data[i][idx.SituacionLaboralPrevia] || '',
       cambioSituacionLaboralAlta: data[i][idx.CambioSituacionLaboralAlta] || '',
       cambioFarmacologicoAlta: data[i][idx.CambioFarmacologicoAlta] || '',
-      gad7Pre: data[i][idx.GAD7_PRE] || '',
-      phq9Pre: data[i][idx.PHQ9_PRE] || '',
-      whoqolPre: data[i][idx.WHOQOLBREF_PRE] || '',
-      gad7Post: data[i][idx.GAD7_POST] || '',
-      phq9Post: data[i][idx.PHQ9_POST] || '',
-      whoqolPost: data[i][idx.WHOQOLBREF_POST] || '',
-      escalaSatisfaccion: data[i][idx.EscalaSatisfaccion] || ''
+      gad7Pre: data[i][idx.GAD7Pre] || '',
+      phq9Pre: data[i][idx.PHQ9Pre] || '',
+      whoqolPre: data[i][idx.WHOQOLPre] || '',
+      gad7Post: data[i][idx.GAD7Post] || '',
+      phq9Post: data[i][idx.PHQ9Post] || '',
+      whoqolPost: data[i][idx.WHOQOLPost] || '',
+      escalaSatisfaccion: data[i][idx.EscalaSatisfaccion] || '',
+      otrosComentarios: data[i][idx.OtrosComentarios] || ''
     };
   }
 
@@ -189,13 +188,14 @@ function guardarFichaClinicaPacienteFormulario(formData) {
     sheet.getRange(i + 1, idx.CambioSituacionLaboralAlta + 1).setValue(formData.cambioSituacionLaboralAlta || '');
     sheet.getRange(i + 1, idx.CambioFarmacologicoAlta + 1).setValue(formData.cambioFarmacologicoAlta || '');
 
-    sheet.getRange(i + 1, idx.GAD7_PRE + 1).setValue(formData.gad7Pre || '');
-    sheet.getRange(i + 1, idx.PHQ9_PRE + 1).setValue(formData.phq9Pre || '');
-    sheet.getRange(i + 1, idx.WHOQOLBREF_PRE + 1).setValue(formData.whoqolPre || '');
-    sheet.getRange(i + 1, idx.GAD7_POST + 1).setValue(formData.gad7Post || '');
-    sheet.getRange(i + 1, idx.PHQ9_POST + 1).setValue(formData.phq9Post || '');
-    sheet.getRange(i + 1, idx.WHOQOLBREF_POST + 1).setValue(formData.whoqolPost || '');
+    sheet.getRange(i + 1, idx.GAD7Pre + 1).setValue(formData.gad7Pre || '');
+    sheet.getRange(i + 1, idx.PHQ9Pre + 1).setValue(formData.phq9Pre || '');
+    sheet.getRange(i + 1, idx.WHOQOLPre + 1).setValue(formData.whoqolPre || '');
+    sheet.getRange(i + 1, idx.GAD7Post + 1).setValue(formData.gad7Post || '');
+    sheet.getRange(i + 1, idx.PHQ9Post + 1).setValue(formData.phq9Post || '');
+    sheet.getRange(i + 1, idx.WHOQOLPost + 1).setValue(formData.whoqolPost || '');
     sheet.getRange(i + 1, idx.EscalaSatisfaccion + 1).setValue(formData.escalaSatisfaccion || '');
+    sheet.getRange(i + 1, idx.OtrosComentarios + 1).setValue(formData.otrosComentarios || '');
 
     sincronizarCamposAutomaticosFichaClinica_(formData.pacienteId);
 
@@ -213,38 +213,8 @@ function asegurarFilaFichaClinicaPaciente_(pacienteId) {
 
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_DATOS_CLINICOS_PACIENTES);
-    sheet.getRange(1, 1, 1, 30).setValues([[
-      'PacienteID',
-      'Nombre',
-      'NHC',
-      'FechaAltaPrograma',
-      'FechaPrimeraConsulta',
-      'FechaAltaEfectiva',
-      'EstadoPacienteActual',
-      'TipoIntervencionPrincipal',
-      'FinTratamientoCodigo',
-      'FinTratamientoTexto',
-      'NumeroSesionesTotal',
-      'TiempoEsperaHastaPrimeraConsultaDias',
-      'SexoGenero',
-      'Edad',
-      'NivelEstudios',
-      'MotivoConsultaDiagnostico',
-      'MotivoConsultaOtros',
-      'Comorbilidad',
-      'AntecedentesSM',
-      'Psicofarmacos',
-      'SituacionLaboralPrevia',
-      'CambioSituacionLaboralAlta',
-      'CambioFarmacologicoAlta',
-      'GAD7_PRE',
-      'PHQ9_PRE',
-      'WHOQOLBREF_PRE',
-      'GAD7_POST',
-      'PHQ9_POST',
-      'WHOQOLBREF_POST',
-      'EscalaSatisfaccion'
-    ]]);
+    const headers = HEADERS[SHEET_DATOS_CLINICOS_PACIENTES];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
 
   const data = sheet.getDataRange().getValues();
@@ -256,7 +226,7 @@ function asegurarFilaFichaClinicaPaciente_(pacienteId) {
     }
   }
 
-  sheet.appendRow([pacienteId, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+  sheet.appendRow(new Array(HEADERS[SHEET_DATOS_CLINICOS_PACIENTES].length).fill('').map((_, i) => i === 0 ? pacienteId : ''));
 }
 
 function sincronizarCamposAutomaticosFichaClinica_(pacienteId) {
