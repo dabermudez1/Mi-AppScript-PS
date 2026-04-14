@@ -455,7 +455,7 @@
             <td>${escapeHtml(s.modalidad || '')}</td>
             <td>${Number(s.numeroSesion || 0)}</td>
             <td>${escapeHtml(s.fechaSesion || '')}</td>
-            <td>${escapeHtml(s.horaInicio || '--:--')}</td>
+            <td>${escapeHtml(s.horaInicio || s.HoraInicio || '--:--')}</td>
             <td><span class="${estadoClass}">${escapeHtml(s.estadoSesion || '')}</span></td>
             <td>${escapeHtml(s.cicloId || '')}</td>
             <td>${s.modificadaManual ? 'Sí' : 'No'}</td>

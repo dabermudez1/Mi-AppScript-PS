@@ -193,6 +193,7 @@ function obtenerSesionesPendientesIndividualFormulario(pacienteId) {
   return sesiones.map(s => ({
     numeroSesion: s.NumeroSesion,
     fechaActual: formatearFecha_(s.FechaSesion),
+    horaActual: formatearHora_(s.HoraInicio),
     label: `Sesión ${s.NumeroSesion} | ${formatearFecha_(s.FechaSesion)}`
   })).sort((a, b) => a.numeroSesion - b.numeroSesion);
 }
@@ -210,6 +211,7 @@ function obtenerSesionesPendientesGrupoFormulario(cicloId) {
   return unicas.map(s => ({
     numeroSesion: s.NumeroSesion,
     fechaActual: formatearFecha_(s.FechaSesion),
+    horaActual: formatearHora_(s.HoraInicio),
     label: `Sesión ${s.NumeroSesion} | ${formatearFecha_(s.FechaSesion)}`
   })).sort((a, b) => a.numeroSesion - b.numeroSesion);
 }
@@ -273,6 +275,7 @@ function obtenerSesionParaReprogramacionFormulario(sesionId) {
     cicloId: sesion.CicloID,
     numeroSesion: Number(sesion.NumeroSesion || 0),
     fechaActual: formatearFecha_(sesion.FechaSesion),
+    horaActual: formatearHora_(sesion.HoraInicio),
     nombrePaciente: sesion.NombrePaciente || ''
   };
 }

@@ -167,7 +167,7 @@
         sesionesPendientesIndividual.forEach(function(s) {
           const option = document.createElement('option');
           option.value = s.numeroSesion;
-          option.textContent = s.label;
+          option.textContent = s.label + (s.horaActual ? ' (' + s.horaActual + ')' : '');
           select.appendChild(option);
         });
 
@@ -202,7 +202,7 @@
         sesionesPendientesGrupo.forEach(function(s) {
           const option = document.createElement('option');
           option.value = s.numeroSesion;
-          option.textContent = s.label;
+          option.textContent = s.label + (s.horaActual ? ' (' + s.horaActual + ')' : '');
           select.appendChild(option);
         });
 
@@ -219,7 +219,7 @@
     const fechaActual = document.getElementById('fechaActualInd');
 
     const sesion = sesionesPendientesIndividual.find(s => String(s.numeroSesion) === String(numeroSesion));
-    fechaActual.value = sesion ? sesion.fechaActual : '';
+    fechaActual.value = sesion ? (sesion.fechaActual + (sesion.horaActual ? ' ' + sesion.horaActual : '')) : '';
   }
 
   function mostrarFechaActualGrupo() {
@@ -227,7 +227,7 @@
     const fechaActual = document.getElementById('fechaActualGrp');
 
     const sesion = sesionesPendientesGrupo.find(s => String(s.numeroSesion) === String(numeroSesion));
-    fechaActual.value = sesion ? sesion.fechaActual : '';
+    fechaActual.value = sesion ? (sesion.fechaActual + (sesion.horaActual ? ' ' + sesion.horaActual : '')) : '';
   }
 
   function buscarSlotsDisponibles() {
@@ -419,6 +419,10 @@
         }
 
         document.getElementById('fecha').value = convertirFechaEsAInput(detalle.fechaActual);
+        
+        if (detalle.horaActual) {
+          document.getElementById('hora').value = detalle.horaActual;
+        }
       })
       .withFailureHandler(function(error) {
         alert(error.message || String(error));
