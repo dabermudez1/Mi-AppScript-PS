@@ -312,11 +312,16 @@
         lista.forEach(function(c) {
           const tr = document.createElement('tr');
           const estadoClass = 'pill ' + (c.estadoCiclo || '');
+          
+          // Indicador visual de bloqueo de inscripciones
+          const lockedBadge = (c.bloqueoInscripciones === true || c.bloqueoInscripciones === 'TRUE') 
+            ? '<br><span class="pill CANCELADO" style="margin-top:4px; font-size:10px; border: 1px solid #d99999;">🚫 CUPO CERRADO</span>' 
+            : '';
 
           tr.innerHTML = `
             <td><strong>${escapeHtml(c.modalidad || '')}</strong><br><span class="muted">${escapeHtml(c.cicloId || '')}</span></td>
             <td>${Number(c.numeroCiclo || 0)}</td>
-            <td><span class="${estadoClass}">${escapeHtml(c.estadoCiclo || '')}</span></td>
+            <td><span class="${estadoClass}">${escapeHtml(c.estadoCiclo || '')}</span>${lockedBadge}</td>
             <td>${escapeHtml(c.fechaInicioCiclo || '')}</td>
             <td>${escapeHtml(c.fechaFinCiclo || '')}</td>
             <td>${escapeHtml(c.diaSemana || '')}</td>

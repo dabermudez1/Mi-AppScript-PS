@@ -105,16 +105,25 @@
 
   function cargarDetalle() {
     const cicloId = document.getElementById('cicloSelect').value;
-    if (!cicloId) { document.getElementById('formEdicion').style.display = 'none'; return; }
+    const form = document.getElementById('formEdicion');
+    
+    // Ocultar formulario y limpiar estado previo inmediatamente
+    form.style.display = 'none';
+    setStatus('', '');
+    if (!cicloId) return;
+    
+    setStatus('Cargando detalles del grupo...', '');
     
     google.script.run
       .withSuccessHandler(function(d) {
+        setStatus('', ''); // Limpiar mensaje de carga
         document.getElementById('capacidadMaxima').value = d.capacidadMaxima;
         document.getElementById('bloqueoInscripciones').checked = d.bloqueoInscripciones;
         document.getElementById('notas').value = d.notas;
         document.getElementById('ocupadasInfo').textContent = 'Plazas actualmente ocupadas: ' + d.plazasOcupadas;
-        document.getElementById('formEdicion').style.display = 'block';
+        form.style.display = 'block';
       })
+      .withFailureHandler(err => setStatus(err.message, true))
       .obtenerDetalleCicloEdicion(cicloId);
   }
 
