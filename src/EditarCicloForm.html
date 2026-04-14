@@ -3,23 +3,25 @@
 <head>
   <base target="_top">
   <style>
-    body { font-family: 'Segoe UI', sans-serif; padding: 20px; color: #333; background-color: #f9f9f9; }
-    h3 { color: #3949ab; margin-top: 0; border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; }
-    .field { margin-bottom: 15px; }
-    label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 0.9em; }
-    select, input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
-    textarea { height: 80px; resize: vertical; }
-    .checkbox-field { display: flex; align-items: center; gap: 10px; background: #fff3e0; padding: 10px; border-radius: 4px; border: 1px solid #ffe0b2; margin-top: 5px; }
+    :root { --primary: #4f46e5; --primary-hover: #4338ca; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; color: #1f2937; background-color: #f9fafb; }
+    h3 { color: #111827; margin-top: 0; font-size: 1.25rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
+    .field { margin-bottom: 16px; }
+    label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.875rem; color: #374151; }
+    select, input, textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 0.875rem; background: white; }
+    textarea { height: 70px; resize: vertical; }
+    .checkbox-field { display: flex; align-items: center; gap: 10px; background: #fff7ed; padding: 12px; border-radius: 8px; border: 1px solid #ffedd5; margin-top: 5px; }
     .checkbox-field input { width: auto; cursor: pointer; }
-    .actions { display: flex; gap: 10px; margin-top: 20px; }
-    button { flex: 1; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
-    .btn-primary { background-color: #3949ab; color: white; }
-    .btn-primary:hover { background-color: #283593; }
-    .btn-secondary { background-color: #e0e0e0; color: #333; }
-    .btn-secondary:hover { background-color: #bdbdbd; }
-    #status { margin-top: 15px; font-size: 0.85em; min-height: 1.2em; text-align: center; }
-    .error { color: #d32f2f; font-weight: bold; }
-    small { color: #666; font-style: italic; }
+    .actions { display: flex; gap: 10px; margin-top: 24px; }
+    button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.875rem; }
+    .btn-primary { background-color: var(--primary); color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+    .btn-primary:hover { background-color: var(--primary-hover); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; }
+    .btn-secondary:hover { background-color: #f3f4f6; }
+    #status { margin-top: 12px; font-size: 0.875rem; min-height: 1.25rem; font-style: italic; text-align: center; color: #6b7280; }
+    .error { color: #dc2626; font-weight: bold; }
+    small { color: #6b7280; font-style: italic; font-size: 0.75rem; }
   </style>
 </head>
 <body>
@@ -51,8 +53,8 @@
   </div>
 
   <div class="actions">
-    <button type="button" class="btn-secondary" onclick="volverAlPanel()">Volver al panel</button>
-    <button type="button" class="btn-secondary" onclick="google.script.host.close()">Cerrar</button>
+    <button type="button" class="btn-secondary" id="btnVolver" onclick="volverAlPanel()">Volver al panel</button>
+    <button type="button" class="btn-secondary" id="btnCerrar" onclick="google.script.host.close()">Cerrar</button>
     <button type="button" class="btn-primary" id="btnGuardar" onclick="guardar()">Guardar Cambios</button>
   </div>
 </div>
@@ -134,13 +136,31 @@
       bloqueoInscripciones: document.getElementById('bloqueoInscripciones').checked,
       notas: document.getElementById('notas').value
     };
+
+    const btn = document.getElementById('btnGuardar');
+    const btnVolver = document.getElementById('btnVolver');
+    const btnCerrar = document.getElementById('btnCerrar');
+
+    btn.disabled = true;
+    btnVolver.disabled = true;
+    btnCerrar.disabled = true;
+    btn.innerText = 'Procesando...';
+    setStatus('⏳ Guardando cambios del grupo...', '');
+
     google.script.run
       .withSuccessHandler(res => { 
+        btn.innerText = 'Guardar Cambios';
         alert(res.mensaje); 
         // No cerramos el host, simplemente refrescamos el detalle para ver el estado guardado
         cargarDetalle();
       })
-      .withFailureHandler(err => setStatus(err.message, true))
+      .withFailureHandler(err => {
+        btn.innerText = 'Guardar Cambios';
+        btn.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
+        setStatus(err.message, true);
+      })
       .guardarEdicionCiclo(data);
   }
   init();
