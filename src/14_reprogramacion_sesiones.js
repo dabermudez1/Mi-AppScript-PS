@@ -152,7 +152,12 @@ function reprogramarSesionGrupo_(data) {
     } else {
       // Buscamos el siguiente hueco disponible respetando la frecuencia base
       const proximaMinima = sumarSemanasManteniendoDia_(currentBaseDate, frecuenciaSemanas);
-      const slot = availabilityService.findNextAvailableSlot(normalizarFechaHora_(proximaMinima, "00:00"), ciclo.Modalidad, 90);
+      const slot = availabilityService.findNextAvailableSlot(
+        normalizarFechaHora_(proximaMinima, "00:00"), 
+        ciclo.Modalidad, 
+        90, 
+        cicloId // Ignoramos colisiones con nuestras propias sesiones futuras
+      );
       
       if (!slot) {
         throw new Error(`Interrupción en cascada: No se encontró un hueco libre para la sesión número ${n} a partir del ${formatearFecha_(proximaMinima)}.`);
@@ -211,7 +216,7 @@ function reprogramarSesionGrupo_(data) {
  * Obtiene los slots libres para una fecha y modalidad específica.
  * Utilizado por el formulario de reprogramación para ofrecer opciones válidas.
  */
-function obtenerSlotsDisponiblesParaReprogramacion(fechaISO, modalidad) {
+function obtenerSlotsDisponiblesParaReprogramacion(fechaISO, modalidad, cicloId) {
   if (!fechaISO || !modalidad) return [];
   
   const availabilityService = new AvailabilityService();
@@ -225,7 +230,8 @@ function obtenerSlotsDisponiblesParaReprogramacion(fechaISO, modalidad) {
   const sessionsForDay = availabilityService.sessionRepo.findAll().filter(s => 
     s.FechaSesion instanceof Date && 
     obtenerClaveFecha_(s.FechaSesion) === dateKey &&
-    s.EstadoSesion !== ESTADOS_SESION.CANCELADA
+    s.EstadoSesion !== ESTADOS_SESION.CANCELADA &&
+    (!cicloId || String(s.CicloID) !== String(cicloId)) // Permitir reprogramar sobre sí mismo
   );
   
   const occupiedSlots = availabilityService._getOccupiedSlotsFromSessions(sessionsForDay);

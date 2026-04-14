@@ -242,6 +242,7 @@
   function buscarSlotsDisponibles() {
     const fecha = document.getElementById('fecha').value;
     const modalidad = document.getElementById('modalidad').value;
+    const cicloId = document.getElementById('ciclo').value;
     const selectHora = document.getElementById('hora');
     const status = document.getElementById('statusSlots');
 
@@ -270,7 +271,7 @@
         status.textContent = 'Error al buscar slots.';
         alert(err.message);
       })
-      .obtenerSlotsDisponiblesParaReprogramacion(fecha, modalidad);
+      .obtenerSlotsDisponiblesParaReprogramacion(fecha, modalidad, cicloId);
   }
 
   function guardar() {

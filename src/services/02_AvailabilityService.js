@@ -14,9 +14,10 @@ class AvailabilityService {
    * @param {Date} startSearchDateTime - Fecha y hora a partir de la cual empezar a buscar.
    * @param {string} modality - Modalidad del paciente (ej. INDIVIDUAL, GRUPO_1).
    * @param {number} requiredDurationMinutes - Duración requerida del slot en minutos (ej. 30, 90).
+   * @param {string} [ignoreCicloId] - ID del ciclo cuyas sesiones deben ignorarse (para reprogramación).
    * @returns {AgendaSlot|null} El primer slot disponible encontrado, o null si no hay.
    */
-  findNextAvailableSlot(startSearchDateTime, modality, requiredDurationMinutes) {
+  findNextAvailableSlot(startSearchDateTime, modality, requiredDurationMinutes, ignoreCicloId = null) {
     // Aseguramos que empezamos a buscar con la hora correcta
     let currentDateTime = new Date(startSearchDateTime.getTime());
     // Para ciclos, 60 días de búsqueda es más que suficiente y evita Timeouts
@@ -71,7 +72,11 @@ class AvailabilityService {
       // Solo procesamos si el día de la semana existe en la plantilla (vía rápida)
       if (weeklyTemplate.some(t => t.DiaSemana === dayOfWeek)) {
         const agendaForDay = this.agendaService.getAgendaForDay(currentDateTime);
-      const sessionsForDay = sessionsMap[obtenerClaveFecha_(currentDateTime)] || [];
+      
+      // Filtramos sesiones del día, ignorando las del ciclo actual si se solicita
+      const sessionsForDay = (sessionsMap[obtenerClaveFecha_(currentDateTime)] || []).filter(s => 
+        !ignoreCicloId || String(s.CicloID) !== String(ignoreCicloId)
+      );
 
       // Obtener slots ocupados por sesiones existentes
       const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
