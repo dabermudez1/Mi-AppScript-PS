@@ -202,6 +202,7 @@
             <th>Ocupadas</th>
             <th>Libres</th>
             <th>Notas</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody id="tbodyCiclos"></tbody>
@@ -324,10 +325,19 @@
             <td>${Number(c.plazasOcupadas || 0)}</td>
             <td>${Number(c.plazasLibres || 0)}</td>
             <td>${escapeHtml(c.notas || '')}</td>
+            <td><button class="secondary" onclick="editarCicloFila('${escapeHtml(c.cicloId || '')}')">Editar</button></td>
           `;
 
           tbody.appendChild(tr);
         });
+      }
+
+      function editarCicloFila(cicloId) {
+        google.script.run
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .abrirEditarCicloDesdePantalla(cicloId);
       }
 
       function escapeHtml(text) {

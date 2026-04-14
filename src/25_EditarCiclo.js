@@ -7,12 +7,29 @@
  * Abre el diálogo de edición de ciclo.
  */
 function editarCiclo() {
-  const html = HtmlService.createHtmlOutputFromFile('EditarCicloForm')
+  const template = HtmlService.createTemplateFromFile('EditarCicloForm');
+  template.cicloPreseleccionadoId = '';
+  template.origenPantalla = 'DASHBOARD';
+
+  const html = template.evaluate()
     .setWidth(500)
-    .setHeight(550);
+    .setHeight(580);
   SpreadsheetApp.getUi().showModalDialog(html, 'Editar grupo / Cerrar cupo');
 }
 
+/**
+ * Abre el diálogo de edición desde la pantalla de ciclos.
+ */
+function abrirEditarCicloDesdePantalla(cicloId) {
+  const template = HtmlService.createTemplateFromFile('EditarCicloForm');
+  template.cicloPreseleccionadoId = String(cicloId);
+  template.origenPantalla = 'CICLOS';
+
+  const html = template.evaluate()
+    .setWidth(500)
+    .setHeight(580);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Editar grupo / Cerrar cupo');
+}
 /**
  * Obtiene la lista de ciclos editables para el selector.
  */

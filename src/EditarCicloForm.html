@@ -51,7 +51,8 @@
   </div>
 
   <div class="actions">
-    <button type="button" class="btn-secondary" onclick="google.script.host.close()">Cancelar</button>
+    <button type="button" class="btn-secondary" onclick="volverAlPanel()">Volver al panel</button>
+    <button type="button" class="btn-secondary" onclick="google.script.host.close()">Cerrar</button>
     <button type="button" class="btn-primary" id="btnGuardar" onclick="guardar()">Guardar Cambios</button>
   </div>
 </div>
@@ -59,6 +60,9 @@
 <div id="status"></div>
 
 <script>
+  const cicloPreseleccionadoId = '<?= typeof cicloPreseleccionadoId !== "undefined" ? cicloPreseleccionadoId : "" ?>';
+  const origenPantalla = '<?= typeof origenPantalla !== "undefined" ? origenPantalla : "" ?>';
+
   function setStatus(msg, isError) {
     const el = document.getElementById('status');
     el.textContent = msg;
@@ -76,8 +80,27 @@
           opt.textContent = c.label;
           select.appendChild(opt);
         });
+
+        if (cicloPreseleccionadoId) {
+          select.value = cicloPreseleccionadoId;
+          select.disabled = true;
+          cargarDetalle();
+        }
       })
       .obtenerCiclosEdicionFormulario();
+  }
+
+  function volverAlPanel() {
+    if (origenPantalla === 'CICLOS') {
+      google.script.run
+        .withSuccessHandler(() => google.script.host.close())
+        .abrirPantallaCiclos();
+      return;
+    }
+    
+    google.script.run
+      .withSuccessHandler(() => google.script.host.close())
+      .abrirHomeDashboardDesdePantalla();
   }
 
   function cargarDetalle() {
