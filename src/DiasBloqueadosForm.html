@@ -4,73 +4,25 @@
   <base target="_top">
   <title>Gestión de Días Bloqueados</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 16px;
-      color: #1f1f1f;
-    }
-
-    h2 {
-      margin-top: 0;
-      margin-bottom: 16px;
-      font-size: 20px;
-    }
-
-    .field {
-      margin-bottom: 14px;
-    }
-
-    label {
-      display: block;
-      font-weight: bold;
-      margin-bottom: 6px;
-    }
-
-    input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 8px;
-      font-size: 14px;
-    }
-
-    .actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 18px;
-    }
-
-    button {
-      padding: 10px 14px;
-      font-size: 14px;
-      cursor: pointer;
-      border-radius: 2px;
-    }
-
-    button.primary {
-      background-color: #d9ead3 !important;
-      border: 1px solid #9bbb8f !important;
-      color: #1f1f1f !important;
-    }
-
-    button.secondary {
-      background-color: #f3f3f3 !important;
-      border: 1px solid #cccccc !important;
-      color: #1f1f1f !important;
-    }
-
-    .danger {
-      background: #f4cccc;
-      border: 1px solid #ea9999;
-    }
-
-    .status {
-      margin-top: 12px;
-      font-size: 13px;
-      white-space: pre-line;
-    }
-
-    .error { color: #b00020; }
-    .success { color: #1b5e20; }
+    :root { --primary: #4f46e5; --primary-hover: #4338ca; --danger: #dc2626; --danger-hover: #b91c1c; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; color: #1f2937; background-color: #f9fafb; }
+    h2 { color: #111827; margin-top: 0; font-size: 1.25rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
+    .field { margin-bottom: 16px; }
+    label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.875rem; color: #374151; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 0.875rem; background: white; }
+    input:focus { outline: 2px solid #818cf8; border-color: transparent; }
+    .actions { display: flex; gap: 10px; margin-top: 24px; }
+    button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.875rem; }
+    .primary { background-color: var(--primary); color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+    .primary:hover { background-color: var(--primary-hover); }
+    .primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; }
+    .secondary:hover { background-color: #f3f4f6; }
+    .danger { background-color: var(--danger); color: white; }
+    .danger:hover { background-color: var(--danger-hover); }
+    .status { margin-top: 12px; font-size: 0.875rem; min-height: 1.25rem; font-style: italic; text-align: center; color: #6b7280; }
+    .error { color: #dc2626; font-weight: bold; }
+    .success { color: #16a34a; font-weight: bold; }
 
     .table-wrapper {
       margin-top: 20px;
@@ -120,9 +72,9 @@
   </div>
 
   <div class="actions">
-    <button class="primary" onclick="guardarDiaBloqueado()">Bloquear rango</button>
-    <button class="secondary" onclick="google.script.run.volverAlPanelDesdeDiasBloqueados()">Volver al panel</button>
-    <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+    <button id="btnGuardar" class="primary" onclick="guardarDiaBloqueado()">Bloquear rango</button>
+    <button id="btnVolver" class="secondary" onclick="google.script.run.volverAlPanelDesdeDiasBloqueados()">Volver al panel</button>
+    <button id="btnCerrar" class="secondary" onclick="google.script.host.close()">Cerrar</button>
   </div>
 
   <div id="status" class="status"></div>
@@ -189,7 +141,16 @@
     }
 
     function guardarDiaBloqueado() {
-      setStatus('Guardando...', '');
+      const btn = document.getElementById('btnGuardar');
+      const btnVolver = document.getElementById('btnVolver');
+      const btnCerrar = document.getElementById('btnCerrar');
+      
+      btn.disabled = true;
+      btnVolver.disabled = true;
+      btnCerrar.disabled = true;
+      btn.innerText = 'Procesando...';
+      setStatus('⏳ Guardando bloqueos de agenda...', '');
+
       const formData = {
         fechaDesde: document.getElementById('fechaDesde').value,
         fechaHasta: document.getElementById('fechaHasta').value,
@@ -197,11 +158,17 @@
       };
       google.script.run
         .withSuccessHandler(function(resp) {
+           btn.innerText = 'Bloquear rango';
           setStatus(resp.mensaje, 'success');
           limpiarFormulario();
           cargarDiasBloqueados();
+          btn.disabled = false; btnVolver.disabled = false; btnCerrar.disabled = false;
         })
-        .withFailureHandler(e => setStatus('Error al guardar: ' + e.message, 'error'))
+        .withFailureHandler(e => {
+          btn.innerText = 'Bloquear rango';
+          setStatus('Error al guardar: ' + e.message, 'error')
+          btn.disabled = false; btnVolver.disabled = false; btnCerrar.disabled = false;
+        })
         .guardarDiaBloqueadoFormulario(formData);
     }
 

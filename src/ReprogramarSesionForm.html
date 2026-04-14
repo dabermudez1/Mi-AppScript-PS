@@ -3,11 +3,22 @@
 <head>
   <base target="_top">
   <style>
-    body { font-family: Arial; padding: 16px; }
-    .field { margin-bottom: 12px; }
-    label { font-weight: bold; display:block; margin-bottom:4px; }
-    input, select { width:100%; padding:6px; }
-    button { margin-top:10px; padding:8px; }
+    :root { --primary: #4f46e5; --primary-hover: #4338ca; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; color: #1f2937; background-color: #f9fafb; }
+    h3 { color: #111827; margin-top: 0; font-size: 1.25rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
+    .field { margin-bottom: 16px; }
+    label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.875rem; color: #374151; }
+    select, input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 0.875rem; background: white; }
+    input:focus, select:focus { outline: 2px solid #818cf8; border-color: transparent; }
+    input[readonly] { background-color: #f3f4f6; color: #6b7280; }
+    .actions { display: flex; gap: 10px; margin-top: 24px; }
+    button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.875rem; }
+    button:not(.secondary) { background-color: var(--primary); color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+    button:not(.secondary):hover { background-color: var(--primary-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; }
+    .secondary:hover { background-color: #f3f4f6; }
+    #statusGuardar { margin-top: 12px; font-size: 0.875rem; min-height: 1.25rem; font-style: italic; text-align: center; }
   </style>
 </head>
 <body>
@@ -77,10 +88,10 @@
   <small id="statusSlots" style="color: #666; font-style: italic;"></small>
 </div>
 
-<div style="display:flex; gap:10px; margin-top:12px;">
-  <button id="btnGuardar" onclick="guardar()">Guardar</button>
-  <button id="btnVolver" onclick="volverAlPanel()">Volver al panel</button>
-  <button id="btnCerrar" onclick="google.script.host.close()">Cerrar</button>
+<div class="actions">
+  <button id="btnGuardar" onclick="guardar()">Guardar Reprogramación</button>
+  <button id="btnVolver" class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+  <button id="btnCerrar" class="secondary" onclick="google.script.host.close()">Cerrar</button>
 </div>
 <div id="statusGuardar" style="margin-top: 8px; font-size: 13px; font-style: italic;"></div>
 
