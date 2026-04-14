@@ -3,20 +3,24 @@
   <head>
     <base target="_top">
     <style>
-      body { font-family: Arial, sans-serif; padding: 16px; color: #1f1f1f; }
-      h2 { margin-top: 0; margin-bottom: 16px; font-size: 20px; }
-      .field { margin-bottom: 14px; }
-      label { display: block; font-weight: bold; margin-bottom: 6px; }
-      select, textarea { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; }
-      textarea { resize: none; height: 140px; background: #fafafa; }
-      .warning { background: #fff3cd; border: 1px solid #e0c97f; padding: 10px; margin-bottom: 12px; font-size: 13px; }
-      .actions { display: flex; gap: 10px; margin-top: 18px; }
-      button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
-      .danger { background: #f4cccc; border: 1px solid #d99999; }
-      .secondary { background: #f3f3f3; border: 1px solid #cccccc; }
-      .status { margin-top: 12px; font-size: 13px; white-space: pre-line; }
-      .error { color: #b00020; }
-      .success { color: #1b5e20; }
+      :root { --primary: #4f46e5; --danger: #dc2626; --danger-hover: #b91c1c; }
+      body { font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; color: #1f2937; background-color: #f9fafb; }
+      h2 { color: #111827; margin-top: 0; font-size: 1.25rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
+      .field { margin-bottom: 16px; }
+      label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.875rem; color: #374151; }
+      select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 0.875rem; background: white; }
+      textarea { resize: none; height: 130px; background: #fdfdfd; }
+      .warning { background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 20px; font-size: 0.85em; border-radius: 0 8px 8px 0; color: #92400e; line-height: 1.5; }
+      .actions { display: flex; gap: 10px; margin-top: 24px; }
+      button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.875rem; }
+      .danger { background-color: var(--danger); color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+      .danger:hover { background-color: var(--danger-hover); }
+      .danger:disabled { opacity: 0.5; cursor: not-allowed; }
+      .secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; }
+      .secondary:hover { background-color: #f3f4f6; }
+      .status { margin-top: 12px; font-size: 0.875rem; min-height: 1.25rem; font-style: italic; text-align: center; color: #6b7280; }
+      .error { color: #dc2626; font-weight: bold; }
+      .success { color: #16a34a; font-weight: bold; }
     </style>
   </head>
   <body>
@@ -34,9 +38,9 @@
       <textarea id="impacto" readonly></textarea>
     </div>
     <div class="actions">
-      <button id="btnEliminar" class="danger" onclick="eliminarCiclo()" disabled>Eliminar ciclo definitivamente</button>
-      <button class="secondary" onclick="volverAlPanel()">Volver al panel</button>
-      <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+      <button id="btnEliminar" class="danger" onclick="eliminarCiclo()" disabled>Eliminar Ciclo</button>
+      <button id="btnVolver" class="secondary" onclick="volverAlPanel()">Volver al panel</button>
+      <button id="btnCerrar" class="secondary" onclick="google.script.host.close()">Cerrar</button>
     </div>
     <div id="status" class="status"></div>
 
@@ -103,18 +107,29 @@
         const id = document.getElementById('ciclo').value;
         if (!confirm('¿Estás SEGURO de eliminar este ciclo?\n\nEsta operación no se puede deshacer y afectará a los pacientes asignados.')) return;
         
-        setStatus('Eliminando ciclo y limpiando datos...', '');
-        document.getElementById('btnEliminar').disabled = true;
+        const btn = document.getElementById('btnEliminar');
+        const btnVolver = document.getElementById('btnVolver');
+        const btnCerrar = document.getElementById('btnCerrar');
+
+        btn.disabled = true;
+        btnVolver.disabled = true;
+        btnCerrar.disabled = true;
+        btn.innerText = 'Procesando...';
+        setStatus('⏳ Eliminando ciclo y limpiando datos...', '');
 
         google.script.run
           .withSuccessHandler(function(res) {
+            btn.innerText = 'Eliminar Ciclo';
             setStatus(res.mensaje, 'success');
             cargarCiclos();
             document.getElementById('impacto').value = '';
           })
           .withFailureHandler(function(err) {
+            btn.innerText = 'Eliminar Ciclo';
+            btn.disabled = false;
+            btnVolver.disabled = false;
+            btnCerrar.disabled = false;
             setStatus(err.message, 'error');
-            document.getElementById('btnEliminar').disabled = false;
           })
           .confirmarEliminacionCicloFormulario({ cicloId: id });
       }
