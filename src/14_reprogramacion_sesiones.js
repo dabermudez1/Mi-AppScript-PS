@@ -91,12 +91,15 @@ function reprogramarSesionIndividual_(data) {
 function reprogramarSesionGrupo_(data) {
   const sessionRepo = new SessionRepository();
   const patientRepo = new PatientRepository();
+  const cicloRepo = new CicloRepository();
+  const availabilityService = new AvailabilityService();
   const stateService = new StateService();
 
   const cicloId = data.cicloId;
   const numeroSesion = Number(data.numeroSesion);
   const nuevaFecha = parseFechaES_(data.fecha);
   const nuevaHora = data.hora;
+  const enCascada = data.cascada === true;
 
   if (!nuevaFecha) {
     throw new Error('La nueva fecha no es válida. Usa formato dd/mm/yyyy.');
@@ -116,27 +119,73 @@ function reprogramarSesionGrupo_(data) {
     );
   }
 
-  let cambios = 0;
-  const sesiones = sessionRepo.findByCicloId(cicloId).filter(s => 
-    Number(s.NumeroSesion) === numeroSesion && 
-    (s.EstadoSesion === ESTADOS_SESION.PENDIENTE || s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA)
-  );
+  const ciclo = cicloRepo.findOneBy('CicloID', cicloId);
+  if (!ciclo) throw new Error('Ciclo no encontrado.');
 
-  sesiones.forEach(sesion => {
-    if (!sesion.FechaOriginal) {
-      sesion.FechaOriginal = sesion.FechaSesion;
+  const config = obtenerConfigModalidad_(ciclo.Modalidad);
+  // La frecuencia de grupo viene en semanas (1 o 2)
+  const frecuenciaSemanas = Math.max(1, Number(config.FrecuenciaDias || 1));
+  const todasLasSesionesDelCiclo = sessionRepo.findByCicloId(cicloId);
+  
+  let sesionesAfectadasPrincipal = 0;
+  let numeroSesionesMovidasCascada = 0;
+  let manualesSobreescritas = 0;
+  let currentBaseDate = nuevaFecha;
+
+  const maxNumSesion = Math.max(...todasLasSesionesDelCiclo.map(s => Number(s.NumeroSesion)));
+  const ultimoNumeroAProcesar = enCascada ? maxNumSesion : numeroSesion;
+
+  for (let n = numeroSesion; n <= ultimoNumeroAProcesar; n++) {
+    const sesionesDelNumero = todasLasSesionesDelCiclo.filter(s => 
+      Number(s.NumeroSesion) === n && 
+      (s.EstadoSesion === ESTADOS_SESION.PENDIENTE || s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA)
+    );
+
+    if (sesionesDelNumero.length === 0) continue;
+
+    let targetDate;
+    let targetHora;
+
+    if (n === numeroSesion) {
+      targetDate = nuevaFecha;
+      targetHora = nuevaHora;
+    } else {
+      // Buscamos el siguiente hueco disponible respetando la frecuencia base
+      const proximaMinima = sumarSemanasManteniendoDia_(currentBaseDate, frecuenciaSemanas);
+      const slot = availabilityService.findNextAvailableSlot(normalizarFechaHora_(proximaMinima, "00:00"), ciclo.Modalidad, 90);
+      
+      if (!slot) {
+        throw new Error(`Interrupción en cascada: No se encontró un hueco libre para la sesión número ${n} a partir del ${formatearFecha_(proximaMinima)}.`);
+      }
+      targetDate = slot.startDateTime;
+      targetHora = formatearHora_(slot.startDateTime);
+      numeroSesionesMovidasCascada++;
     }
-    sesion.FechaSesion = nuevaFecha;
-    if (nuevaHora) sesion.HoraInicio = nuevaHora;
-    sesion.ModificadaManual = true;
-    sessionRepo.save(sesion);
-    
-    // Actualizar métricas del paciente afectado
-    const paciente = patientRepo.findById(sesion.PacienteID);
-    if (paciente) stateService.refreshPatientMetrics(paciente);
-    
-    cambios++;
-  });
+
+    sesionesDelNumero.forEach(sesion => {
+      if (sesion.ModificadaManual && n !== numeroSesion) manualesSobreescritas++;
+      if (!sesion.FechaOriginal) sesion.FechaOriginal = sesion.FechaSesion;
+      
+      sesion.FechaSesion = normalizarFecha_(targetDate);
+      sesion.HoraInicio = targetHora;
+      sesion.ModificadaManual = true;
+      sessionRepo.save(sesion);
+      
+      const paciente = patientRepo.findById(sesion.PacienteID);
+      if (paciente) stateService.refreshPatientMetrics(paciente);
+      
+      if (n === numeroSesion) sesionesAfectadasPrincipal++;
+    });
+
+    currentBaseDate = targetDate;
+  }
+
+  // Recalcular y actualizar la Fecha Fin del Ciclo
+  const sesionesActualizadas = sessionRepo.findByCicloId(cicloId).sort((a, b) => Number(b.NumeroSesion) - Number(a.NumeroSesion));
+  if (sesionesActualizadas.length > 0) {
+    ciclo.FechaFinCiclo = normalizarFecha_(sesionesActualizadas[0].FechaSesion);
+    cicloRepo.save(ciclo);
+  }
 
   // Refrescar caché del dashboard para actualizar incidencias y métricas en el panel
   try {
@@ -145,8 +194,16 @@ function reprogramarSesionGrupo_(data) {
     eliminarCacheDashboard_();
   }
 
+  let msgResult = `Reprogramación completada.\nPacientes en sesión actual: ${sesionesAfectadasPrincipal}`;
+  if (enCascada) {
+    msgResult += `\nSesiones sucesivas desplazadas: ${numeroSesionesMovidasCascada}`;
+    if (manualesSobreescritas > 0) {
+      msgResult += `\n⚠️ Se han sobrescrito ${manualesSobreescritas} cambios manuales previos en sesiones sucesivas.`;
+    }
+  }
+
   return {
-    mensaje: 'Sesión grupal reprogramada.\nSesiones afectadas: ' + cambios
+    mensaje: msgResult
   };
 }
 

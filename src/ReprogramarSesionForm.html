@@ -57,6 +57,13 @@
 
 </div>
 
+<div id="checkCascada" class="field" style="display:none; margin-top: 10px;">
+  <label style="display:flex; align-items:center; gap:8px; font-weight:normal; background:#f0f4ff; padding:8px; border-radius:4px; border:1px solid #d1d9ff; cursor:pointer;">
+    <input type="checkbox" id="cascada" style="width:auto; margin:0;"> 
+    Reprogramar sesiones sucesivas en cascada
+  </label>
+</div>
+
 <div class="field">
   <label>Nueva fecha</label>
   <input type="date" id="fecha" onchange="buscarSlotsDisponibles()">
@@ -136,10 +143,12 @@
     if (mod === 'INDIVIDUAL') {
       document.getElementById('bloqueIndividual').style.display = 'block';
       document.getElementById('bloqueGrupo').style.display = 'none';
+      document.getElementById('checkCascada').style.display = 'none';
       cargarSesionesPendientesIndividual();
     } else {
       document.getElementById('bloqueIndividual').style.display = 'none';
       document.getElementById('bloqueGrupo').style.display = 'block';
+      document.getElementById('checkCascada').style.display = 'block';
       cargarSesionesPendientesGrupo();
     }
   }
@@ -301,7 +310,8 @@
       cicloId: document.getElementById('ciclo').value,
       numeroSesion: numeroSesion,
       fecha: fecha.split('-').reverse().join('/'),
-      hora: hora
+      hora: hora,
+      cascada: document.getElementById('cascada').checked
     };
 
     google.script.run
