@@ -169,7 +169,8 @@ const HEADERS = {
     'PlazasOcupadas',
     'PlazasLibres',
     'GeneradoManual',
-    'Notas'
+    'Notas',
+    'BloqueoInscripciones'
   ],
 
   [SHEET_ASIGNACIONES_CICLO]: [

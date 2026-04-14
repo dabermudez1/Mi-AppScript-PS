@@ -309,6 +309,7 @@ function homeEditarPaciente() { editarPaciente(); }
 function homeEliminarPacientePorError() { eliminarPacientePorError(); }
 function homeEliminarCicloPorError() { eliminarCicloPorError(); }
 function homeCrearCicloGrupo() { crearCicloGrupo(); }
+function homeEditarCiclo() { editarCiclo(); } // Nueva función
 function homeGestionEsperaYCicloPaciente() { gestionarEsperaYCicloPaciente(); }
 function homeAbrirPantallaPacientes() { abrirPantallaPacientes(); }
 function homeAbrirPantallaCiclos() { abrirPantallaCiclos(); }

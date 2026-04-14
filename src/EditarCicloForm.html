@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; color: #333; background-color: #f9f9f9; }
+    h3 { color: #3949ab; margin-top: 0; border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; }
+    .field { margin-bottom: 15px; }
+    label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 0.9em; }
+    select, input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
+    textarea { height: 80px; resize: vertical; }
+    .checkbox-field { display: flex; align-items: center; gap: 10px; background: #fff3e0; padding: 10px; border-radius: 4px; border: 1px solid #ffe0b2; margin-top: 5px; }
+    .checkbox-field input { width: auto; cursor: pointer; }
+    .actions { display: flex; gap: 10px; margin-top: 20px; }
+    button { flex: 1; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+    .btn-primary { background-color: #3949ab; color: white; }
+    .btn-primary:hover { background-color: #283593; }
+    .btn-secondary { background-color: #e0e0e0; color: #333; }
+    .btn-secondary:hover { background-color: #bdbdbd; }
+    #status { margin-top: 15px; font-size: 0.85em; min-height: 1.2em; text-align: center; }
+    .error { color: #d32f2f; font-weight: bold; }
+    small { color: #666; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<h3>Editar Grupo / Cerrar Cupo</h3>
+
+<div class="field">
+  <label for="cicloSelect">Seleccionar Grupo Activo</label>
+  <select id="cicloSelect" onchange="cargarDetalle()">
+    <option value="">-- Cargando grupos... --</option>
+  </select>
+</div>
+
+<div id="formEdicion" style="display:none;">
+  <div class="field">
+    <label for="capacidadMaxima">Capacidad Máxima</label>
+    <input type="number" id="capacidadMaxima" min="1">
+    <small id="ocupadasInfo"></small>
+  </div>
+
+  <div class="field checkbox-field">
+    <input type="checkbox" id="bloqueoInscripciones">
+    <label for="bloqueoInscripciones" style="margin-bottom:0; cursor:pointer;">Bloquear nuevas inscripciones</label>
+  </div>
+
+  <div class="field">
+    <label for="notas">Notas / Observaciones del Grupo</label>
+    <textarea id="notas" placeholder="Ej: Grupo cerrado por decisión clínica..."></textarea>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn-secondary" onclick="google.script.host.close()">Cancelar</button>
+    <button type="button" class="btn-primary" id="btnGuardar" onclick="guardar()">Guardar Cambios</button>
+  </div>
+</div>
+
+<div id="status"></div>
+
+<script>
+  function setStatus(msg, isError) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = isError ? 'error' : '';
+  }
+
+  function init() {
+    google.script.run
+      .withSuccessHandler(function(ciclos) {
+        const select = document.getElementById('cicloSelect');
+        select.innerHTML = ciclos.length > 0 ? '<option value="">-- Selecciona un grupo --</option>' : '<option value="">No hay grupos editables</option>';
+        ciclos.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.cicloId;
+          opt.textContent = c.label;
+          select.appendChild(opt);
+        });
+      })
+      .obtenerCiclosEdicionFormulario();
+  }
+
+  function cargarDetalle() {
+    const cicloId = document.getElementById('cicloSelect').value;
+    if (!cicloId) { document.getElementById('formEdicion').style.display = 'none'; return; }
+    
+    google.script.run
+      .withSuccessHandler(function(d) {
+        document.getElementById('capacidadMaxima').value = d.capacidadMaxima;
+        document.getElementById('bloqueoInscripciones').checked = d.bloqueoInscripciones;
+        document.getElementById('notas').value = d.notas;
+        document.getElementById('ocupadasInfo').textContent = 'Plazas actualmente ocupadas: ' + d.plazasOcupadas;
+        document.getElementById('formEdicion').style.display = 'block';
+      })
+      .obtenerDetalleCicloEdicion(cicloId);
+  }
+
+  function guardar() {
+    const data = {
+      cicloId: document.getElementById('cicloSelect').value,
+      capacidadMaxima: document.getElementById('capacidadMaxima').value,
+      bloqueoInscripciones: document.getElementById('bloqueoInscripciones').checked,
+      notas: document.getElementById('notas').value
+    };
+    google.script.run
+      .withSuccessHandler(res => { alert(res.mensaje); google.script.host.close(); })
+      .withFailureHandler(err => setStatus(err.message, true))
+      .guardarEdicionCiclo(data);
+  }
+  init();
+</script>
+</body>
+</html>
