@@ -78,10 +78,11 @@
 </div>
 
 <div style="display:flex; gap:10px; margin-top:12px;">
-  <button onclick="guardar()">Guardar</button>
-  <button onclick="volverAlPanel()">Volver al panel</button>
-  <button onclick="google.script.host.close()">Cerrar</button>
+  <button id="btnGuardar" onclick="guardar()">Guardar</button>
+  <button id="btnVolver" onclick="volverAlPanel()">Volver al panel</button>
+  <button id="btnCerrar" onclick="google.script.host.close()">Cerrar</button>
 </div>
+<div id="statusGuardar" style="margin-top: 8px; font-size: 13px; font-style: italic;"></div>
 
 <script>
   let sesionesPendientesIndividual = [];
@@ -314,9 +315,20 @@
       hora: hora,
       cascada: document.getElementById('cascada').checked
     };
+    
+    const btnGuardar = document.getElementById('btnGuardar');
+    const statusGuardar = document.getElementById('statusGuardar');
+    
+    // Bloquear UI
+    btnGuardar.disabled = true;
+    btnGuardar.innerText = 'Procesando...';
+    statusGuardar.innerText = '⏳ Guardando cambios en el sistema...';
+    statusGuardar.style.color = '#666';
 
     google.script.run
     .withSuccessHandler(function(res) {
+      statusGuardar.innerText = '✅ ¡Guardado con éxito!';
+      statusGuardar.style.color = 'green';
       alert(res.mensaje);
 
       if (origenPantalla === 'SESIONES') {
@@ -353,7 +365,12 @@
         .abrirHomeDashboardDesdePantalla();
     })
     .withFailureHandler(function(err) {
-    alert(err.message || String(err));
+      // Restaurar UI en caso de error
+      btnGuardar.disabled = false;
+      btnGuardar.innerText = 'Guardar';
+      statusGuardar.innerText = '❌ Error al guardar.';
+      statusGuardar.style.color = 'red';
+      alert(err.message || String(err));
     })
     .guardarReprogramacion(data);
   }
