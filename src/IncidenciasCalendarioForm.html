@@ -3,51 +3,46 @@
 <head>
   <base target="_top">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 16px;
-      color: #1f1f1f;
-      background: #f7f7f7;
-    }
-
-    h2 {
-      margin-top: 0;
-      margin-bottom: 14px;
-      font-size: 22px;
-    }
+    :root { --primary: #4f46e5; --primary-hover: #4338ca; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; color: #1f2937; background-color: #f9fafb; }
+    h2 { color: #111827; margin-top: 0; font-size: 1.25rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
 
     .table-wrap {
       background: #fff;
-      border: 1px solid #d0d0d0;
-      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
       overflow: auto;
       max-height: 560px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 0.8125rem;
     }
 
     thead th {
       position: sticky;
       top: 0;
-      background: #ececec;
-      border-bottom: 1px solid #d0d0d0;
-      padding: 10px 8px;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 12px 8px;
       text-align: left;
       z-index: 1;
+      color: #374151;
+      font-weight: 600;
     }
 
     tbody td {
-      border-top: 1px solid #eeeeee;
-      padding: 8px;
+      border-top: 1px solid #f3f4f6;
+      padding: 10px 8px;
       vertical-align: top;
+      color: #4b5563;
     }
 
     tbody tr:hover {
-      background: #fafafa;
+      background: #f9fafb;
     }
 
     .row-actions {
@@ -57,30 +52,54 @@
     }
 
     button {
-      padding: 8px 12px;
-      font-size: 13px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
       cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+    }
+
+    .btn-repro {
+      background-color: white;
+      color: var(--primary);
+      border: 1px solid #d1d5db;
+    }
+    
+    .btn-repro:hover {
+      background-color: #f3f4f6;
+      border-color: var(--primary);
     }
 
     .secondary {
-      background: #f3f3f3;
-      border: 1px solid #cccccc;
+      background-color: white;
+      color: #374151;
+      border: 1px solid #d1d5db;
+    }
+
+    .secondary:hover {
+      background-color: #f3f4f6;
     }
 
     .actions {
-      margin-top: 14px;
+      margin-top: 24px;
       display: flex;
       gap: 10px;
+      align-items: center;
     }
 
     .empty {
-      padding: 20px;
-      color: #666;
+      padding: 24px;
+      color: #6b7280;
       font-style: italic;
       background: #fff;
-      border: 1px solid #d0d0d0;
-      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      text-align: center;
     }
+
+    .status { margin-left: 12px; font-size: 0.875rem; min-height: 1.25rem; font-style: italic; color: #6b7280; }
   </style>
 </head>
 <body>
@@ -107,30 +126,39 @@
   <div id="emptyState" class="empty" style="display:none;">No hay incidencias de calendario.</div>
 
   <div class="actions">
-    <button class="secondary" onclick="volverPanel()">Volver al panel</button>
-    <button class="secondary" onclick="google.script.host.close()">Cerrar</button>
+    <button id="btnVolver" class="secondary" onclick="volverPanel()">Volver al panel</button>
+    <button id="btnCerrar" class="secondary" onclick="google.script.host.close()">Cerrar</button>
+    <div id="status" class="status"></div>
   </div>
 
   <script>
+    function setStatus(msg) {
+      document.getElementById('status').textContent = msg || '';
+    }
+
     function cargarDatos() {
+      setStatus('⏳ Cargando incidencias...');
       google.script.run
         .withSuccessHandler(function(lista) {
+          setStatus('');
           const tbody = document.getElementById('tbodyIncidencias');
           const empty = document.getElementById('emptyState');
           tbody.innerHTML = '';
 
           if (!lista || lista.length === 0) {
             empty.style.display = 'block';
+            document.querySelector('.table-wrap').style.display = 'none';
             return;
           }
 
           empty.style.display = 'none';
+          document.querySelector('.table-wrap').style.display = 'block';
 
           lista.forEach(function(item) {
             const tr = document.createElement('tr');
 
             const botonReprogramar =
-              `<button class="secondary" onclick="reprogramar('${escapeHtml(item.sesionId || '')}')">Reprogramar</button>`;
+              `<button class="btn-repro" onclick="reprogramar('${escapeHtml(item.sesionId || '')}')">Reprogramar</button>`;
 
             tr.innerHTML = `
               <td>${escapeHtml(item.fechaSesion || '')}</td>
