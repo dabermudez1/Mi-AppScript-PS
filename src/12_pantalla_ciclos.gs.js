@@ -28,6 +28,7 @@ function obtenerDatosPantallaCiclos() {
     capacidadMaxima: c.CapacidadMaxima,
     plazasOcupadas: c.PlazasOcupadas,
     plazasLibres: c.PlazasLibres,
+    bloqueoInscripciones: c.BloqueoInscripciones,
     notas: c.Notas || ''
   }));
 

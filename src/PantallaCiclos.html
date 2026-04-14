@@ -313,9 +313,13 @@
           const tr = document.createElement('tr');
           const estadoClass = 'pill ' + (c.estadoCiclo || '');
           
-          // Comprobamos variaciones de nombre y tipo para asegurar la visualización
-          const isLocked = c.bloqueoInscripciones === true || c.bloqueoInscripciones === 'TRUE' || 
-                           c.BloqueoInscripciones === true || c.BloqueoInscripciones === 'TRUE';
+          // Comprobación simplificada y robusta
+          const checkBool = (v) => {
+            if (v === true || v === 'true') return true;
+            if (typeof v === 'string' && v.trim().toUpperCase() === 'TRUE') return true;
+            return false;
+          };
+          const isLocked = checkBool(c.bloqueoInscripciones) || checkBool(c.BloqueoInscripciones);
           const lockedBadge = isLocked
             ? '<br><span class="pill CANCELADO" style="margin-top:4px; font-size:10px; border: 1px solid #d99999;">🚫 CUPO CERRADO</span>' 
             : '';

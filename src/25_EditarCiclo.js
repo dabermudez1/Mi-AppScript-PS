@@ -92,6 +92,7 @@ function guardarEdicionCiclo(formData) {
   new MaintenanceService().recalculateCycleOccupancy();
   if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_CICLOS] = null;
   eliminarCacheDashboard_();
+  SpreadsheetApp.flush(); // Asegurar que Sheets guarde antes de la próxima lectura
 
   return {
     mensaje: `Ciclo ${ciclo.NumeroCiclo} actualizado correctamente.`
