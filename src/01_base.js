@@ -1001,5 +1001,4 @@ function obtenerValoresCatalogo_(nombreCatalogo) {
   } catch (e) { /* Ignorar errores de caché */ }
 
   return valores;
-} return valores;
 }
