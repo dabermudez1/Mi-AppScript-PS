@@ -135,7 +135,11 @@
       notas: document.getElementById('notas').value
     };
     google.script.run
-      .withSuccessHandler(res => { alert(res.mensaje); google.script.host.close(); })
+      .withSuccessHandler(res => { 
+        alert(res.mensaje); 
+        // No cerramos el host, simplemente refrescamos el detalle para ver el estado guardado
+        cargarDetalle();
+      })
       .withFailureHandler(err => setStatus(err.message, true))
       .guardarEdicionCiclo(data);
   }
