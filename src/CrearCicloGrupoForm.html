@@ -43,7 +43,8 @@
   </div>
 
   <div class="actions">
-    <button type="button" class="btn-secondary" id="btnCerrar" onclick="google.script.host.close()">Cancelar</button>
+    <button type="button" class="btn-secondary" id="btnVolver" onclick="volverAlPanel()">Volver al panel</button>
+    <button type="button" class="btn-secondary" id="btnCerrar" onclick="google.script.host.close()">Cerrar</button>
     <button type="submit" class="btn-primary" id="btnGuardar">Crear Ciclo</button>
   </div>
 
@@ -74,6 +75,7 @@
     
     const btn = document.getElementById('btnGuardar');
     const btnCerrar = document.getElementById('btnCerrar');
+    const btnVolver = document.getElementById('btnVolver');
     const status = document.getElementById('status');
     const formData = {
       modalidad: document.getElementById('modalidad').value,
@@ -87,8 +89,9 @@
 
     btn.disabled = true;
     btnCerrar.disabled = true;
+    btnVolver.disabled = true;
     btn.textContent = 'Procesando...';
-    status.textContent = '⏳ Planificando sesiones en segundo plano...';
+    status.textContent = '⏳ Calculando agenda y sesiones...';
     status.style.color = '#6b7280';
 
     google.script.run
@@ -101,15 +104,27 @@
         google.script.host.close();
       })
       .withFailureHandler(function(err) {
-        status.textContent = '❌ Error en la planificación.';
+        status.textContent = '❌ Fallo en la creación del ciclo.';
         status.style.color = '#dc2626';
         alert('Error: ' + err.message);
         btn.disabled = false;
         btnCerrar.disabled = false;
+        btnVolver.disabled = false;
         btn.textContent = 'Crear Ciclo';
       })
       .guardarCicloGrupoDesdeFormulario(formData);
   };
+
+  function volverAlPanel() {
+    google.script.run
+      .withSuccessHandler(function() {
+        google.script.host.close();
+      })
+      .withFailureHandler(function(error) {
+        alert(error.message || String(error));
+      })
+      .abrirHomeDashboardDesdePantalla();
+  }
 </script>
 
 </body>
