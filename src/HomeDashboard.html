@@ -350,7 +350,12 @@
               this.loading = false;
             })
             .withFailureHandler(err => {
-              this.showToast("Error al cargar: " + err.message, true);
+              console.error("Fallo de comunicación con el servidor:", err);
+              let msg = err.message;
+              if (msg.includes("ScriptError") || msg.includes("error en el servidor")) {
+                msg = "⚠️ Error de conexión con Google. Si usas varias cuentas, prueba en modo Incógnito o cierra sesión en las demás.";
+              }
+              this.showToast(msg, true);
               this.loading = false;
             })
             .obtenerDatosHomeDashboard();
