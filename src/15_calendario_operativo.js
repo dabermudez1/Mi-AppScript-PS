@@ -69,6 +69,42 @@ function esFechaBloqueada_(fecha) {
   return !!bloqueadas[clave];
 }
 
+/**
+ * Obtiene el detalle de por qué una fecha está bloqueada usando un mapa precargado.
+ * @param {Date} fecha - La fecha a consultar.
+ * @param {Object} mapaBloqueos - El mapa devuelto por obtenerMapaDiasBloqueados_.
+ * @returns {Object|null} Objeto con {tipo, motivo} o null si no está bloqueada.
+ */
+function obtenerDetalleBloqueoFechaConMapa_(fecha, mapaBloqueos) {
+  const f = normalizarFecha_(fecha);
+  
+  if (esFinDeSemana_(f)) {
+    return {
+      bloqueada: true,
+      tipo: 'FIN_DE_SEMANA',
+      motivo: 'Sábado o Domingo'
+    };
+  }
+
+  const clave = obtenerClaveFecha_(f);
+  return mapaBloqueos[clave] || null;
+}
+
+function esFechaOperativaValida_(fecha) {
+  return !esFechaBloqueada_(fecha);
+}
+
+function construirMensajeFechaNoOperativa_(fecha) {
+  const f = normalizarFecha_(fecha);
+  const bloqueos = obtenerMapaDiasBloqueados_();
+  const detalle = obtenerDetalleBloqueoFechaConMapa_(f, bloqueos);
+  
+  if (detalle) {
+    return `La fecha ${formatearFecha_(f)} no es operativa.\nMotivo: ${detalle.motivo || detalle.tipo}`;
+  }
+  return `La fecha ${formatearFecha_(f)} no es válida para la programación.`;
+}
+
 function ajustarASiguienteFechaOperativa_(fecha) {
   let f = normalizarFecha_(fecha);
 

@@ -1004,6 +1004,15 @@ function obtenerValoresCatalogo_(nombreCatalogo) {
   return valores;
 }
 
+function esValorVerdadero_(val) {
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'string') {
+    const s = val.trim().toUpperCase();
+    return s === 'TRUE' || s === 'SÍ' || s === 'SI' || s === '1';
+  }
+  return !!val;
+}
+
 /**
  * Punto de entrada para la actualización de estados, usable desde el menú o triggers de tiempo.
  */
