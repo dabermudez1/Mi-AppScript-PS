@@ -394,6 +394,10 @@
     google.script.run
       .withSuccessHandler(function(res) {
         btn.innerText = 'Guardar Cambios Clínica';
+        btn.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
+
         setStatus((res && res.mensaje) || 'Ficha clínica guardada correctamente.', 'success');
 
         if (pacientePreseleccionadoId) {
@@ -404,6 +408,9 @@
               })
               .withFailureHandler(function(error) {
                 alert(error.message || String(error));
+                btn.disabled = false;
+                btnVolver.disabled = false;
+                btnCerrar.disabled = false;
               })
               .abrirPantallaPacientesDesdePantalla();
           }, 400);

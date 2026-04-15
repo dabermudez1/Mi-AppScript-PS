@@ -97,6 +97,12 @@
     google.script.run
       .withSuccessHandler(function(res) {
         alert(res.mensaje);
+
+        btn.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
+        btn.textContent = 'Crear Ciclo';
+        
         // Refrescar el panel principal si existe la función
         if (window.top && window.top.refrescarPanel) {
           window.top.refrescarPanel();

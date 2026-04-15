@@ -159,6 +159,10 @@
       google.script.run
         .withSuccessHandler(function(resp) {
            btn.innerText = 'Bloquear rango';
+           btn.disabled = false;
+           btnVolver.disabled = false;
+           btnCerrar.disabled = false;
+
           setStatus(resp.mensaje, 'success');
           limpiarFormulario();
           cargarDiasBloqueados();
@@ -166,6 +170,10 @@
         })
         .withFailureHandler(e => {
           btn.innerText = 'Bloquear rango';
+          btn.disabled = false;
+          btnVolver.disabled = false;
+          btnCerrar.disabled = false;
+          
           setStatus('Error al guardar: ' + e.message, 'error')
           btn.disabled = false; btnVolver.disabled = false; btnCerrar.disabled = false;
         })

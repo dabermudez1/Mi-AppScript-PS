@@ -272,6 +272,9 @@
     google.script.run
       .withSuccessHandler(function(res) {
         btn.innerText = 'Confirmar Alta';
+        btn.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
         setStatus((res && res.mensaje) || 'Alta generada correctamente.', 'success');
         setGuardarEnabled(false);
 

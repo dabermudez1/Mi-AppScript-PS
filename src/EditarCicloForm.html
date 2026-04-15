@@ -150,6 +150,10 @@
     google.script.run
       .withSuccessHandler(res => { 
         btn.innerText = 'Guardar Cambios';
+        btn.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
+
         alert(res.mensaje); 
         // No cerramos el host, simplemente refrescamos el detalle para ver el estado guardado
         cargarDetalle();

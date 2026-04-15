@@ -120,6 +120,9 @@
         google.script.run
           .withSuccessHandler(function(res) {
             btn.innerText = 'Eliminar Ciclo';
+            btn.disabled = false;
+            btnVolver.disabled = false;
+            btnCerrar.disabled = false;
             setStatus(res.mensaje, 'success');
             cargarCiclos();
             document.getElementById('impacto').value = '';

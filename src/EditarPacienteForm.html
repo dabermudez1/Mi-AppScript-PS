@@ -302,6 +302,9 @@
         btn.innerText = 'Guardar cambios';
         setStatus(resultado.mensaje || 'Paciente actualizado correctamente.', 'success');
 
+        btn.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
         setTimeout(function() {
           if (pacientePreseleccionadoId) {
             google.script.run
