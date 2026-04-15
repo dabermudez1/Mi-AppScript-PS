@@ -141,6 +141,9 @@
         google.script.run
           .withSuccessHandler(function(resultado) {
             btn.innerText = 'Eliminar Paciente';
+            btn.disabled = false;
+            btnVolver.disabled = false;
+            btnCerrar.disabled = false;
             setStatus(resultado.mensaje || 'Paciente eliminado correctamente.', 'success');
             cargarPacientes();
             document.getElementById('impacto').value = '';
