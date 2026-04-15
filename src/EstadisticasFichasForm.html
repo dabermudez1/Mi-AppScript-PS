@@ -2,12 +2,13 @@
 <html>
 <head>
   <base target="_top">
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
     :root { --primary: #4f46e5; --primary-hover: #4338ca; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; color: #1f2937; background-color: #f9fafb; }
     h2 { color: #111827; margin-top: 0; font-size: 1.25rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
 
-    .filters { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1fr auto; gap: 12px; margin-bottom: 16px; align-items: end; }
+    .filters { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr 1.2fr 1fr 1fr 0.8fr auto; gap: 12px; margin-bottom: 16px; align-items: end; }
     .field label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.875rem; color: #374151; }
     .field input, .field select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 0.875rem; background: white; }
     input:focus, select:focus { outline: 2px solid #818cf8; border-color: transparent; }
@@ -16,6 +17,17 @@
     .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .card .label { font-size: 0.75rem; color: #6b7280; font-weight: 500; }
     .card .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; color: #1f2937; }
+
+    /* Estilo para el multi-select de motivos */
+    .multi-select-container { position: relative; background: white; border: 1px solid #d1d5db; border-radius: 8px; padding: 5px; max-height: 100px; overflow-y: auto; }
+    .multi-select-item { display: flex; align-items: center; gap: 8px; padding: 2px 5px; font-size: 0.75rem; cursor: pointer; }
+    .multi-select-item input { width: auto; }
+
+    /* Contenedor de Gráficos */
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; min-height: 300px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .chart-title { font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 12px; text-align: center; }
+    .chart-canvas { width: 100%; height: 250px; }
 
     .table-wrap { background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: auto; max-height: 560px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
@@ -62,8 +74,18 @@
     </div>
 
     <div class="field">
-      <label for="filtroMotivo">Motivo consulta</label>
-      <select id="filtroMotivo" onchange="render()"></select>
+      <label>Motivos consulta (Varios)</label>
+      <div id="filtroMotivoContainer" class="multi-select-container">
+        <!-- Checkboxes dinámicos -->
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="rangeEdad">Rango Edad (<span id="valEdad">0-100</span>)</label>
+      <div style="display: flex; gap: 5px; align-items: center;">
+        <input type="number" id="edadMin" value="0" min="0" max="100" style="width: 60px;" oninput="updateEdadLabel(); render()">
+        <input type="number" id="edadMax" value="100" min="0" max="100" style="width: 60px;" oninput="updateEdadLabel(); render()">
+      </div>
     </div>
 
     <div class="field">
@@ -81,6 +103,17 @@
 
     <div class="field">
       <button id="btnRefrescar" class="secondary" onclick="cargarDatos()">Refrescar</button>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Distribución de Motivos de Consulta</div>
+      <div id="chartMotivos" class="chart-canvas"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Evolución Media Escalas (PRE vs POST)</div>
+      <div id="chartEscalas" class="chart-canvas"></div>
     </div>
   </div>
 
@@ -136,8 +169,16 @@
   </div>
 
   <script>
+    google.charts.load('current', {'packages':['corechart', 'bar']});
+
     let filas = [];
     let resumen = {};
+
+    function updateEdadLabel() {
+      const min = document.getElementById('edadMin').value;
+      const max = document.getElementById('edadMax').value;
+      document.getElementById('valEdad').textContent = min + '-' + max;
+    }
 
     function cargarDatos() {
       const btn = document.getElementById('btnRefrescar');
@@ -164,7 +205,7 @@
           resumen = data.resumen || {};
 
           cargarSelectDesdeDatos('filtroSexo', obtenerUnicos(filas.map(f => f.sexoGenero)));
-          cargarSelectDesdeDatos('filtroMotivo', obtenerUnicos(filas.map(f => f.motivoConsultaDiagnostico)));
+          cargarMultiSelectMotivos(obtenerUnicos(filas.map(f => f.motivoConsultaDiagnostico)));
           cargarSelectDesdeDatos('filtroFin', obtenerUnicos(filas.map(f => f.finTratamientoTexto)));
 
           renderResumen();
@@ -202,6 +243,24 @@
       select.value = actual;
     }
 
+    function cargarMultiSelectMotivos(motivos) {
+      const container = document.getElementById('filtroMotivoContainer');
+      container.innerHTML = '';
+      motivos.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'multi-select-item';
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.value = m;
+        chk.checked = true;
+        chk.onchange = render;
+        div.appendChild(chk);
+        div.appendChild(document.createTextNode(m));
+        div.onclick = (e) => { if(e.target !== chk) { chk.checked = !chk.checked; render(); } };
+        container.appendChild(div);
+      });
+    }
+
     function obtenerUnicos(lista) {
       return Array.from(new Set((lista || []).filter(v => v))).sort();
     }
@@ -227,11 +286,18 @@
       const search = (document.getElementById('search').value || '').trim().toLowerCase();
       const filtroEstado = document.getElementById('filtroEstado').value;
       const filtroSexo = document.getElementById('filtroSexo').value;
-      const filtroMotivo = document.getElementById('filtroMotivo').value;
       const filtroFin = document.getElementById('filtroFin').value;
       const filtroComparables = document.getElementById('filtroComparables').value;
 
+      const edadMin = parseInt(document.getElementById('edadMin').value) || 0;
+      const edadMax = parseInt(document.getElementById('edadMax').value) || 100;
+
+      const motivosSeleccionados = Array.from(document.querySelectorAll('#filtroMotivoContainer input:checked')).map(i => i.value);
+
       return filas.filter(function(f) {
+        const edad = parseInt(f.edad) || 0;
+        const matchEdad = edad >= edadMin && edad <= edadMax;
+
         const matchSearch =
           !search ||
           (f.nombre || '').toLowerCase().includes(search) ||
@@ -239,7 +305,7 @@
 
         const matchEstado = !filtroEstado || f.estadoPacienteActual === filtroEstado;
         const matchSexo = !filtroSexo || f.sexoGenero === filtroSexo;
-        const matchMotivo = !filtroMotivo || f.motivoConsultaDiagnostico === filtroMotivo;
+        const matchMotivo = motivosSeleccionados.length === 0 || motivosSeleccionados.includes(f.motivoConsultaDiagnostico);
         const matchFin = !filtroFin || f.finTratamientoTexto === filtroFin;
 
         const comparable = (
@@ -250,7 +316,7 @@
 
         const matchComparables = !filtroComparables || comparable;
 
-        return matchSearch && matchEstado && matchSexo && matchMotivo && matchFin && matchComparables;
+        return matchSearch && matchEstado && matchSexo && matchMotivo && matchFin && matchComparables && matchEdad;
       });
     }
 
@@ -271,7 +337,13 @@
       }
 
       empty.style.display = 'none';
+      // Dibujar tablas y gráficas
+      renderTabla(lista);
+      drawCharts(lista);
+    }
 
+    function renderTabla(lista) {
+      const tbody = document.getElementById('tbodyFichas');
       lista.forEach(function(f) {
         const tr = document.createElement('tr');
         const pacienteId = escapeHtml(f.pacienteId || '');
@@ -304,7 +376,7 @@
     }
 
     function drawCharts(dataFiltrada) {
-      if (!google.visualization) return;
+      if (!google.visualization || !google.visualization.DataTable) return;
 
       // --- 1. Gráfico de Motivos (Barras) ---
       const motivosCount = {};
@@ -328,10 +400,9 @@
       const chartMotivos = new google.visualization.BarChart(document.getElementById('chartMotivos'));
       chartMotivos.draw(dataMotivos, optionsMotivos);
 
-      // --- 2. Gráfico de Escalas (Líneas / Columnas comparativas) ---
-      // Calculamos medias de la selección actual
+      // --- 2. Gráfico de Escalas (Barras comparativas) ---
       const getMedia = (arr) => {
-        const clean = arr.filter(v => v !== null && !isNaN(v));
+        const clean = arr.filter(v => v !== null && v !== '' && !isNaN(v)).map(Number);
         return clean.length ? clean.reduce((a,b) => a+b, 0) / clean.length : 0;
       };
 
@@ -346,7 +417,6 @@
         vAxis: { title: 'Puntuación Media' },
         hAxis: { title: 'Instrumentos' },
         seriesType: 'bars',
-        series: { 5: { type: 'line' } }, // Por si añadimos una tendencia luego
         colors: ['#818cf8', '#4f46e5'],
         chartArea: { width: '70%', height: '70%' },
         animation: { startup: true, duration: 500, easing: 'out' }
@@ -355,6 +425,7 @@
       const chartEscalas = new google.visualization.ComboChart(document.getElementById('chartEscalas'));
       chartEscalas.draw(dataEscalas, optionsEscalas);
     }
+
 
     function valorTabla(v) {
       return (v === null || v === '' || v === undefined) ? '' : v;
