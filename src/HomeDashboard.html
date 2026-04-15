@@ -279,23 +279,33 @@
       </div>
       <div class="p-5 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <template x-for="dia in data.disponibilidadSemanal" :key="dia.fecha">
-          <div class="flex flex-col border border-gray-100 rounded-xl p-3 bg-gray-50/50">
-            <span class="text-[10px] font-black text-gray-400 uppercase" x-text="dia.diaSemana"></span>
-            <span class="text-sm font-bold text-gray-700 mb-2" x-text="dia.fecha"></span>
-            <div class="flex flex-wrap gap-1">
-              <template x-for="slot in dia.slots" :key="slot.hora">
-                <span class="px-2 py-1 rounded text-[10px] font-bold border" 
-                      :class="slot.tipo === '2.2' ? 'bg-green-50 border-green-200 text-green-700' : 
-                             (slot.tipo === '2.1' ? 'bg-blue-50 border-blue-200 text-blue-700' : 
-                             'bg-purple-50 border-purple-200 text-purple-700')"
-                      :title="slot.tipo"
-                      x-text="slot.hora"></span>
+          <div class="flex flex-col border rounded-xl p-3 transition-all"
+               :class="dia.blocked ? 'bg-gray-100 border-gray-200' : 'bg-gray-50/50 border-gray-100'">
+            <div class="flex justify-between items-start">
+              <span class="text-[10px] font-black text-gray-400 uppercase" x-text="dia.diaSemana"></span>
+              <template x-if="dia.blocked">
+                <span class="text-[10px] text-gray-400">🚫</span>
               </template>
             </div>
+            <span class="text-sm font-bold text-gray-700 mb-2" x-text="dia.fecha"></span>
+            
+            <template x-if="dia.blocked || dia.slots.length === 0">
+              <span class="text-[10px] text-gray-500 italic leading-tight" x-text="dia.reason"></span>
+            </template>
+            
+            <template x-if="!dia.blocked && dia.slots.length > 0">
+              <div class="flex flex-wrap gap-1">
+                <template x-for="slot in dia.slots" :key="slot.hora">
+                  <span class="px-2 py-1 rounded text-[10px] font-bold border" 
+                        :class="slot.tipo === '2.2' ? 'bg-green-50 border-green-200 text-green-700' : 
+                               (slot.tipo === '2.1' ? 'bg-blue-50 border-blue-200 text-blue-700' : 
+                               'bg-purple-50 border-purple-200 text-purple-700')"
+                        :title="slot.tipo"
+                        x-text="slot.hora"></span>
+                </template>
+              </div>
+            </template>
           </div>
-        </template>
-        <template x-if="!data.disponibilidadSemanal || data.disponibilidadSemanal.length === 0">
-          <p class="col-span-full text-center text-gray-400 text-sm py-4 italic">No hay huecos configurados o disponibles para la próxima semana.</p>
         </template>
       </div>
     </div>

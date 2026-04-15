@@ -204,8 +204,10 @@ class AvailabilityService {
     // 2. Indexación rápida de sesiones
     const sessionsMap = {};
     allSessions.forEach(s => {
-      if (s.FechaSesion instanceof Date && s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
-        const key = obtenerClaveFecha_(s.FechaSesion);
+      // Intentamos parsear la fecha si no es objeto Date
+      const fecha = s.FechaSesion instanceof Date ? s.FechaSesion : parseFechaES_(s.FechaSesion);
+      if (fecha && s.EstadoSesion !== ESTADOS_SESION.CANCELADA) {
+        const key = obtenerClaveFecha_(fecha);
         if (!sessionsMap[key]) sessionsMap[key] = [];
         sessionsMap[key].push(s); 
       }
@@ -215,33 +217,43 @@ class AvailabilityService {
       const date = sumarDiasNaturales_(today, i);
       const isToday = i === 0;
       const dateKey = obtenerClaveFecha_(date);
+      const diaSemanaStr = convertirDiaSemanaATexto_(date);
       
-      // Saltamos si el día está bloqueado (Festivos/Fines de semana)
-      if (esFinDeSemana_(date) || blockedDays[dateKey]) continue;
+      let dayInfo = {
+        fecha: formatearFecha_(date),
+        diaSemana: diaSemanaStr,
+        blocked: false,
+        reason: '',
+        slots: []
+      };
 
-      const agendaForDay = this.agendaService.getAgendaForDay(date);
-      const sessionsForDay = sessionsMap[dateKey] || [];
-      const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
+      if (esFinDeSemana_(date)) {
+        dayInfo.blocked = true;
+        dayInfo.reason = 'Fin de semana';
+      } else if (blockedDays[dateKey]) {
+        dayInfo.blocked = true;
+        dayInfo.reason = blockedDays[dateKey].motivo || 'Festivo / Bloqueado';
+      } else {
+        const agendaForDay = this.agendaService.getAgendaForDay(date);
+        const sessionsForDay = sessionsMap[dateKey] || [];
+        const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
 
-      const freeSlots = agendaForDay.filter(slot => {
-        if (slot.type === 'DESCANSO') return false;
-        // Si es hoy, solo mostramos slots futuros
-        if (isToday && slot.startDateTime.getTime() <= today.getTime()) return false;
-        return !this._isSlotOccupied(slot, occupiedSlots);
-      });
-
-      if (freeSlots.length > 0) {
-        const diaSemanaStr = convertirDiaSemanaATexto_(date);
-        summary.push({
-          fecha: formatearFecha_(date),
-          diaSemana: diaSemanaStr,
-          // Normalizamos el tipo para que el CSS del Dashboard funcione
-          slots: freeSlots.map(s => ({ 
-            hora: formatearHora_(s.startDateTime), 
-            tipo: this._normalizeTypeForUI(s.type) 
-          }))
+        const freeSlots = agendaForDay.filter(slot => {
+          if (slot.type === 'DESCANSO') return false;
+          if (isToday && slot.startDateTime.getTime() <= today.getTime()) return false;
+          return !this._isSlotOccupied(slot, occupiedSlots);
         });
+
+        dayInfo.slots = freeSlots.map(s => ({ 
+          hora: formatearHora_(s.startDateTime), 
+          tipo: this._normalizeTypeForUI(s.type) 
+        }));
+        
+        if (dayInfo.slots.length === 0) {
+          dayInfo.reason = 'Sin huecos disponibles';
+        }
       }
+      summary.push(dayInfo);
     }
     return summary;
   }
