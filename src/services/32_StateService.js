@@ -15,7 +15,6 @@ class StateService {
   runAutomaticTransitions() {
 	const props = PropertiesService.getUserProperties();
     props.setProperty('TASK_UPDATE_STATES_PROGRESS', '2');
-    const hoy = normalizarFecha_(new Date());
     const ahora = new Date();
     const hoy = normalizarFecha_(ahora);
     let stats = { ciclos: 0, pacientes: 0, sesiones: 0 };
@@ -56,7 +55,6 @@ class StateService {
       if (isNaN(baseDate.getTime())) return;
 
       const sesionDateTime = normalizarFechaHora_(baseDate, s.HoraInicio);
-      if (s.EstadoSesion === ESTADOS_SESION.PENDIENTE && compararFechasHoras_(sesionDateTime, hoy) < 0) {
       // Margen de 30 minutos tras la hora de inicio para marcar como completada automáticamente
       const momentoCierre = sumarMinutos_(sesionDateTime, 30);
 
