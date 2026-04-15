@@ -303,6 +303,59 @@
       });
     }
 
+    function drawCharts(dataFiltrada) {
+      if (!google.visualization) return;
+
+      // --- 1. Gráfico de Motivos (Barras) ---
+      const motivosCount = {};
+      dataFiltrada.forEach(f => {
+        const m = f.motivoConsultaDiagnostico || 'No consta';
+        motivosCount[m] = (motivosCount[m] || 0) + 1;
+      });
+
+      const dataMotivos = new google.visualization.DataTable();
+      dataMotivos.addColumn('string', 'Motivo');
+      dataMotivos.addColumn('number', 'Pacientes');
+      Object.keys(motivosCount).forEach(m => dataMotivos.addRow([m, motivosCount[m]]));
+
+      const optionsMotivos = {
+        legend: { position: 'none' },
+        colors: ['#4f46e5'],
+        chartArea: { width: '60%', height: '80%' },
+        hAxis: { minValue: 0 }
+      };
+
+      const chartMotivos = new google.visualization.BarChart(document.getElementById('chartMotivos'));
+      chartMotivos.draw(dataMotivos, optionsMotivos);
+
+      // --- 2. Gráfico de Escalas (Líneas / Columnas comparativas) ---
+      // Calculamos medias de la selección actual
+      const getMedia = (arr) => {
+        const clean = arr.filter(v => v !== null && !isNaN(v));
+        return clean.length ? clean.reduce((a,b) => a+b, 0) / clean.length : 0;
+      };
+
+      const dataEscalas = google.visualization.arrayToDataTable([
+        ['Escala', 'PRE', 'POST'],
+        ['GAD-7', getMedia(dataFiltrada.map(f => f.gad7Pre)), getMedia(dataFiltrada.map(f => f.gad7Post))],
+        ['PHQ-9', getMedia(dataFiltrada.map(f => f.phq9Pre)), getMedia(dataFiltrada.map(f => f.phq9Post))],
+        ['WHOQOL', getMedia(dataFiltrada.map(f => f.whoqolPre)), getMedia(dataFiltrada.map(f => f.whoqolPost))]
+      ]);
+
+      const optionsEscalas = {
+        vAxis: { title: 'Puntuación Media' },
+        hAxis: { title: 'Instrumentos' },
+        seriesType: 'bars',
+        series: { 5: { type: 'line' } }, // Por si añadimos una tendencia luego
+        colors: ['#818cf8', '#4f46e5'],
+        chartArea: { width: '70%', height: '70%' },
+        animation: { startup: true, duration: 500, easing: 'out' }
+      };
+
+      const chartEscalas = new google.visualization.ComboChart(document.getElementById('chartEscalas'));
+      chartEscalas.draw(dataEscalas, optionsEscalas);
+    }
+
     function valorTabla(v) {
       return (v === null || v === '' || v === undefined) ? '' : v;
     }
