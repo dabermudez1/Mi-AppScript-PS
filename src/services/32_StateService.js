@@ -22,26 +22,31 @@ class StateService {
 
     // 1. Ciclos: PLANIFICADO -> EN_CURSO -> CERRADO
     const ciclos = this.cicloRepo.findAll();
+    const ciclosAActualizar = [];
     props.setProperty('TASK_UPDATE_STATES_PROGRESS', '15');
 
     ciclos.forEach(c => {
       const fechaInicio = normalizarFecha_(new Date(c.FechaInicioCiclo));
       const fechaFin = normalizarFecha_(new Date(c.FechaFinCiclo));
+      let modificado = false;
 
       if (c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO && fechaInicio <= hoy) {
         c.EstadoCiclo = ESTADOS_CICLO.EN_CURSO;
-        this.cicloRepo.save(c);
+        modificado = true;
         stats.ciclos++;
       } else if ((c.EstadoCiclo === ESTADOS_CICLO.EN_CURSO || c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO) && fechaFin < hoy) {
         c.EstadoCiclo = ESTADOS_CICLO.CERRADO;
-        this.cicloRepo.save(c);
+        modificado = true;
         stats.ciclos++;
       }
+      if (modificado) ciclosAActualizar.push(c);
     });
+    if (ciclosAActualizar.length > 0) this.cicloRepo.saveAll(ciclosAActualizar);
 
     // 2. Sesiones: PENDIENTE -> COMPLETADA_AUTO (si la fecha pasó)
     const sesiones = this.sessionRepo.findAll();
     const totalSesiones = sesiones.length || 1;
+    const sesionesAActualizar = [];
     props.setProperty('TASK_UPDATE_STATES_PROGRESS', '30');
 
     sesiones.forEach((s, i) => {
@@ -79,6 +84,7 @@ class StateService {
       if (p.EstadoPaciente === ESTADOS_PACIENTE.ALTA) return;
 
       const susSesiones = sesionesPorPaciente[p.PacienteID] || [];
+      let modificado = false;
 
       // Lógica de inicio de ciclo
       if (p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO && p.CicloObjetivoID) {
@@ -86,7 +92,7 @@ class StateService {
         if (ciclo && ciclo.EstadoCiclo === ESTADOS_CICLO.EN_CURSO) {
           p.EstadoPaciente = ESTADOS_PACIENTE.ACTIVO;
           p.CicloActivoID = p.CicloObjetivoID;
-          this.patientRepo.save(p);
+          modificado = true;
           stats.pacientes++;
         }
       }
@@ -96,10 +102,13 @@ class StateService {
       if (p.SesionesPlanificadas > 0 && p.SesionesCompletadas >= p.SesionesPlanificadas) {
         p.EstadoPaciente = ESTADOS_PACIENTE.ALTA;
         p.FechaCierre = hoy;
-        this.patientRepo.save(p);
+        modificado = true;
         stats.pacientes++;
       }
+      if (modificado) pacientesAActualizar.push(p);
     });
+    if (pacientesAActualizar.length > 0) this.patientRepo.saveAll(pacientesAActualizar);
+
 	props.setProperty('TASK_UPDATE_STATES_PROGRESS', '100');
     return stats;
   }
