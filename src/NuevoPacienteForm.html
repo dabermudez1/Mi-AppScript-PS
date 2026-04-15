@@ -139,6 +139,9 @@
     google.script.run
       .withSuccessHandler(function(resultado) {
         btn.innerText = 'Guardar Paciente';
+        btn.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
         setStatus(resultado.mensaje || 'Paciente creado correctamente.', 'success');
         limpiarFormularioNuevoPaciente();
       })
