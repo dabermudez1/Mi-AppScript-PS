@@ -65,16 +65,18 @@ class StateService {
 
       if (s.EstadoSesion === ESTADOS_SESION.PENDIENTE && ahora > momentoCierre) {
         s.EstadoSesion = ESTADOS_SESION.COMPLETADA_AUTO;
-        this.sessionRepo.save(s);
+        sesionesAActualizar.push(s);
         stats.sesiones++;
       }
     });
+    if (sesionesAActualizar.length > 0) this.sessionRepo.saveAll(sesionesAActualizar);
 
     // 3. Pacientes: ACTIVO_PENDIENTE_INICIO -> ACTIVO (si su ciclo empezó)
     // Y ACTIVO -> ALTA (si terminaron sesiones)
     const pacientes = this.patientRepo.findAll();
     const totalPacientes = pacientes.length;
     props.setProperty('TASK_UPDATE_STATES_PROGRESS', '50');
+    const pacientesAActualizar = [];
 
     // OPTIMIZACIÓN: Precargar sesiones y agruparlas por PacienteID en un solo paso
     const sesionesPorPaciente = this._mapSessionsByPatient();
