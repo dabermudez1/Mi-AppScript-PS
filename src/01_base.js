@@ -1003,3 +1003,62 @@ function obtenerValoresCatalogo_(nombreCatalogo) {
 
   return valores;
 }
+
+/**
+ * Punto de entrada para la actualización de estados, usable desde el menú o triggers de tiempo.
+ */
+function actualizarEstadosAutomaticos() {
+  try {
+    const service = new StateService();
+    const stats = service.runAutomaticTransitions();
+    
+    // Intentar mostrar notificación si hay una sesión de usuario activa
+    try {
+      SpreadsheetApp.getActiveSpreadsheet().toast(
+        `Actualización automática finalizada. Sesiones procesadas: ${stats.sesiones}`, 
+        "📦 Motor de Estados"
+      );
+    } catch(e) {
+      // Ignorar si se ejecuta en segundo plano por un trigger
+    }
+    
+    console.log(`Ejecución del motor de estados completada con éxito: ${JSON.stringify(stats)}`);
+  } catch (error) {
+    console.error("Error en la ejecución del motor de estados: " + error.message);
+  }
+}
+
+/**
+ * Configura un disparador (trigger) para que el sistema se actualice solo cada hora.
+ */
+function crearTriggerEstadosAutomaticos() {
+  const ui = SpreadsheetApp.getUi();
+  const handlers = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+  
+  if (handlers.includes('actualizarEstadosAutomaticos')) {
+    ui.alert('El trigger automático ya está configurado y en funcionamiento.');
+    return;
+  }
+
+  ScriptApp.newTrigger('actualizarEstadosAutomaticos')
+    .timeBased()
+    .everyHours(1)
+    .create();
+
+  ui.alert('✅ Éxito: El sistema ahora se actualizará solo cada hora, incluso con la hoja cerrada.');
+}
+
+/**
+ * Elimina los triggers automáticos existentes para el motor de estados.
+ */
+function eliminarTriggerEstadosAutomaticos() {
+  const triggers = ScriptApp.getProjectTriggers();
+  let count = 0;
+  triggers.forEach(t => {
+    if (t.getHandlerFunction() === 'actualizarEstadosAutomaticos') {
+      ScriptApp.deleteTrigger(t);
+      count++;
+    }
+  });
+  SpreadsheetApp.getUi().alert(`Se han desactivado ${count} disparador(es) automáticos.`);
+}
