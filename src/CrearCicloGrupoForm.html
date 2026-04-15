@@ -96,18 +96,16 @@
 
     google.script.run
       .withSuccessHandler(function(res) {
-        alert(res.mensaje);
-
         btn.disabled = false;
         btnVolver.disabled = false;
         btnCerrar.disabled = false;
         btn.textContent = 'Crear Ciclo';
+        status.textContent = '✅ ' + (res.mensaje || 'Ciclo creado correctamente.');
+        status.style.color = '#16a34a';
         
-        // Refrescar el panel principal si existe la función
-        if (window.top && window.top.refrescarPanel) {
-          window.top.refrescarPanel();
-        }
-        google.script.host.close();
+        // Limpiar el formulario para permitir crear más grupos sin cerrar la ventana
+        document.getElementById('cicloForm').reset();
+        document.getElementById('fechaInicio').value = new Date().toISOString().split('T')[0];
       })
       .withFailureHandler(function(err) {
         status.textContent = '❌ Fallo en la creación del ciclo.';
