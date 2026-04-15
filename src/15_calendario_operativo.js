@@ -87,9 +87,14 @@ function obtenerDetalleBloqueoFechaConMapa_(fecha, mapaBloqueos) {
   }
 
   const clave = obtenerClaveFecha_(f);
-  return mapaBloqueos[clave] || null;
+  const bloqueoEspecifico = mapaBloqueos[clave];
+  
+  return bloqueoEspecifico || {
+    bloqueada: false,
+    tipo: 'OPERATIVO',
+    motivo: 'Día operativo'
+  };
 }
-
 function esFechaOperativaValida_(fecha) {
   return !esFechaBloqueada_(fecha);
 }
@@ -172,10 +177,8 @@ function obtenerMapaDiasBloqueados_() {
     const motivoRaw = data[i][idx.Motivo];
 
     if (!fechaRaw) continue;
-    // La función esValorVerdadero_ no existe en el contexto actual,
-    // se asume que bloqueadoRaw es un booleano o un valor que se evalúa a true/false.
-    // Si es un checkbox en Sheets, será booleano.
-    if (!bloqueadoRaw) continue;
+    // Usar esValorVerdadero_ para interpretar correctamente el checkbox o texto
+    if (!esValorVerdadero_(bloqueadoRaw)) continue;
 
     const clave = obtenerClaveFecha_(fechaRaw);
 
