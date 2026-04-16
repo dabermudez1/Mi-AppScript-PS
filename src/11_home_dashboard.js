@@ -51,6 +51,7 @@ function obtenerDatosHomeDashboard() {
   const configRepo = new ConfigRepository();
 
   const pacientes = patientRepo.findAll();
+  const ahora = new Date();
   const ciclos = cicloRepo.findAll();
   const sesiones = sessionRepo.findAll();
   const modalidadesCfg = configRepo.findAll();
@@ -133,12 +134,9 @@ function obtenerDatosHomeDashboard() {
     }));
 
   const proximosPacientes = pacientes
-    .filter(p => p.EstadoPaciente === 'ACTIVO' || p.EstadoPaciente === 'ACTIVO_PENDIENTE_INICIO')
-    .sort((a, b) => {
-      const tA = a.ProximaSesion instanceof Date ? a.ProximaSesion.getTime() : Infinity;
-      const tB = b.ProximaSesion instanceof Date ? b.ProximaSesion.getTime() : Infinity;
-      return tA - tB;
-    })
+    .filter(p => (p.EstadoPaciente === 'ACTIVO' || p.EstadoPaciente === 'ACTIVO_PENDIENTE_INICIO') && 
+                 p.ProximaSesion instanceof Date && p.ProximaSesion >= ahora)
+    .sort((a, b) => a.ProximaSesion.getTime() - b.ProximaSesion.getTime())
     .slice(0, 10)
     .map(p => ({ 
       PacienteID: p.PacienteID, 

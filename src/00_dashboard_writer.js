@@ -52,7 +52,8 @@ function obtenerDatosDashboard_() {
   const config = {};
   configArray.forEach(c => { config[c.Modalidad] = c; });
 
-  const hoy = normalizarFecha_(new Date());
+  const ahora = new Date();
+  const hoy = normalizarFecha_(ahora);
 
   const pacientesActivos = pacientes.filter(p =>
     p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO ||
@@ -117,11 +118,10 @@ function obtenerDatosDashboard_() {
   }));
 
   const topPacientesActivos = pacientesActivos
-    .slice()
+    .filter(p => p.ProximaSesion instanceof Date && p.ProximaSesion >= ahora)
     .sort((a, b) => {
-      const fechaA = a.ProximaSesion instanceof Date ? a.ProximaSesion.getTime() : Number.MAX_SAFE_INTEGER;
-      const fechaB = b.ProximaSesion instanceof Date ? b.ProximaSesion.getTime() : Number.MAX_SAFE_INTEGER;
-      if (fechaA !== fechaB) return fechaA - fechaB;
+      const diff = a.ProximaSesion.getTime() - b.ProximaSesion.getTime();
+      if (diff !== 0) return diff;
       return String(a.Nombre || '').localeCompare(String(b.Nombre || ''));
     })
     .slice(0, 12);
