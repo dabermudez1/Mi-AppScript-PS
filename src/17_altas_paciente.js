@@ -41,8 +41,22 @@ function procesarAltaPacienteFormulario(formData) {
     comentario
   });
 
-  // Recalcular ocupación de ciclos de forma global tras el alta
+  // 1. Invalida caché de ejecución para asegurar que los datos frescos se propaguen en esta sesión
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') {
+    __EXECUTION_CACHE__[SHEET_PACIENTES] = null;
+    __EXECUTION_CACHE__[SHEET_SESIONES] = null;
+    __EXECUTION_CACHE__[SHEET_DATOS_CLINICOS_PACIENTES] = null;
+  }
+  SpreadsheetApp.flush();
+
+  // 2. Propagar el cambio a la hoja de DATOS_CLINICOS_PACIENTES (Sincronización Clínica inmediata)
+  sincronizarFichasClinicasPacientes();
+
+  // 3. Recalcular ocupación de ciclos de forma global tras el alta
   new MaintenanceService().recalculateCycleOccupancy();
+
+  // 4. Invalidar caché del dashboard para reflejar el alta en las métricas visuales
+  eliminarCacheDashboard_();
 
   return {
     mensaje: 'Alta generada correctamente.'
@@ -75,36 +89,19 @@ function altaPacienteDesdePaciente(pacienteId) {
 }
 
 function obtenerPacientesAltaFormulario() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
-  }
+  const repo = new PatientRepository();
+  const pacientes = repo.findAll();
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-
-  const idx = indexByHeader_(data[0]);
-  const out = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const estado = data[i][idx.EstadoPaciente];
-
-    if (
-      estado !== ESTADOS_PACIENTE.ACTIVO &&
-      estado !== ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO &&
-      estado !== ESTADOS_PACIENTE.ESPERA
-    ) {
-      continue;
-    }
-
-    out.push({
-      pacienteId: data[i][idx.PacienteID],
-      label:
-        (data[i][idx.Nombre] || 'SIN_NOMBRE') +
-        ' | ' + (data[i][idx.ModalidadSolicitada] || '') +
-        ' | ' + (estado || '')
-    });
-  }
+  const out = pacientes
+    .filter(p => 
+      p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO ||
+      p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO ||
+      p.EstadoPaciente === ESTADOS_PACIENTE.ESPERA
+    )
+    .map(p => ({
+      pacienteId: p.PacienteID,
+      label: `${p.Nombre || 'SIN_NOMBRE'} | ${p.ModalidadSolicitada || ''} | ${p.EstadoPaciente || ''}`
+    }));
 
   out.sort((a, b) => String(a.label).localeCompare(String(b.label)));
   return out;
