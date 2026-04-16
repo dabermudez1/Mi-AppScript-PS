@@ -1544,14 +1544,17 @@ function obtenerDetallePacienteGestionEsperaCicloFormulario(pacienteId) {
   const detalle = obtenerDetallePacienteReasignacionFormulario(pacienteId);
 
   let tipoAccion = 'ASIGNAR';
+  let labelAccion = 'Asignación a nuevo ciclo (desde Espera)';
 
   if (detalle.cicloActivoId || detalle.cicloObjetivoId) {
     tipoAccion = 'REASIGNAR';
+    labelAccion = 'Cambio de grupo / Reasignación'
   }
 
   return {
     ...detalle,
-    tipoAccion
+    tipoAccion.
+    labelAccion
   };
 }
 
