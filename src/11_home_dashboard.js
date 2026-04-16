@@ -55,6 +55,11 @@ function obtenerDatosHomeDashboard() {
   const ciclos = cicloRepo.findAll();
   const sesiones = sessionRepo.findAll();
   const modalidadesCfg = configRepo.findAll();
+  
+  // Calcular altas del mes actual
+  const primerDiaMesActual = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+  const altasMesActual = pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ALTA && p.FechaCierre instanceof Date && p.FechaCierre >= primerDiaMesActual).length;
+
 
   const hoy = normalizarFecha_(new Date());
 
@@ -64,9 +69,8 @@ function obtenerDatosHomeDashboard() {
     espera: pacientes.filter(p => p.EstadoPaciente === 'ESPERA').length,
     alta: pacientes.filter(p => p.EstadoPaciente === 'ALTA').length,
     pendienteInicio: pacientes.filter(p => p.EstadoPaciente === 'ACTIVO_PENDIENTE_INICIO').length,
-    gruposEnCurso: ciclos.filter(c => c.EstadoCiclo === 'EN_CURSO').length,
-    sesionesPendientes: sesiones.filter(s => s.EstadoSesion === 'PENDIENTE').length,
-    sesionesErrorSync: sesiones.filter(s => s.CalendarSyncStatus === 'ERROR').length
+    gruposEnCurso: ciclos.filter(c => c.EstadoCiclo === ESTADOS_CICLO.EN_CURSO).length,
+    altasMesActual: altasMesActual
   };
 
   const ocupacionPorModalidad = Object.values(MODALIDADES).map(modalidad => {
