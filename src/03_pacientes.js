@@ -1548,12 +1548,12 @@ function obtenerDetallePacienteGestionEsperaCicloFormulario(pacienteId) {
 
   if (detalle.cicloActivoId || detalle.cicloObjetivoId) {
     tipoAccion = 'REASIGNAR';
-    labelAccion = 'Cambio de grupo / Reasignación'
+    labelAccion = 'Cambio de grupo / Reasignación';
   }
 
   return {
     ...detalle,
-    tipoAccion.
+    tipoAccion,
     labelAccion
   };
 }
