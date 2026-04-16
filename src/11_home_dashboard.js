@@ -57,22 +57,25 @@ function obtenerDatosHomeDashboard() {
   const modalidadesCfg = configRepo.findAll();
   const hoy = normalizarFecha_(new Date());
   const hoyMs = hoy.getTime();
+
+  // Helper para normalizar comparaciones de texto (evita fallos por espacios o mayúsculas)
+  const normalize = (str) => String(str || '').trim().toUpperCase();
   
   // Calcular altas del mes actual
   const primerDiaMesActual = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
   const altasMesActual = pacientes.filter(p => {
-    if (p.EstadoPaciente !== ESTADOS_PACIENTE.ALTA) return false;
+    if (normalize(p.EstadoPaciente) !== ESTADOS_PACIENTE.ALTA) return false;
     const fCierre = (p.FechaCierre instanceof Date) ? p.FechaCierre : parseFechaES_(p.FechaCierre);
-    return fCierre && fCierre >= primerDiaMesActual;
+    return fCierre && !isNaN(fCierre.getTime()) && fCierre >= primerDiaMesActual;
   }).length;
 
   // Calcular espera media
-  const pacientesEspera = pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ESPERA);
+  const pacientesEspera = pacientes.filter(p => normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ESPERA);
   let esperaMedia = 0;
   if (pacientesEspera.length > 0) {
     const sumaDias = pacientesEspera.reduce((acc, p) => {
       const fAlta = (p.FechaAlta instanceof Date) ? p.FechaAlta : parseFechaES_(p.FechaAlta);
-      if (!fAlta) return acc;
+      if (!fAlta || isNaN(fAlta.getTime())) return acc;
       const diff = Math.max(0, Math.floor((hoyMs - fAlta.getTime()) / (1000 * 60 * 60 * 24)));
       return acc + diff;
     }, 0);
@@ -81,14 +84,18 @@ function obtenerDatosHomeDashboard() {
 
   const resumen = {
     totalPacientes: pacientes.length,
-    activos: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO).length,
-    activosInd: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO && p.ModalidadSolicitada === MODALIDADES.INDIVIDUAL).length,
-    activosGrp: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO && p.ModalidadSolicitada !== MODALIDADES.INDIVIDUAL).length,
+    activos: pacientes.filter(p => normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ACTIVO).length,
+    activosInd: pacientes.filter(p => 
+      normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ACTIVO && 
+      normalize(p.ModalidadSolicitada) === MODALIDADES.INDIVIDUAL).length,
+    activosGrp: pacientes.filter(p => 
+      normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ACTIVO && 
+      normalize(p.ModalidadSolicitada) !== MODALIDADES.INDIVIDUAL).length,
     espera: pacientesEspera.length,
     esperaMedia: esperaMedia,
-    alta: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ALTA).length,
-    pendienteInicio: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO).length,
-    gruposEnCurso: ciclos.filter(c => c.EstadoCiclo === ESTADOS_CICLO.EN_CURSO).length,
+    alta: pacientes.filter(p => normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ALTA).length,
+    pendienteInicio: pacientes.filter(p => normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO).length,
+    gruposEnCurso: ciclos.filter(c => normalize(c.EstadoCiclo) === ESTADOS_CICLO.EN_CURSO).length,
     altasMesActual: altasMesActual
   };
 
