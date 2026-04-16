@@ -126,7 +126,14 @@ function calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad) {
 
   const availabilityService = new AvailabilityService();
   // Buscar el primer slot '2.2' a partir de la fecha de primera consulta + intervalo
-  const startSearchDate = sumarDiasNaturales_(fechaPrimeraConsulta, intervaloDias);
+  let startSearchDate = sumarDiasNaturales_(fechaPrimeraConsulta, intervaloDias);
+
+  // AJUSTE: Garantizar que no se proponen citas en el pasado
+  const ahora = new Date();
+  if (startSearchDate.getTime() < ahora.getTime()) {
+    startSearchDate = ahora;
+  }
+
   const slot = availabilityService.findNextAvailableSlot(startSearchDate, modalidad, 30);
 
   return slot ? { fecha: slot.startDateTime, hora: formatearHora_(slot.startDateTime) } : null;
@@ -327,6 +334,13 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   // Sincronizar inicio de búsqueda: Fecha consulta + intervalo de frecuencia configurado
   const intervaloDias = Number(config.FrecuenciaDias || 0);
   let startSearch = sumarDiasNaturales_(paciente.FechaPrimeraConsulta, intervaloDias);
+  
+  // AJUSTE: No buscar slots en el pasado
+  const ahora = new Date();
+  if (startSearch.getTime() < ahora.getTime()) {
+    startSearch = ahora;
+  }
+  
   let currentSearchDateTime = startSearch;
   
   const generatedSessions = [];

@@ -66,8 +66,12 @@
       })
       .obtenerOpcionesGrupoFormulario();
       
-    // Establecer fecha de hoy por defecto
-    document.getElementById('fechaInicio').value = new Date().toISOString().split('T')[0];
+    // Establecer fecha de hoy por defecto en horario local
+    const hoy = new Date();
+    const fechaLocal = hoy.getFullYear() + '-' + 
+                       String(hoy.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(hoy.getDate()).padStart(2, '0');
+    document.getElementById('fechaInicio').value = fechaLocal;
   })();
 
   document.getElementById('cicloForm').onsubmit = function(e) {
@@ -105,7 +109,11 @@
         
         // Limpiar el formulario para permitir crear más grupos sin cerrar la ventana
         document.getElementById('cicloForm').reset();
-        document.getElementById('fechaInicio').value = new Date().toISOString().split('T')[0];
+        const hoy = new Date();
+        const fechaLocal = hoy.getFullYear() + '-' + 
+                           String(hoy.getMonth() + 1).padStart(2, '0') + '-' + 
+                           String(hoy.getDate()).padStart(2, '0');
+        document.getElementById('fechaInicio').value = fechaLocal;
       })
       .withFailureHandler(function(err) {
         status.textContent = '❌ Fallo en la creación del ciclo.';

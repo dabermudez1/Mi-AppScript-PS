@@ -203,11 +203,19 @@ function guardarCicloGrupoDesdeFormulario(formData) {
     throw new Error('La fecha de inicio no es válida.');
   }
 
+  // AJUSTE: Si la fecha es hoy o anterior, empezamos a buscar desde "ahora"
+  // para no agendar sesiones en slots que ya han pasado.
+  const ahora = new Date();
+  let fechaBusqueda = fechaInicio;
+  if (fechaBusqueda.getTime() < ahora.getTime()) {
+    fechaBusqueda = ahora;
+  }
+
   const config = obtenerConfigModalidad_(modalidad);
   validarConfigGrupo_(modalidad, config);
 
   const slots = generarSlotsCiclo_({
-  fechaInicio,
+  fechaInicio: fechaBusqueda,
   horaInicio: config.HoraBase, // Se mantiene como referencia pero manda la agenda
   modalidad: modalidad
   });
