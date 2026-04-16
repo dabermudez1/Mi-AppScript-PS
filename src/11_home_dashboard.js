@@ -55,20 +55,39 @@ function obtenerDatosHomeDashboard() {
   const ciclos = cicloRepo.findAll();
   const sesiones = sessionRepo.findAll();
   const modalidadesCfg = configRepo.findAll();
+  const hoy = normalizarFecha_(new Date());
+  const hoyMs = hoy.getTime();
   
   // Calcular altas del mes actual
   const primerDiaMesActual = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-  const altasMesActual = pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ALTA && p.FechaCierre instanceof Date && p.FechaCierre >= primerDiaMesActual).length;
+  const altasMesActual = pacientes.filter(p => {
+    if (p.EstadoPaciente !== ESTADOS_PACIENTE.ALTA) return false;
+    const fCierre = (p.FechaCierre instanceof Date) ? p.FechaCierre : parseFechaES_(p.FechaCierre);
+    return fCierre && fCierre >= primerDiaMesActual;
+  }).length;
 
-
-  const hoy = normalizarFecha_(new Date());
+  // Calcular espera media
+  const pacientesEspera = pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ESPERA);
+  let esperaMedia = 0;
+  if (pacientesEspera.length > 0) {
+    const sumaDias = pacientesEspera.reduce((acc, p) => {
+      const fAlta = (p.FechaAlta instanceof Date) ? p.FechaAlta : parseFechaES_(p.FechaAlta);
+      if (!fAlta) return acc;
+      const diff = Math.max(0, Math.floor((hoyMs - fAlta.getTime()) / (1000 * 60 * 60 * 24)));
+      return acc + diff;
+    }, 0);
+    esperaMedia = Math.round(sumaDias / pacientesEspera.length);
+  }
 
   const resumen = {
     totalPacientes: pacientes.length,
-    activos: pacientes.filter(p => p.EstadoPaciente === 'ACTIVO').length,
-    espera: pacientes.filter(p => p.EstadoPaciente === 'ESPERA').length,
-    alta: pacientes.filter(p => p.EstadoPaciente === 'ALTA').length,
-    pendienteInicio: pacientes.filter(p => p.EstadoPaciente === 'ACTIVO_PENDIENTE_INICIO').length,
+    activos: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO).length,
+    activosInd: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO && p.ModalidadSolicitada === MODALIDADES.INDIVIDUAL).length,
+    activosGrp: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO && p.ModalidadSolicitada !== MODALIDADES.INDIVIDUAL).length,
+    espera: pacientesEspera.length,
+    esperaMedia: esperaMedia,
+    alta: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ALTA).length,
+    pendienteInicio: pacientes.filter(p => p.EstadoPaciente === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO).length,
     gruposEnCurso: ciclos.filter(c => c.EstadoCiclo === ESTADOS_CICLO.EN_CURSO).length,
     altasMesActual: altasMesActual
   };
