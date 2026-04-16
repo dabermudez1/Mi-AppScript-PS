@@ -227,7 +227,7 @@ function guardarCicloGrupoDesdeFormulario(formData) {
   let mensaje =
   'Ciclo creado correctamente.\n\n' +
   'Modalidad: ' + modalidad + '\n' +
-  'Inicio: ' + formatearFecha_(fechaInicio) + '\n' +
+  'Inicio: ' + formatearFecha_(fechas[0]) + '\n' +
   'Fin: ' + formatearFecha_(fechaFin);
 
   if (avisos.length > 0) {
