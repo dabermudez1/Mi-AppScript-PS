@@ -229,6 +229,90 @@ function asegurarFilaFichaClinicaPaciente_(pacienteId) {
   sheet.appendRow(new Array(HEADERS[SHEET_DATOS_CLINICOS_PACIENTES].length).fill('').map((_, i) => i === 0 ? pacienteId : ''));
 }
 
+/**
+ * Obtiene todos los datos para el formulario de estadísticas, 
+ * forzando una sincronización previa de los estados de alta.
+ */
+function obtenerDatosEstadisticasFichasFormulario() {
+  // 1. Invalida caché de ejecución para leer datos reales
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') {
+    __EXECUTION_CACHE__[SHEET_PACIENTES] = null;
+    __EXECUTION_CACHE__[SHEET_DATOS_CLINICOS_PACIENTES] = null;
+  }
+
+  // 2. Sincroniza fichas para capturar las "Altas" recientes de la hoja PACIENTES
+  sincronizarFichasClinicasPacientes();
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DATOS_CLINICOS_PACIENTES);
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { filas: [], resumen: {} };
+
+  const idx = indexByHeader_(data[0]);
+  const filas = data.slice(1).map(row => {
+    const pre = [row[idx.GAD7_PRE], row[idx.PHQ9_PRE], row[idx.WHOQOLBREF_PRE]];
+    const post = [row[idx.GAD7_POST], row[idx.PHQ9_POST], row[idx.WHOQOLBREF_POST]];
+    
+    // Cálculos de mejora (Delta)
+    const deltaGad = (row[idx.GAD7_POST] !== '' && row[idx.GAD7_PRE] !== '') ? row[idx.GAD7_POST] - row[idx.GAD7_PRE] : null;
+    const deltaPhq = (row[idx.PHQ9_POST] !== '' && row[idx.PHQ9_PRE] !== '') ? row[idx.PHQ9_POST] - row[idx.PHQ9_PRE] : null;
+    const deltaWho = (row[idx.WHOQOLBREF_POST] !== '' && row[idx.WHOQOLBREF_PRE] !== '') ? row[idx.WHOQOLBREF_POST] - row[idx.WHOQOLBREF_PRE] : null;
+
+    return {
+      pacienteId: row[idx.PacienteID],
+      nombre: row[idx.Nombre],
+      nhc: row[idx.NHC],
+      estadoPacienteActual: row[idx.EstadoPacienteActual],
+      tipoIntervencionPrincipal: row[idx.TipoIntervencionPrincipal],
+      finTratamientoTexto: row[idx.FinTratamientoTexto],
+      sexoGenero: row[idx.SexoGenero],
+      edad: row[idx.Edad],
+      motivoConsultaDiagnostico: row[idx.MotivoConsultaDiagnostico],
+      numeroSesionesTotal: row[idx.NumeroSesionesTotal],
+      tiempoEsperaHastaPrimeraConsultaDias: row[idx.TiempoEsperaHastaPrimeraConsultaDias],
+      gad7Pre: row[idx.GAD7_PRE],
+      gad7Post: row[idx.GAD7_POST],
+      deltaGad7: deltaGad,
+      phq9Pre: row[idx.PHQ9_PRE],
+      phq9Post: row[idx.PHQ9_POST],
+      deltaPhq9: deltaPhq,
+      whoqolPre: row[idx.WHOQOLBREF_PRE],
+      whoqolPost: row[idx.WHOQOLBREF_POST],
+      deltaWhoqol: deltaWho
+    };
+  });
+
+  const total = filas.length;
+  const conPre = filas.filter(f => f.gad7Pre !== '' || f.phq9Pre !== '' || f.whoqolPre !== '').length;
+  const conPost = filas.filter(f => f.gad7Post !== '' || f.phq9Post !== '' || f.whoqolPost !== '').length;
+  
+  // Helper para media
+  const media = (arr) => {
+    const vals = arr.filter(v => v !== null && v !== '').map(Number);
+    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : 0;
+  };
+
+  return {
+    filas: filas,
+    resumen: {
+      totalFichas: total,
+      conPre: conPre,
+      conPost: conPost,
+      comparables: filas.filter(f => (f.gad7Pre !== '' && f.gad7Post !== '')).length,
+      activos: filas.filter(f => f.estadoPacienteActual === 'ACTIVO').length,
+      alta: filas.filter(f => f.estadoPacienteActual === 'ALTA').length,
+      mediaGadPre: media(filas.map(f => f.gad7Pre)),
+      mediaGadPost: media(filas.map(f => f.gad7Post)),
+      deltaGad: media(filas.map(f => f.deltaGad7)),
+      mediaPhqPre: media(filas.map(f => f.phq9Pre)),
+      mediaPhqPost: media(filas.map(f => f.phq9Post)),
+      deltaPhq: media(filas.map(f => f.deltaPhq9)),
+      mediaWhoqolPre: media(filas.map(f => f.whoqolPre)),
+      mediaWhoqolPost: media(filas.map(f => f.whoqolPost)),
+      deltaWhoqol: media(filas.map(f => f.deltaWhoqol))
+    }
+  };
+}
+
 function sincronizarCamposAutomaticosFichaClinica_(pacienteId) {
   const paciente = obtenerPacienteCompletoPorId_(pacienteId);
   if (!paciente) {
