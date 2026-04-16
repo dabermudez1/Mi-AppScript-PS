@@ -215,8 +215,8 @@
       <!-- Próximos Grupos -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-          <h4 class="font-bold text-gray-700">Próximos Ciclos</h4>
-          <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">Planificados</span>
+          <h4 class="font-bold text-gray-700">Próximos Grupos</h4>
+          <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">Vigentes</span>
         </div>
         <table class="w-full text-left text-sm">
           <thead>
@@ -224,6 +224,7 @@
               <th class="px-5 py-3 font-medium">Modalidad</th>
               <th class="px-5 py-3 font-medium">Ciclo</th>
               <th class="px-5 py-3 font-medium">Inicio</th>
+              <th class="px-5 py-3 font-medium">Estado</th>
               <th class="px-5 py-3 font-medium">Plazas Libres</th>
             </tr>
           </thead>
@@ -233,6 +234,11 @@
                 <td class="px-5 py-3 font-semibold" x-text="c.Modalidad"></td>
                 <td class="px-5 py-3" x-text="c.NumeroCiclo"></td>
                 <td class="px-5 py-3" x-text="c.FechaInicioCiclo"></td>
+                <td class="px-5 py-3">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        :class="c.EstadoCiclo === 'EN_CURSO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
+                        x-text="c.EstadoCiclo"></span>
+                </td>
                 <td class="px-5 py-3 font-bold" :class="c.PlazasLibres > 0 ? 'text-green-600' : 'text-red-500'" x-text="c.PlazasLibres"></td>
               </tr>
             </template>

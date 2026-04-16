@@ -120,7 +120,7 @@ function obtenerDatosHomeDashboard() {
   }));
 
   const proximosCiclos = ciclos
-    .filter(c => c.EstadoCiclo === 'PLANIFICADO')
+    .filter(c => c.EstadoCiclo === 'PLANIFICADO' || c.EstadoCiclo === 'EN_CURSO')
     .sort((a, b) => {
       const tA = a.FechaInicioCiclo instanceof Date ? a.FechaInicioCiclo.getTime() : Infinity;
       const tB = b.FechaInicioCiclo instanceof Date ? b.FechaInicioCiclo.getTime() : Infinity;
@@ -132,7 +132,8 @@ function obtenerDatosHomeDashboard() {
       Modalidad: c.Modalidad, 
       NumeroCiclo: c.NumeroCiclo, 
       FechaInicioCiclo: formatearFecha_(c.FechaInicioCiclo),
-      PlazasLibres: c.PlazasLibres 
+      PlazasLibres: c.PlazasLibres,
+      EstadoCiclo: c.EstadoCiclo
     }));
 
   const proximosPacientes = pacientes

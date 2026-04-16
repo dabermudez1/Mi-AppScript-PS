@@ -631,7 +631,7 @@ function asignarPacienteEnEsperaACiclo() {
   const html = HtmlService
     .createHtmlOutputFromFile('AsignarEsperaCicloForm')
     .setWidth(620)
-    .setHeight(520);
+    .setHeight(620);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Asignar paciente en espera a ciclo');
 }

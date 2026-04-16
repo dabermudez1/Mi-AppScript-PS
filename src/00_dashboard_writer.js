@@ -127,10 +127,8 @@ function obtenerDatosDashboard_() {
     .slice(0, 12);
 
   const ciclosProximos = ciclos
-    .filter(c =>
-      c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO &&
-      c.FechaInicioCiclo instanceof Date &&
-      c.FechaInicioCiclo.getTime() >= hoy.getTime()
+    .filter(c => 
+      c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO || c.EstadoCiclo === ESTADOS_CICLO.EN_CURSO
     )
     .sort((a, b) => compararFechas_(a.FechaInicioCiclo, b.FechaInicioCiclo))
     .slice(0, 12);
@@ -346,7 +344,7 @@ function escribirBloquePacientesActivos_(sheet, data) {
 
 function escribirBloqueCiclosProximos_(sheet, data) {
   sheet.getRange('A20:L20').merge();
-  sheet.getRange('A20').setValue('PRÓXIMOS CICLOS PLANIFICADOS');
+  sheet.getRange('A20').setValue('PRÓXIMOS GRUPOS (VIGENTES)');
   aplicarTituloBloqueDashboard_(sheet.getRange('A20:L20'));
 
   sheet.getRange(21, 1, 1, 7).setValues([[
