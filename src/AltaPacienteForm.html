@@ -276,23 +276,13 @@
         btnVolver.disabled = false;
         btnCerrar.disabled = false;
         setStatus((res && res.mensaje) || 'Alta generada correctamente.', 'success');
-        setGuardarEnabled(false);
-
-        setTimeout(function() {
-          if (pacientePreseleccionadoId) {
-            google.script.run
-              .withSuccessHandler(function() {
-                google.script.host.close();
-              })
-              .abrirPantallaPacientesDesdePantalla();
-          } else {
-            google.script.run
-              .withSuccessHandler(function() {
-                google.script.host.close();
-              })
-              .abrirHomeDashboardDesdePantalla();
-          }
-        }, 400);
+        
+        // Limpiar campos y refrescar lista para permitir otra alta
+        document.getElementById('comentarioAlta').value = '';
+        limpiarDetallePaciente();
+        google.script.run
+          .withSuccessHandler(renderPacientes)
+          .obtenerPacientesAltaFormulario();
       })
       .withFailureHandler(function(error) {
         btn.innerText = 'Confirmar Alta';
