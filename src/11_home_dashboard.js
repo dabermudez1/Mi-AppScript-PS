@@ -120,12 +120,8 @@ function obtenerDatosHomeDashboard() {
   }));
 
   const proximosCiclos = ciclos
-    .filter(c => c.EstadoCiclo === 'PLANIFICADO' || c.EstadoCiclo === 'EN_CURSO')
-    .sort((a, b) => {
-      const tA = a.FechaInicioCiclo instanceof Date ? a.FechaInicioCiclo.getTime() : Infinity;
-      const tB = b.FechaInicioCiclo instanceof Date ? b.FechaInicioCiclo.getTime() : Infinity;
-      return tA - tB;
-    })
+    .filter(c => c.EstadoCiclo === ESTADOS_CICLO.PLANIFICADO || c.EstadoCiclo === ESTADOS_CICLO.EN_CURSO)
+    .sort((a, b) => compararFechas_(a.FechaInicioCiclo, b.FechaInicioCiclo))
     .slice(0, 8)
     .map(c => ({ 
       CicloID: c.CicloID, 

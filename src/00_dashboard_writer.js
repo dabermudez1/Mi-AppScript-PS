@@ -447,7 +447,14 @@ function ajustarLayoutDashboard_(sheet) {
  * HELPERS
  ***************/
 function compararFechas_(a, b) {
-  const tA = a instanceof Date ? a.getTime() : Number.MAX_SAFE_INTEGER;
-  const tB = b instanceof Date ? b.getTime() : Number.MAX_SAFE_INTEGER;
-  return tA - tB;
+  const parse = (val) => {
+    if (val instanceof Date) return val.getTime();
+    if (typeof val === 'string' && val.trim() !== '') {
+      const d = parseFechaES_(val); // Usar el helper global de 01_base
+      if (d) return d.getTime();
+    }
+    return Number.MAX_SAFE_INTEGER;
+  };
+
+  return parse(a) - parse(b);
 }
