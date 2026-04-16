@@ -129,7 +129,7 @@ function calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad) {
   let startSearchDate = sumarDiasNaturales_(fechaPrimeraConsulta, intervaloDias);
 
   // AJUSTE: Garantizar que no se proponen citas en el pasado
-  const ahora = new Date();
+  const ahora = normalizarFechaHora_(new Date());
   if (startSearchDate.getTime() < ahora.getTime()) {
     startSearchDate = ahora;
   }
@@ -336,7 +336,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   let startSearch = sumarDiasNaturales_(paciente.FechaPrimeraConsulta, intervaloDias);
   
   // AJUSTE: No buscar slots en el pasado
-  const ahora = new Date();
+  const ahora = normalizarFechaHora_(new Date());
   if (startSearch.getTime() < ahora.getTime()) {
     startSearch = ahora;
   }

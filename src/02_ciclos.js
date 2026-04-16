@@ -75,7 +75,11 @@ function generarSlotsCiclo_({ fechaInicio, horaInicio, modalidad }) {
   
   const availabilityService = new AvailabilityService();
   const slots = [];
-  let currentSearchStart = normalizarFechaHora_(fechaInicio, "00:00");
+  
+  let currentSearchStart = normalizarFechaHora_(fechaInicio, horaInicio);
+  if (currentSearchStart.getTime() < fechaInicio.getTime()) {
+    currentSearchStart = normalizarFechaHora_(fechaInicio);
+  }
 
   for (let i = 0; i < sesiones; i++) {
     // Buscamos el siguiente slot disponible para CADA sesión
@@ -205,7 +209,7 @@ function guardarCicloGrupoDesdeFormulario(formData) {
 
   // AJUSTE: Si la fecha es hoy o anterior, empezamos a buscar desde "ahora"
   // para no agendar sesiones en slots que ya han pasado.
-  const ahora = new Date();
+  const ahora = normalizarFechaHora_(new Date());
   let fechaBusqueda = fechaInicio;
   if (fechaBusqueda.getTime() < ahora.getTime()) {
     fechaBusqueda = ahora;
