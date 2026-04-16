@@ -236,9 +236,9 @@ function asegurarFilaFichaClinicaPaciente_(pacienteId) {
 function obtenerDatosEstadisticasFichasFormulario() {
   // 1. Invalida caché de ejecución para leer datos reales
   if (typeof __EXECUTION_CACHE__ !== 'undefined') {
-    __EXECUTION_CACHE__[SHEET_PACIENTES] = null;
-    __EXECUTION_CACHE__[SHEET_DATOS_CLINICOS_PACIENTES] = null;
+    Object.keys(__EXECUTION_CACHE__).forEach(key => __EXECUTION_CACHE__[key] = null);
   }
+  SpreadsheetApp.flush();
 
   // 2. Sincroniza fichas para capturar las "Altas" recientes de la hoja PACIENTES
   sincronizarFichasClinicasPacientes();
@@ -314,62 +314,8 @@ function obtenerDatosEstadisticasFichasFormulario() {
 }
 
 function sincronizarCamposAutomaticosFichaClinica_(pacienteId) {
-  const paciente = obtenerPacienteCompletoPorId_(pacienteId);
-  if (!paciente) {
-    throw new Error('Paciente no encontrado.');
-  }
-
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DATOS_CLINICOS_PACIENTES);
-  const data = sheet.getDataRange().getValues();
-  const idx = indexByHeader_(data[0]);
-
-  const sesiones = obtenerResumenSesionesClinico_(pacienteId);
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idx.PacienteID] || '') !== String(pacienteId)) continue;
-
-    const nhcActual = paciente.NHC || data[i][idx.NHC] || '';
-    const sexoGeneroActual = paciente.SexoGenero || '';
-    const motivoConsultaDiagnosticoActual = paciente.MotivoConsultaDiagnostico || '';
-    const motivoConsultaOtrosActual = paciente.MotivoConsultaOtros || '';
-    const fechaAltaEfectiva = paciente.FechaAltaEfectiva || paciente.FechaCierre || '';
-    const tipoIntervencion = paciente.ModalidadSolicitada === MODALIDADES.INDIVIDUAL ? 'Individual' : 'Grupal';
-
-    let finCodigo = '';
-    let finTexto = '';
-
-    if (paciente.EstadoPaciente === ESTADOS_PACIENTE.ALTA) {
-      finCodigo = paciente.MotivoAltaCodigo || '';
-      finTexto = paciente.MotivoAltaTexto || '';
-    } else {
-      finCodigo = 7;
-      finTexto = 'Activo en el programa';
-    }
-
-    let tiempoEspera = '';
-    if (paciente.FechaPrimeraConsulta instanceof Date && paciente.FechaPrimeraSesionReal instanceof Date) {
-      tiempoEspera = diferenciaDiasFechas_(paciente.FechaPrimeraConsulta, paciente.FechaPrimeraSesionReal);
-    }
-
-    sheet.getRange(i + 1, idx.Nombre + 1).setValue(paciente.Nombre || '');
-    sheet.getRange(i + 1, idx.NHC + 1).setValue(nhcActual);
-    sheet.getRange(i + 1, idx.SexoGenero + 1).setValue(sexoGeneroActual);
-    sheet.getRange(i + 1, idx.MotivoConsultaDiagnostico + 1).setValue(motivoConsultaDiagnosticoActual);
-    sheet.getRange(i + 1, idx.MotivoConsultaOtros + 1).setValue(motivoConsultaOtrosActual);
-    sheet.getRange(i + 1, idx.FechaAltaPrograma + 1).setValue(paciente.FechaAlta || '');
-    sheet.getRange(i + 1, idx.FechaPrimeraConsulta + 1).setValue(paciente.FechaPrimeraConsulta || '');
-    sheet.getRange(i + 1, idx.FechaAltaEfectiva + 1).setValue(fechaAltaEfectiva);
-    sheet.getRange(i + 1, idx.EstadoPacienteActual + 1).setValue(paciente.EstadoPaciente || '');
-    sheet.getRange(i + 1, idx.TipoIntervencionPrincipal + 1).setValue(tipoIntervencion);
-    sheet.getRange(i + 1, idx.FinTratamientoCodigo + 1).setValue(finCodigo);
-    sheet.getRange(i + 1, idx.FinTratamientoTexto + 1).setValue(finTexto);
-    sheet.getRange(i + 1, idx.NumeroSesionesTotal + 1).setValue(sesiones.numeroSesionesTotal);
-    sheet.getRange(i + 1, idx.TiempoEsperaHastaPrimeraConsultaDias + 1).setValue(tiempoEspera);
-
-    return;
-  }
-
-  throw new Error('No se encontró fila clínica para sincronizar.');
+  // Redirigimos al motor de sincronización masiva optimizado
+  sincronizarFichasClinicasPacientes();
 }
 
 function obtenerResumenSesionesClinico_(pacienteId) {
@@ -447,33 +393,86 @@ function actualizarCamposClinicosBasicosEnPacientes_(params) {
 }
 
 function sincronizarFichasClinicasPacientes() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PACIENTES);
-  if (!sheet) {
-    throw new Error('No existe la hoja ' + SHEET_PACIENTES + '.');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const pSheet = ss.getSheetByName(SHEET_PACIENTES);
+  const cSheet = ss.getSheetByName(SHEET_DATOS_CLINICOS_PACIENTES);
+  const sSheet = ss.getSheetByName(SHEET_SESIONES);
+
+  if (!pSheet || !cSheet || !sSheet) throw new Error('Faltan hojas críticas para sincronización.');
+
+  const pData = pSheet.getDataRange().getValues();
+  const cData = cSheet.getDataRange().getValues();
+  const sData = sSheet.getDataRange().getValues();
+
+  if (pData.length < 2) return { mensaje: 'No hay pacientes.' };
+
+  const pIdx = indexByHeader_(pData[0]);
+  const cIdx = indexByHeader_(cData[0]);
+  const sIdx = indexByHeader_(sData[0]);
+
+  // 1. Mapa de sesiones completadas por paciente (Batch Load)
+  const sMap = {};
+  for (let i = 1; i < sData.length; i++) {
+    const pid = String(sData[i][sIdx.PacienteID]);
+    const estado = sData[i][sIdx.EstadoSesion];
+    if (estado === ESTADOS_SESION.COMPLETADA_AUTO || estado === ESTADOS_SESION.COMPLETADA_MANUAL) {
+      sMap[pid] = (sMap[pid] || 0) + 1;
+    }
   }
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) {
-    return { mensaje: 'No hay pacientes para sincronizar.' };
+  // 2. Mapa de filas clínicas existentes (PacienteID -> índice en cData)
+  const cMap = {};
+  for (let i = 1; i < cData.length; i++) {
+    cMap[String(cData[i][cIdx.PacienteID])] = i;
   }
 
-  const idx = indexByHeader_(data[0]);
   let procesados = 0;
+  let nuevos = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const pacienteId = data[i][idx.PacienteID] || '';
-    if (!pacienteId) continue;
+  // 3. Procesar todos los pacientes (Batch Process)
+  for (let i = 1; i < pData.length; i++) {
+    const pid = String(pData[i][pIdx.PacienteID]);
+    if (!pid) continue;
 
-    asegurarFilaFichaClinicaPaciente_(pacienteId);
-    sincronizarCamposAutomaticosFichaClinica_(pacienteId);
+    const p = pData[i];
+    let cRowIdx = cMap[pid];
+    let row;
+
+    if (cRowIdx !== undefined) {
+      row = cData[cRowIdx];
+    } else {
+      row = new Array(cData[0].length).fill('');
+      row[cIdx.PacienteID] = pid;
+      cData.push(row);
+      cRowIdx = cData.length - 1;
+      nuevos++;
+    }
+
+    // Actualizar campos calculados/mapeados
+    row[cIdx.Nombre] = p[pIdx.Nombre] || '';
+    row[cIdx.NHC] = p[pIdx.NHC] || row[cIdx.NHC] || '';
+    row[cIdx.SexoGenero] = p[pIdx.SexoGenero] || '';
+    row[cIdx.MotivoConsultaDiagnostico] = p[pIdx.MotivoConsultaDiagnostico] || '';
+    row[cIdx.MotivoConsultaOtros] = p[pIdx.MotivoConsultaOtros] || '';
+    row[cIdx.FechaAltaPrograma] = p[pIdx.FechaAlta] || '';
+    row[cIdx.FechaPrimeraConsulta] = p[pIdx.FechaPrimeraConsulta] || '';
+    row[cIdx.FechaAltaEfectiva] = p[pIdx.FechaAltaEfectiva] || p[pIdx.FechaCierre] || '';
+    row[cIdx.EstadoPacienteActual] = p[pIdx.EstadoPaciente] || '';
+    row[cIdx.TipoIntervencionPrincipal] = p[pIdx.ModalidadSolicitada] === MODALIDADES.INDIVIDUAL ? 'Individual' : 'Grupal';
+    row[cIdx.FinTratamientoCodigo] = p[pIdx.EstadoPaciente] === ESTADOS_PACIENTE.ALTA ? p[pIdx.MotivoAltaCodigo] : 7;
+    row[cIdx.FinTratamientoTexto] = p[pIdx.EstadoPaciente] === ESTADOS_PACIENTE.ALTA ? p[pIdx.MotivoAltaTexto] : 'Activo en el programa';
+    row[cIdx.NumeroSesionesTotal] = (p[pIdx.FechaPrimeraConsulta] instanceof Date ? 1 : 0) + (sMap[pid] || 0);
+    
+    if (p[pIdx.FechaPrimeraConsulta] instanceof Date && p[pIdx.FechaPrimeraSesionReal] instanceof Date) {
+      row[cIdx.TiempoEsperaHastaPrimeraConsultaDias] = diferenciaDiasFechas_(p[pIdx.FechaPrimeraConsulta], p[pIdx.FechaPrimeraSesionReal]);
+    }
+
     procesados++;
   }
 
-  return {
-    mensaje:
-      'Sincronización de fichas clínicas completada.\n\n' +
-      'Pacientes procesados: ' + procesados
-  };
+  // 4. Volcado masivo a la hoja clínica
+  cSheet.getRange(1, 1, cData.length, cData[0].length).setValues(cData);
+  return { mensaje: `Sincronización completada. Procesados: ${procesados} (${nuevos} nuevos).` };
 }
 
 function ejecutarSincronizarFichasClinicasPacientes() {

@@ -913,10 +913,11 @@ function formatearHora_(dateOrTimeString) {
  * Limpia cachés de memoria y persistencia, y actualiza la hoja Dashboard.
  */
 function refrescarDashboard() {
-  // 1. Limpiar caché de memoria de la ejecución actual
+  // 1. Limpiar caché de memoria de la ejecución actual (TODAS)
   if (typeof __EXECUTION_CACHE__ !== 'undefined') {
     Object.keys(__EXECUTION_CACHE__).forEach(key => __EXECUTION_CACHE__[key] = null);
   }
+  SpreadsheetApp.flush();
 
   // 2. Forzar recálculo de ocupación de ciclos (Mantenimiento profundo)
   try {
