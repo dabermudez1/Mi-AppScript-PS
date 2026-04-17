@@ -179,12 +179,13 @@ function irAFichaClinica() {
   if (!ultimoPacienteId) return;
   
   google.script.run
+    .withSuccessHandler(function() {
+      google.script.host.close();
+    })
     .withFailureHandler(function(error) {
       alert(error.message || String(error));
     })
     .fichaClinicaPacienteDesdePaciente(ultimoPacienteId);
-    
-  google.script.host.close();
 }
 
 function volverAlPanel() {
