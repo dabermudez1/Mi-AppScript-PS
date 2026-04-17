@@ -81,7 +81,13 @@
 
     <div id="status" class="status"></div>
 
+    <div id="successActions" style="display:none; margin-top: 16px;">
+      <button type="button" class="primary" onclick="irAFichaClinica()" style="background-color: #10b981; border-color: #059669;">📋 Ir a Ficha Clínica del Paciente</button>
+    </div>
+
     <script>
+    let ultimoPacienteId = null;
+
     function setStatus(message, type) {
     const el = document.getElementById('status');
     el.textContent = message || '';
@@ -134,6 +140,7 @@
     btnVolver.disabled = true;
     btnCerrar.disabled = true;
     btn.innerText = 'Procesando...';
+    document.getElementById('successActions').style.display = 'none';
     setStatus('⏳ Guardando paciente en el sistema...', '');
 
     google.script.run
@@ -143,6 +150,11 @@
         btnVolver.disabled = false;
         btnCerrar.disabled = false;
         setStatus(resultado.mensaje || 'Paciente creado correctamente.', 'success');
+        
+        if (resultado.pacienteId) {
+          ultimoPacienteId = resultado.pacienteId;
+          document.getElementById('successActions').style.display = 'block';
+        }
         limpiarFormularioNuevoPaciente();
       })
       .withFailureHandler(function(error) {
@@ -162,6 +174,18 @@
         fechaPrimeraConsulta: fechaPrimeraConsulta
       });
   }
+
+function irAFichaClinica() {
+  if (!ultimoPacienteId) return;
+  
+  google.script.run
+    .withFailureHandler(function(error) {
+      alert(error.message || String(error));
+    })
+    .fichaClinicaPacienteDesdePaciente(ultimoPacienteId);
+    
+  google.script.host.close();
+}
 
 function volverAlPanel() {
   google.script.run

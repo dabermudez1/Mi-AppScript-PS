@@ -6,7 +6,7 @@
 function abrirPantallaPacientes() {
   const html = HtmlService
     .createHtmlOutputFromFile('PantallaPacientes')
-    .setWidth(1100)
+    .setWidth(1300)
     .setHeight(700);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Pacientes');
