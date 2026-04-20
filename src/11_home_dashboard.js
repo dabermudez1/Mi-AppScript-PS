@@ -171,6 +171,7 @@ function obtenerDatosHomeDashboard() {
     .map(p => ({ 
       PacienteID: p.PacienteID, 
       Nombre: p.Nombre, 
+      Modalidad: p.ModalidadSolicitada,
       EstadoPaciente: p.EstadoPaciente, 
       ProximaSesion: p.ProximaSesion instanceof Date ? 
         formatearFecha_(p.ProximaSesion) + ' ' + formatearHora_(p.ProximaSesion) : 
