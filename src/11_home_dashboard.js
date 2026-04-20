@@ -171,11 +171,10 @@ function obtenerDatosHomeDashboard() {
     .map(p => ({ 
       PacienteID: p.PacienteID, 
       Nombre: p.Nombre, 
-      Modalidad: p.ModalidadSolicitada,
+      Modalidad: p.ModalidadSolicitada || '-',
       EstadoPaciente: p.EstadoPaciente, 
-      ProximaSesion: p.ProximaSesion instanceof Date ? 
-        formatearFecha_(p.ProximaSesion) + ' ' + formatearHora_(p.ProximaSesion) : 
-        formatearFecha_(p.ProximaSesion)
+      ProximaSesion: formatearFecha_(p.ProximaSesion),
+      HoraProximaSesion: formatearHora_(p.ProximaSesion)
     }));
 
   const alertas = construirAlertasHome_(pacientes, ciclos, sesiones, hoy);

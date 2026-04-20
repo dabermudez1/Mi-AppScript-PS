@@ -273,7 +273,7 @@
               <tr class="border-t border-gray-50 hover:bg-gray-50">
                 <td class="px-5 py-3 font-semibold" x-text="p.Nombre"></td>
                 <td class="px-5 py-3" x-text="p.Modalidad"></td>
-                <td class="px-5 py-3" x-text="p.ProximaSesion + (p.HoraProximaSesion ? ' - ' + p.HoraProximaSesion : '')"></td>
+                <td class="px-5 py-3" x-text="p.ProximaSesion + ' ' + p.HoraProximaSesion"></td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-1 rounded-full text-xs font-bold"
                         :class="p.EstadoPaciente === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'"
