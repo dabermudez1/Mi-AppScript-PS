@@ -7,7 +7,7 @@ function nuevoPaciente() {
   const html = HtmlService
     .createHtmlOutputFromFile('NuevoPacienteForm')
     .setWidth(420)
-    .setHeight(800);
+    .setHeight(850);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Nuevo paciente');
 }

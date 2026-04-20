@@ -263,6 +263,7 @@
           <thead>
             <tr class="text-gray-400 border-b border-gray-50">
               <th class="px-5 py-3 font-medium">Paciente</th>
+              <th class="px-5 py-3 font-medium">Modalidad</th>
               <th class="px-5 py-3 font-medium">Siguiente Cita / Hora</th>
               <th class="px-5 py-3 font-medium">Estado</th>
             </tr>
@@ -271,6 +272,7 @@
             <template x-for="p in data.proximosPacientes" :key="p.PacienteID">
               <tr class="border-t border-gray-50 hover:bg-gray-50">
                 <td class="px-5 py-3 font-semibold" x-text="p.Nombre"></td>
+                <td class="px-5 py-3" x-text="p.Modalidad"></td>
                 <td class="px-5 py-3" x-text="p.ProximaSesion + (p.HoraProximaSesion ? ' - ' + p.HoraProximaSesion : '')"></td>
                 <td class="px-5 py-3">
                   <span class="px-2 py-1 rounded-full text-xs font-bold"
