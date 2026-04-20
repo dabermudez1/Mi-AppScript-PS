@@ -1192,11 +1192,17 @@ function confirmarReasignacionPacienteFormulario(formData) {
     };
 
   } catch (error) {
-    // rollback mínimo de plaza nueva si algo falla después de reservar
+    // ROLLBACK: Revertimos los cambios realizados para evitar el "limbo administrativo"
     try {
       actualizarPlazasCiclo_(nuevoCiclo.CicloID, -1, false);
+      if (tieneAsignacionAnterior) {
+        // Devolvemos la plaza al ciclo viejo y restauramos estados
+        actualizarPlazasCiclo_(cicloAnteriorId, +1, false);
+        restaurarAsignacionVigente_(paciente.PacienteID, cicloAnteriorId);
+        restaurarSesionesCanceladas_(paciente.PacienteID);
+      }
     } catch (e) {
-      // evitamos encadenar errores
+      console.error("Error crítico en el rollback: " + e.message);
     }
     throw error;
   }
@@ -1275,16 +1281,20 @@ function actualizarPacienteTrasReasignacion_(pacienteId, ciclo) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][idx.PacienteID]) !== String(pacienteId)) continue;
 
-    sheet.getRange(i + 1, idx.EstadoPaciente + 1).setValue(ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO);
-    sheet.getRange(i + 1, idx.MotivoEspera + 1).setValue('');
-    sheet.getRange(i + 1, idx.CicloObjetivoID + 1).setValue(ciclo.CicloID);
-    sheet.getRange(i + 1, idx.CicloActivoID + 1).setValue('');
-    sheet.getRange(i + 1, idx.FechaPrimeraSesionReal + 1).setValue(ciclo.FechaInicioCiclo);
-    sheet.getRange(i + 1, idx.SesionesPlanificadas + 1).setValue(ciclo.SesionesPorCiclo);
-    sheet.getRange(i + 1, idx.SesionesCompletadas + 1).setValue(0);
-    sheet.getRange(i + 1, idx.SesionesPendientes + 1).setValue(ciclo.SesionesPorCiclo);
-    sheet.getRange(i + 1, idx.ProximaSesion + 1).setValue(ciclo.FechaInicioCiclo);
-    sheet.getRange(i + 1, idx.FechaCierre + 1).setValue('');
+    // PATRÓN ATÓMICO: Modificamos toda la fila en memoria y escribimos una sola vez
+    const fila = data[i];
+    fila[idx.EstadoPaciente] = ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO;
+    fila[idx.MotivoEspera] = '';
+    fila[idx.CicloObjetivoID] = ciclo.CicloID;
+    fila[idx.CicloActivoID] = '';
+    fila[idx.FechaPrimeraSesionReal] = ciclo.FechaInicioCiclo;
+    fila[idx.SesionesPlanificadas] = ciclo.SesionesPorCiclo;
+    fila[idx.SesionesCompletadas] = 0;
+    fila[idx.SesionesPendientes] = ciclo.SesionesPorCiclo;
+    fila[idx.ProximaSesion] = ciclo.FechaInicioCiclo;
+    fila[idx.FechaCierre] = '';
+    
+    sheet.getRange(i + 1, 1, 1, fila.length).setValues([fila]);
     return;
   }
 
@@ -1600,4 +1610,43 @@ function editarPacienteDesdeId_(pacienteId) {
     .setHeight(720);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Editar paciente');
+}
+
+/**
+ * Restauradores de emergencia para Rollback (H-02)
+ */
+function restaurarAsignacionVigente_(pacienteId, cicloId) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ASIGNACIONES_CICLO);
+  const data = sheet.getDataRange().getValues();
+  const idx = indexByHeader_(data[0]);
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idx.PacienteID]) === String(pacienteId) && 
+        String(data[i][idx.CicloID]) === String(cicloId) &&
+        data[i][idx.EstadoAsignacion] === ESTADOS_ASIGNACION.CANCELADO) {
+      
+      // Lo devolvemos a RESERVADO (asumiendo que venía de reasignación desde activo_pendiente)
+      sheet.getRange(i + 1, idx.EstadoAsignacion + 1).setValue(ESTADOS_ASIGNACION.RESERVADO);
+      return;
+    }
+  }
+}
+
+function restaurarSesionesCanceladas_(pacienteId) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESIONES);
+  const data = sheet.getDataRange().getValues();
+  const idx = indexByHeader_(data[0]);
+  
+  let restauradas = 0;
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idx.PacienteID]) === String(pacienteId) && 
+        data[i][idx.EstadoSesion] === ESTADOS_SESION.CANCELADA) {
+      
+      sheet.getRange(i + 1, idx.EstadoSesion + 1).setValue(ESTADOS_SESION.PENDIENTE);
+      restauradas++;
+    }
+  }
+  if (restauradas > 0) {
+    if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_SESIONES] = null;
+  }
 }
