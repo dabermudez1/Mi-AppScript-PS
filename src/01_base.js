@@ -244,10 +244,16 @@ const HEADERS = {
     'CambioFarmacologicoAlta',
     'GAD7_PRE',
     'PHQ9_PRE',
-    'WHOQOLBREF_PRE',
+    'WHOQOLBREF_FISICO_PRE',
+    'WHOQOLBREF_PSICO_PRE',
+    'WHOQOLBREF_SOCIAL_PRE',
+    'WHOQOLBREF_AMBIENTE_PRE',
     'GAD7_POST',
     'PHQ9_POST',
-    'WHOQOLBREF_POST',
+    'WHOQOLBREF_FISICO_POST',
+    'WHOQOLBREF_PSICO_POST',
+    'WHOQOLBREF_SOCIAL_POST',
+    'WHOQOLBREF_AMBIENTE_POST',
     'EscalaSatisfaccion',
     'OtrosComentarios'
   ]
