@@ -1,0 +1,13 @@
+# Llave de acceso a producción (¡CRÍTICO ocultarlo!)
+.clasp.auth.prod.json
+
+# Archivos temporales y de configuración local de CLASP
+.clasprc.json
+clasp-error.log
+
+# Archivo comprimido antiguo que se ve en tu carpeta
+src.zip
+.clasprc.json
+.clasp.auth.prod.json
+
+.clasprc.dev.bak

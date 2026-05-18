@@ -1,0 +1,17 @@
+{
+  "scriptId": "13VzAmlO1Thw9aCT1mnA2TK65m_dgo0r5Fo3BKFW8HfuJmoqQ9rUf1S4v",
+  "rootDir": "src",
+  "auth": ".clasp.auth.prod.json",
+  "scriptExtensions": [
+    ".js",
+    ".gs"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [],
+  "skipSubdirectories": false
+}
