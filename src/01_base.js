@@ -341,139 +341,76 @@ function inicializarSistema() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    crearHojasSiNoExisten_();
-    asegurarEstructuraCompleta_();
+    // 1. Asegurar Hojas con encabezados fijos o sin estructura de datos
+    asegurarEstructuraHoja_(SHEET_CATALOGOS, ['Catalogo', 'Valor']);
+    asegurarEstructuraHoja_('DIAS_BLOQUEADOS', ['Fecha', 'Bloqueado', 'Motivo']);
+    asegurarEstructuraHoja_(SHEET_DASHBOARD, []);
+
+    // 2. Asegurar Hojas basadas en el esquema global HEADERS
+    const esquemasPrincipales = [
+      SHEET_CONFIG_MODALIDADES,
+      SHEET_PACIENTES,
+      SHEET_CICLOS,
+      SHEET_ASIGNACIONES_CICLO,
+      SHEET_SESIONES,
+      SHEET_AGENDA_PLANTILLA,
+      SHEET_AGENDA_EXCEPCIONES,
+      SHEET_DATOS_CLINICOS_PACIENTES
+    ];
+
+    esquemasPrincipales.forEach(nombreHoja => {
+      asegurarEstructuraHoja_(nombreHoja, HEADERS[nombreHoja]);
+    });
+
+    // 3. Carga de datos base y formatos
     cargarCatalogosBase_();
     cargarConfiguracionModalidadesBase_();
     aplicarFormatoBasico_();
 
     ui.alert(
-      'Sistema inicializado/verificado correctamente.\n\n' +
-      'Se han revisado hojas, encabezados, catálogos y configuración base.'
+      'Verificación defensiva completada con éxito.\n\n' +
+      'El sistema ha revisado las 9 hojas principales. Se han añadido columnas faltantes ' +
+      'al final de las hojas existentes sin alterar los datos o el orden de los psicólogos.'
     );
   } catch (error) {
-    ui.alert('Error al inicializar el sistema: ' + error.message);
+    ui.alert('Fallo en la inicialización defensiva: ' + error.message);
     throw error;
   }
 }
 
-/***************
- * CREACIÓN DE HOJAS SI FALTAN
- ***************/
-function crearHojasSiNoExisten_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  const hojasNecesarias = [
-    SHEET_CATALOGOS,
-    SHEET_CONFIG_MODALIDADES,
-    SHEET_PACIENTES,
-    SHEET_CICLOS,
-    SHEET_ASIGNACIONES_CICLO,
-    SHEET_SESIONES,
-    SHEET_DASHBOARD,
-    SHEET_AGENDA_PLANTILLA, // Nueva hoja
-    SHEET_AGENDA_EXCEPCIONES, // Nueva hoja
-    SHEET_DATOS_CLINICOS_PACIENTES
-  ];
-
-  const existentes = ss.getSheets().map(s => s.getName());
-
-  hojasNecesarias.forEach(nombreHoja => {
-    if (!existentes.includes(nombreHoja)) {
-      ss.insertSheet(nombreHoja);
-    }
-  });
-}
-
-/***************
- * VERIFICAR / CREAR ENCABEZADOS
- ***************/
-function asegurarEstructuraCompleta_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  Object.keys(HEADERS).forEach(sheetName => {
-    const sheet = ss.getSheetByName(sheetName);
-
-    if (!sheet) {
-      throw new Error(`No existe la hoja ${sheetName}.`);
-    }
-
-    asegurarEncabezadosExactos_(sheet, HEADERS[sheetName]);
-  });
-
-  asegurarHojaCatalogosEstructura_();
-  asegurarHojaDashboardBase_();
-}
-
 /**
- * Si la hoja está vacía, escribe encabezados.
- * Si ya tiene encabezados, exige coincidencia exacta en orden y nombre.
+ * Crea una hoja si no existe y asegura que contenga los encabezados requeridos.
+ * Si la hoja existe, añade al final de la fila 1 aquellos encabezados que falten.
+ * Enfoque defensivo: No borra ni reordena columnas existentes.
  */
-function asegurarEncabezadosExactos_(sheet, headersEsperados) {
-  const lastRow = sheet.getLastRow();
-  const lastColumn = sheet.getLastColumn();
-
-  if (lastRow === 0 || lastColumn === 0) {
-    sheet.getRange(1, 1, 1, headersEsperados.length).setValues([headersEsperados]);
-    return;
-  }
-
-  const headersActuales = sheet.getRange(1, 1, 1, Math.max(lastColumn, headersEsperados.length)).getValues()[0];
-
-  const headersActualesRecortados = headersActuales.slice(0, headersEsperados.length);
-
-  const coincideLongitud = lastColumn >= headersEsperados.length;
-  const coincideContenido = headersEsperados.every((h, i) => headersActualesRecortados[i] === h);
-
-  // Si el contenido coincide pero faltan columnas al final, las añadimos automáticamente
-  if (!coincideLongitud && coincideContenido) {
-    const columnasFaltantes = headersEsperados.slice(lastColumn);
-    sheet.getRange(1, lastColumn + 1, 1, columnasFaltantes.length).setValues([columnasFaltantes]);
-    console.log(`Hoja ${sheet.getName()}: Se han añadido las columnas faltantes: ${columnasFaltantes.join(', ')}`);
-    return;
-  }
-
-  if (!coincideContenido) {
-    throw new Error(
-      `Conflicto crítico de estructura en ${sheet.getName()}.\n` +
-      `Los encabezados actuales no siguen el orden esperado. Por favor, revisa la hoja manualmente.`
-    );
-  }
-}
-
-function asegurarHojaCatalogosEstructura_() {
+function asegurarEstructuraHoja_(nombreHoja, encabezadosRequeridos) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_CATALOGOS);
+  let sheet = ss.getSheetByName(nombreHoja);
 
+  // 1. Crear la hoja si no existe
   if (!sheet) {
-    throw new Error(`No existe la hoja ${SHEET_CATALOGOS}.`);
-  }
-
-  if (sheet.getLastRow() === 0 || sheet.getLastColumn() === 0) {
-    sheet.getRange(1, 1, 1, 2).setValues([['Catalogo', 'Valor']]);
+    sheet = ss.insertSheet(nombreHoja);
+    if (encabezadosRequeridos && encabezadosRequeridos.length > 0) {
+      sheet.getRange(1, 1, 1, encabezadosRequeridos.length).setValues([encabezadosRequeridos]);
+    }
     return;
   }
 
-  const headers = sheet.getRange(1, 1, 1, 2).getValues()[0];
-  const esperados = ['Catalogo', 'Valor'];
+  // 2. Si es el Dashboard o no hay requerimientos, no validamos estructura
+  if (nombreHoja === SHEET_DASHBOARD || !encabezadosRequeridos || encabezadosRequeridos.length === 0) return;
 
-  if (headers[0] !== esperados[0] || headers[1] !== esperados[1]) {
-    throw new Error(
-      `Los encabezados de ${SHEET_CATALOGOS} deben ser exactamente: ${esperados.join(' | ')}`
-    );
-  }
-}
+  // 3. Verificar estructura existente
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const fila1 = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const headersActuales = fila1.map(h => String(h).trim());
 
-function asegurarHojaDashboardBase_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_DASHBOARD);
+  // 4. Identificar encabezados faltantes
+  const faltantes = encabezadosRequeridos.filter(req => !headersActuales.includes(req));
 
-  if (!sheet) {
-    throw new Error(`No existe la hoja ${SHEET_DASHBOARD}.`);
-  }
-
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange('A1').setValue('DASHBOARD');
+  if (faltantes.length > 0) {
+    // Añadir columnas faltantes al final de la fila 1
+    sheet.getRange(1, lastCol + 1, 1, faltantes.length).setValues([faltantes]);
+    console.log(`Hoja ${nombreHoja}: Se han añadido columnas nuevas: ${faltantes.join(', ')}`);
   }
 }
 
