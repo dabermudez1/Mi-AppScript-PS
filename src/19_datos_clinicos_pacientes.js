@@ -139,10 +139,16 @@ function obtenerFichaClinicaPacienteFormulario(pacienteId) {
       cambioFarmacologicoAlta: data[i][idx.CambioFarmacologicoAlta] || '',
       gad7Pre: data[i][idx.GAD7_PRE] || '',
       phq9Pre: data[i][idx.PHQ9_PRE] || '',
-      whoqolPre: data[i][idx.WHOQOLBREF_PRE] || '',
+      whoqolFisicoPre: data[i][idx.WHOQOLBREF_FISICO_PRE] || '',
+      whoqolPsicoPre: data[i][idx.WHOQOLBREF_PSICO_PRE] || '',
+      whoqolSocialPre: data[i][idx.WHOQOLBREF_SOCIAL_PRE] || '',
+      whoqolAmbientePre: data[i][idx.WHOQOLBREF_AMBIENTE_PRE] || '',
       gad7Post: data[i][idx.GAD7_POST] || '',
       phq9Post: data[i][idx.PHQ9_POST] || '',
-      whoqolPost: data[i][idx.WHOQOLBREF_POST] || '',
+      whoqolFisicoPost: data[i][idx.WHOQOLBREF_FISICO_POST] || '',
+      whoqolPsicoPost: data[i][idx.WHOQOLBREF_PSICO_POST] || '',
+      whoqolSocialPost: data[i][idx.WHOQOLBREF_SOCIAL_POST] || '',
+      whoqolAmbientePost: data[i][idx.WHOQOLBREF_AMBIENTE_POST] || '',
       escalaSatisfaccion: data[i][idx.EscalaSatisfaccion] || '',
       otrosComentarios: data[i][idx.OtrosComentarios] || ''
     };
@@ -190,10 +196,18 @@ function guardarFichaClinicaPacienteFormulario(formData) {
 
     sheet.getRange(i + 1, idx.GAD7_PRE + 1).setValue(formData.gad7Pre || '');
     sheet.getRange(i + 1, idx.PHQ9_PRE + 1).setValue(formData.phq9Pre || '');
-    sheet.getRange(i + 1, idx.WHOQOLBREF_PRE + 1).setValue(formData.whoqolPre || '');
+    sheet.getRange(i + 1, idx.WHOQOLBREF_FISICO_PRE + 1).setValue(formData.whoqolFisicoPre || '');
+    sheet.getRange(i + 1, idx.WHOQOLBREF_PSICO_PRE + 1).setValue(formData.whoqolPsicoPre || '');
+    sheet.getRange(i + 1, idx.WHOQOLBREF_SOCIAL_PRE + 1).setValue(formData.whoqolSocialPre || '');
+    sheet.getRange(i + 1, idx.WHOQOLBREF_AMBIENTE_PRE + 1).setValue(formData.whoqolAmbientePre || '');
+
     sheet.getRange(i + 1, idx.GAD7_POST + 1).setValue(formData.gad7Post || '');
     sheet.getRange(i + 1, idx.PHQ9_POST + 1).setValue(formData.phq9Post || '');
-    sheet.getRange(i + 1, idx.WHOQOLBREF_POST + 1).setValue(formData.whoqolPost || '');
+    sheet.getRange(i + 1, idx.WHOQOLBREF_FISICO_POST + 1).setValue(formData.whoqolFisicoPost || '');
+    sheet.getRange(i + 1, idx.WHOQOLBREF_PSICO_POST + 1).setValue(formData.whoqolPsicoPost || '');
+    sheet.getRange(i + 1, idx.WHOQOLBREF_SOCIAL_POST + 1).setValue(formData.whoqolSocialPost || '');
+    sheet.getRange(i + 1, idx.WHOQOLBREF_AMBIENTE_POST + 1).setValue(formData.whoqolAmbientePost || '');
+
     sheet.getRange(i + 1, idx.EscalaSatisfaccion + 1).setValue(formData.escalaSatisfaccion || '');
     sheet.getRange(i + 1, idx.OtrosComentarios + 1).setValue(formData.otrosComentarios || '');
 
@@ -249,13 +263,16 @@ function obtenerDatosEstadisticasFichasFormulario() {
 
   const idx = indexByHeader_(data[0]);
   const filas = data.slice(1).map(row => {
-    const pre = [row[idx.GAD7_PRE], row[idx.PHQ9_PRE], row[idx.WHOQOLBREF_PRE]];
-    const post = [row[idx.GAD7_POST], row[idx.PHQ9_POST], row[idx.WHOQOLBREF_POST]];
-    
     // Cálculos de mejora (Delta)
     const deltaGad = (row[idx.GAD7_POST] !== '' && row[idx.GAD7_PRE] !== '') ? row[idx.GAD7_POST] - row[idx.GAD7_PRE] : null;
     const deltaPhq = (row[idx.PHQ9_POST] !== '' && row[idx.PHQ9_PRE] !== '') ? row[idx.PHQ9_POST] - row[idx.PHQ9_PRE] : null;
-    const deltaWho = (row[idx.WHOQOLBREF_POST] !== '' && row[idx.WHOQOLBREF_PRE] !== '') ? row[idx.WHOQOLBREF_POST] - row[idx.WHOQOLBREF_PRE] : null;
+    
+    // Deltas por dominio WHOQOL
+    const deltaFisico = (row[idx.WHOQOLBREF_FISICO_POST] !== '' && row[idx.WHOQOLBREF_FISICO_PRE] !== '') ? row[idx.WHOQOLBREF_FISICO_POST] - row[idx.WHOQOLBREF_FISICO_PRE] : null;
+    const deltaPsico = (row[idx.WHOQOLBREF_PSICO_POST] !== '' && row[idx.WHOQOLBREF_PSICO_PRE] !== '') ? row[idx.WHOQOLBREF_PSICO_POST] - row[idx.WHOQOLBREF_PSICO_PRE] : null;
+    const deltaSocial = (row[idx.WHOQOLBREF_SOCIAL_POST] !== '' && row[idx.WHOQOLBREF_SOCIAL_PRE] !== '') ? row[idx.WHOQOLBREF_SOCIAL_POST] - row[idx.WHOQOLBREF_SOCIAL_PRE] : null;
+    const deltaAmbiente = (row[idx.WHOQOLBREF_AMBIENTE_POST] !== '' && row[idx.WHOQOLBREF_AMBIENTE_PRE] !== '') ? row[idx.WHOQOLBREF_AMBIENTE_POST] - row[idx.WHOQOLBREF_AMBIENTE_PRE] : null;
+
 
     return {
       pacienteId: row[idx.PacienteID],
@@ -277,13 +294,25 @@ function obtenerDatosEstadisticasFichasFormulario() {
       deltaPhq9: deltaPhq,
       whoqolPre: row[idx.WHOQOLBREF_PRE],
       whoqolPost: row[idx.WHOQOLBREF_POST],
-      deltaWhoqol: deltaWho
+      // Granularidad WHOQOL para el listado
+      whoqolFisicoPre: row[idx.WHOQOLBREF_FISICO_PRE],
+      whoqolFisicoPost: row[idx.WHOQOLBREF_FISICO_POST],
+      deltaFisico: deltaFisico,
+      whoqolPsicoPre: row[idx.WHOQOLBREF_PSICO_PRE],
+      whoqolPsicoPost: row[idx.WHOQOLBREF_PSICO_POST],
+      deltaPsico: deltaPsico,
+      whoqolSocialPre: row[idx.WHOQOLBREF_SOCIAL_PRE],
+      whoqolSocialPost: row[idx.WHOQOLBREF_SOCIAL_POST],
+      deltaSocial: deltaSocial,
+      whoqolAmbientePre: row[idx.WHOQOLBREF_AMBIENTE_PRE],
+      whoqolAmbientePost: row[idx.WHOQOLBREF_AMBIENTE_POST],
+      deltaAmbiente: deltaAmbiente
     };
   });
 
   const total = filas.length;
-  const conPre = filas.filter(f => f.gad7Pre !== '' || f.phq9Pre !== '' || f.whoqolPre !== '').length;
-  const conPost = filas.filter(f => f.gad7Post !== '' || f.phq9Post !== '' || f.whoqolPost !== '').length;
+  const conPre = filas.filter(f => f.gad7Pre !== '' || f.phq9Pre !== '' || f.whoqolFisicoPre !== '').length;
+  const conPost = filas.filter(f => f.gad7Post !== '' || f.phq9Post !== '' || f.whoqolFisicoPost !== '').length;
   
   // Helper para media
   const media = (arr) => {
@@ -306,9 +335,15 @@ function obtenerDatosEstadisticasFichasFormulario() {
       mediaPhqPre: media(filas.map(f => f.phq9Pre)),
       mediaPhqPost: media(filas.map(f => f.phq9Post)),
       deltaPhq: media(filas.map(f => f.deltaPhq9)),
-      mediaWhoqolPre: media(filas.map(f => f.whoqolPre)),
-      mediaWhoqolPost: media(filas.map(f => f.whoqolPost)),
-      deltaWhoqol: media(filas.map(f => f.deltaWhoqol))
+      // Resumen estadístico por dominios
+      mediaWhoFisicoPre: media(filas.map(f => f.whoqolFisicoPre)),
+      deltaWhoFisico: media(filas.map(f => f.deltaFisico)),
+      mediaWhoPsicoPre: media(filas.map(f => f.whoqolPsicoPre)),
+      deltaWhoPsico: media(filas.map(f => f.deltaPsico)),
+      mediaWhoSocialPre: media(filas.map(f => f.whoqolSocialPre)),
+      deltaWhoSocial: media(filas.map(f => f.deltaSocial)),
+      mediaWhoAmbientePre: media(filas.map(f => f.whoqolAmbientePre)),
+      deltaWhoAmbiente: media(filas.map(f => f.deltaAmbiente))
     }
   };
 }
