@@ -291,9 +291,7 @@ function obtenerDatosEstadisticasFichasFormulario() {
       deltaGad7: deltaGad,
       phq9Pre: row[idx.PHQ9_PRE],
       phq9Post: row[idx.PHQ9_POST],
-      deltaPhq9: deltaPhq,
-      whoqolPre: row[idx.WHOQOLBREF_PRE],
-      whoqolPost: row[idx.WHOQOLBREF_POST],
+      deltaPhq9: deltaPhq,      
       // Granularidad WHOQOL para el listado
       whoqolFisicoPre: row[idx.WHOQOLBREF_FISICO_PRE],
       whoqolFisicoPost: row[idx.WHOQOLBREF_FISICO_POST],
@@ -337,12 +335,16 @@ function obtenerDatosEstadisticasFichasFormulario() {
       deltaPhq: media(filas.map(f => f.deltaPhq9)),
       // Resumen estadístico por dominios
       mediaWhoFisicoPre: media(filas.map(f => f.whoqolFisicoPre)),
+      mediaWhoFisicoPost: media(filas.map(f => f.whoqolFisicoPost)),
       deltaWhoFisico: media(filas.map(f => f.deltaFisico)),
       mediaWhoPsicoPre: media(filas.map(f => f.whoqolPsicoPre)),
+      mediaWhoPsicoPost: media(filas.map(f => f.whoqolPsicoPost)),
       deltaWhoPsico: media(filas.map(f => f.deltaPsico)),
       mediaWhoSocialPre: media(filas.map(f => f.whoqolSocialPre)),
+      mediaWhoSocialPost: media(filas.map(f => f.whoqolSocialPost)),
       deltaWhoSocial: media(filas.map(f => f.deltaSocial)),
       mediaWhoAmbientePre: media(filas.map(f => f.whoqolAmbientePre)),
+      mediaWhoAmbientePost: media(filas.map(f => f.whoqolAmbientePost)),
       deltaWhoAmbiente: media(filas.map(f => f.deltaAmbiente))
     }
   };

@@ -128,7 +128,13 @@
   <div class="summary">
     <div class="card"><div class="label">GAD PRE / POST / Δ</div><div class="value" id="kpiGad">-</div></div>
     <div class="card"><div class="label">PHQ PRE / POST / Δ</div><div class="value" id="kpiPhq">-</div></div>
-    <div class="card"><div class="label">WHOQOL PRE / POST / Δ</div><div class="value" id="kpiWhoqol">-</div></div>
+  </div>
+
+  <div class="summary" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="card"><div class="label">WHO FÍSICO (PRE/POS/Δ)</div><div class="value" id="kpiWhoFis">-</div></div>
+    <div class="card"><div class="label">WHO PSICO (PRE/POS/Δ)</div><div class="value" id="kpiWhoPsi">-</div></div>
+    <div class="card"><div class="label">WHO SOCIAL (PRE/POS/Δ)</div><div class="value" id="kpiWhoSoc">-</div></div>
+    <div class="card"><div class="label">WHO AMBIENTE (PRE/POS/Δ)</div><div class="value" id="kpiWhoAmb">-</div></div>
   </div>
 
   <div class="table-wrap">
@@ -151,9 +157,18 @@
           <th>PHQ PRE</th>
           <th>PHQ POST</th>
           <th>Δ PHQ</th>
-          <th>WHOQOL PRE</th>
-          <th>WHOQOL POST</th>
-          <th>Δ WHOQOL</th>
+          <th>W-FIS PRE</th>
+          <th>W-FIS POS</th>
+          <th>Δ FIS</th>
+          <th>W-PSI PRE</th>
+          <th>W-PSI POS</th>
+          <th>Δ PSI</th>
+          <th>W-SOC PRE</th>
+          <th>W-SOC POS</th>
+          <th>Δ SOC</th>
+          <th>W-AMB PRE</th>
+          <th>W-AMB POS</th>
+          <th>Δ AMB</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -278,8 +293,10 @@
       document.getElementById('kpiPhq').textContent =
         (resumen.mediaPhqPre || 0) + ' / ' + (resumen.mediaPhqPost || 0) + ' / ' + (resumen.deltaPhq || 0);
 
-      document.getElementById('kpiWhoqol').textContent =
-        (resumen.mediaWhoqolPre || 0) + ' / ' + (resumen.mediaWhoqolPost || 0) + ' / ' + (resumen.deltaWhoqol || 0);
+      document.getElementById('kpiWhoFis').textContent = (resumen.mediaWhoFisicoPre || 0) + '/' + (resumen.mediaWhoFisicoPost || 0) + '/' + (resumen.deltaWhoFisico || 0);
+      document.getElementById('kpiWhoPsi').textContent = (resumen.mediaWhoPsicoPre || 0) + '/' + (resumen.mediaWhoPsicoPost || 0) + '/' + (resumen.deltaWhoPsico || 0);
+      document.getElementById('kpiWhoSoc').textContent = (resumen.mediaWhoSocialPre || 0) + '/' + (resumen.mediaWhoSocialPost || 0) + '/' + (resumen.deltaWhoSocial || 0);
+      document.getElementById('kpiWhoAmb').textContent = (resumen.mediaWhoAmbientePre || 0) + '/' + (resumen.mediaWhoAmbientePost || 0) + '/' + (resumen.deltaWhoAmbiente || 0);
     }
 
     function getFilasFiltradas() {
@@ -311,7 +328,10 @@
         const comparable = (
           (f.gad7Pre !== null && f.gad7Post !== null) ||
           (f.phq9Pre !== null && f.phq9Post !== null) ||
-          (f.whoqolPre !== null && f.whoqolPost !== null)
+          (f.whoqolFisicoPre !== null && f.whoqolFisicoPost !== null) ||
+          (f.whoqolPsicoPre !== null && f.whoqolPsicoPost !== null) ||
+          (f.whoqolSocialPre !== null && f.whoqolSocialPost !== null) ||
+          (f.whoqolAmbientePre !== null && f.whoqolAmbientePost !== null)
         );
 
         const matchComparables = !filtroComparables || comparable;
@@ -366,9 +386,18 @@
           <td>${valorTabla(f.phq9Pre)}</td>
           <td>${valorTabla(f.phq9Post)}</td>
           <td>${valorTabla(f.deltaPhq9)}</td>
-          <td>${valorTabla(f.whoqolPre)}</td>
-          <td>${valorTabla(f.whoqolPost)}</td>
-          <td>${valorTabla(f.deltaWhoqol)}</td>
+          <td>${valorTabla(f.whoqolFisicoPre)}</td>
+          <td>${valorTabla(f.whoqolFisicoPost)}</td>
+          <td>${valorTabla(f.deltaFisico)}</td>
+          <td>${valorTabla(f.whoqolPsicoPre)}</td>
+          <td>${valorTabla(f.whoqolPsicoPost)}</td>
+          <td>${valorTabla(f.deltaPsico)}</td>
+          <td>${valorTabla(f.whoqolSocialPre)}</td>
+          <td>${valorTabla(f.whoqolSocialPost)}</td>
+          <td>${valorTabla(f.deltaSocial)}</td>
+          <td>${valorTabla(f.whoqolAmbientePre)}</td>
+          <td>${valorTabla(f.whoqolAmbientePost)}</td>
+          <td>${valorTabla(f.deltaAmbiente)}</td>
           <td><div class="row-actions">${botonFichaClinica}</div></td>
         `;
         tbody.appendChild(tr);
@@ -410,7 +439,10 @@
         ['Escala', 'PRE', 'POST'],
         ['GAD-7', getMedia(dataFiltrada.map(f => f.gad7Pre)), getMedia(dataFiltrada.map(f => f.gad7Post))],
         ['PHQ-9', getMedia(dataFiltrada.map(f => f.phq9Pre)), getMedia(dataFiltrada.map(f => f.phq9Post))],
-        ['WHOQOL', getMedia(dataFiltrada.map(f => f.whoqolPre)), getMedia(dataFiltrada.map(f => f.whoqolPost))]
+        ['WHO Fis', getMedia(dataFiltrada.map(f => f.whoqolFisicoPre)), getMedia(dataFiltrada.map(f => f.whoqolFisicoPost))],
+        ['WHO Psi', getMedia(dataFiltrada.map(f => f.whoqolPsicoPre)), getMedia(dataFiltrada.map(f => f.whoqolPsicoPost))],
+        ['WHO Soc', getMedia(dataFiltrada.map(f => f.whoqolSocialPre)), getMedia(dataFiltrada.map(f => f.whoqolSocialPost))],
+        ['WHO Amb', getMedia(dataFiltrada.map(f => f.whoqolAmbientePre)), getMedia(dataFiltrada.map(f => f.whoqolAmbientePost))]
       ]);
 
       const optionsEscalas = {
