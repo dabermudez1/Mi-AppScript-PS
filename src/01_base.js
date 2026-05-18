@@ -482,8 +482,6 @@ function cargarConfiguracionModalidadesBase_() {
     throw new Error(`No existe la hoja ${SHEET_CONFIG_MODALIDADES}.`);
   }
 
-  asegurarEncabezadosExactos_(sheet, HEADERS[SHEET_CONFIG_MODALIDADES]);
-
   const datosActuales = sheet.getDataRange().getValues();
 
   // Si solo tiene encabezados o está vacía de datos, cargamos base.
