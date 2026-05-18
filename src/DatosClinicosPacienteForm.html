@@ -160,9 +160,27 @@
   </div>
 </div>
 
+<!-- WHOQOL-BREF PRE -->
 <div class="field">
-  <label for="whoqolPre">WHOQOL-BREF PRE</label>
-  <input id="whoqolPre" type="number">
+  <label>WHOQOL-BREF PRE</label>
+  <div class="grid">
+    <div class="field">
+      <label for="whoqolFisicoPre">Dominio Físico</label>
+      <input id="whoqolFisicoPre" type="number" min="0">
+    </div>
+    <div class="field">
+      <label for="whoqolPsicoPre">Dominio Psicológico</label>
+      <input id="whoqolPsicoPre" type="number" min="0">
+    </div>
+    <div class="field">
+      <label for="whoqolSocialPre">Relaciones Sociales</label>
+      <input id="whoqolSocialPre" type="number" min="0">
+    </div>
+    <div class="field">
+      <label for="whoqolAmbientePre">Ambiente</label>
+      <input id="whoqolAmbientePre" type="number" min="0">
+    </div>
+  </div>
 </div>
 
 <div class="grid">
@@ -176,9 +194,15 @@
   </div>
 </div>
 
+<!-- WHOQOL-BREF POST -->
 <div class="field">
-  <label for="whoqolPost">WHOQOL-BREF POST</label>
-  <input id="whoqolPost" type="number">
+  <label>WHOQOL-BREF POST</label>
+  <div class="grid">
+    <div class="field"><label for="whoqolFisicoPost">Dominio Físico</label><input id="whoqolFisicoPost" type="number" min="0"></div>
+    <div class="field"><label for="whoqolPsicoPost">Dominio Psicológico</label><input id="whoqolPsicoPost" type="number" min="0"></div>
+    <div class="field"><label for="whoqolSocialPost">Relaciones Sociales</label><input id="whoqolSocialPost" type="number" min="0"></div>
+    <div class="field"><label for="whoqolAmbientePost">Ambiente</label><input id="whoqolAmbientePost" type="number" min="0"></div>
+  </div>
 </div>
 
 <div class="field">
@@ -336,10 +360,16 @@
 
         document.getElementById('gad7Pre').value = ficha.gad7Pre || '';
         document.getElementById('phq9Pre').value = ficha.phq9Pre || '';
-        document.getElementById('whoqolPre').value = ficha.whoqolPre || '';
+        document.getElementById('whoqolFisicoPre').value = ficha.whoqolFisicoPre || '';
+        document.getElementById('whoqolPsicoPre').value = ficha.whoqolPsicoPre || '';
+        document.getElementById('whoqolSocialPre').value = ficha.whoqolSocialPre || '';
+        document.getElementById('whoqolAmbientePre').value = ficha.whoqolAmbientePre || '';
         document.getElementById('gad7Post').value = ficha.gad7Post || '';
         document.getElementById('phq9Post').value = ficha.phq9Post || '';
-        document.getElementById('whoqolPost').value = ficha.whoqolPost || '';
+        document.getElementById('whoqolFisicoPost').value = ficha.whoqolFisicoPost || '';
+        document.getElementById('whoqolPsicoPost').value = ficha.whoqolPsicoPost || '';
+        document.getElementById('whoqolSocialPost').value = ficha.whoqolSocialPost || '';
+        document.getElementById('whoqolAmbientePost').value = ficha.whoqolAmbientePost || '';
         document.getElementById('escalaSatisfaccion').value = ficha.escalaSatisfaccion || '';
         document.getElementById('otrosComentarios').value = ficha.otrosComentarios || '';
 
@@ -442,10 +472,16 @@
         cambioFarmacologicoAlta: document.getElementById('cambioFarmacologicoAlta').value,
         gad7Pre: document.getElementById('gad7Pre').value,
         phq9Pre: document.getElementById('phq9Pre').value,
-        whoqolPre: document.getElementById('whoqolPre').value,
+        whoqolFisicoPre: document.getElementById('whoqolFisicoPre').value,
+        whoqolPsicoPre: document.getElementById('whoqolPsicoPre').value,
+        whoqolSocialPre: document.getElementById('whoqolSocialPre').value,
+        whoqolAmbientePre: document.getElementById('whoqolAmbientePre').value,
         gad7Post: document.getElementById('gad7Post').value,
         phq9Post: document.getElementById('phq9Post').value,
-        whoqolPost: document.getElementById('whoqolPost').value,
+        whoqolFisicoPost: document.getElementById('whoqolFisicoPost').value,
+        whoqolPsicoPost: document.getElementById('whoqolPsicoPost').value,
+        whoqolSocialPost: document.getElementById('whoqolSocialPost').value,
+        whoqolAmbientePost: document.getElementById('whoqolAmbientePost').value,
         escalaSatisfaccion: document.getElementById('escalaSatisfaccion').value,
         otrosComentarios: document.getElementById('otrosComentarios').value
       });
