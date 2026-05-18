@@ -342,10 +342,16 @@ function inicializarSistema() {
   const ui = SpreadsheetApp.getUi();
 
   try {
+    const deseaResaltar = ui.alert(
+      'Verificación del Sistema',
+      '¿Deseas realizar también una auditoría visual resaltando en rojo las columnas no oficiales?',
+      ui.ButtonSet.YES_NO
+    ) === ui.Button.YES;
+
     // 1. Asegurar Hojas con encabezados fijos o sin estructura de datos
-    asegurarEstructuraHoja_(SHEET_CATALOGOS, ['Catalogo', 'Valor']);
-    asegurarEstructuraHoja_('DIAS_BLOQUEADOS', ['Fecha', 'Bloqueado', 'Motivo']);
-    asegurarEstructuraHoja_(SHEET_DASHBOARD, []);
+    asegurarEstructuraHoja_(SHEET_CATALOGOS, ['Catalogo', 'Valor'], deseaResaltar);
+    asegurarEstructuraHoja_('DIAS_BLOQUEADOS', ['Fecha', 'Bloqueado', 'Motivo'], deseaResaltar);
+    asegurarEstructuraHoja_(SHEET_DASHBOARD, [], false);
 
     // 2. Asegurar Hojas basadas en el esquema global HEADERS
     const esquemasPrincipales = [
@@ -360,7 +366,7 @@ function inicializarSistema() {
     ];
 
     esquemasPrincipales.forEach(nombreHoja => {
-      asegurarEstructuraHoja_(nombreHoja, HEADERS[nombreHoja]);
+      asegurarEstructuraHoja_(nombreHoja, HEADERS[nombreHoja], deseaResaltar);
     });
 
     // 3. Carga de datos base y formatos
@@ -384,7 +390,7 @@ function inicializarSistema() {
  * Si la hoja existe, añade al final de la fila 1 aquellos encabezados que falten.
  * Enfoque defensivo: Resalta en rojo los encabezados que no pertenecen al esquema oficial.
  */
-function asegurarEstructuraHoja_(nombreHoja, encabezadosRequeridos) {
+function asegurarEstructuraHoja_(nombreHoja, encabezadosRequeridos, resaltar = false) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(nombreHoja);
 
@@ -414,7 +420,7 @@ function asegurarEstructuraHoja_(nombreHoja, encabezadosRequeridos) {
   }
 
   // 5. Auditoría Visual: Resaltar oficiales (Verde) y sobrantes (Rojo)
-  const finalCol = sheet.getLastColumn();
+  const finalCol = resaltar ? sheet.getLastColumn() : 0;
   if (finalCol > 0) {
     const rangeFila1 = sheet.getRange(1, 1, 1, finalCol);
     const headersFinales = rangeFila1.getValues()[0];
@@ -445,7 +451,7 @@ function resaltarEstructuraNoOficial() {
 
   try {
     Object.keys(HEADERS).forEach(nombreHoja => {
-      asegurarEstructuraHoja_(nombreHoja, HEADERS[nombreHoja]);
+      asegurarEstructuraHoja_(nombreHoja, HEADERS[nombreHoja], true);
     });
     ui.alert('Auditoría completada. Revisa los encabezados en rojo en las pestañas.');
   } catch (e) {
