@@ -322,6 +322,7 @@ function onOpen() {
   menu.addSubMenu(
   ui.createMenu('Desarrollador')
     .addItem('Recalcular estados', 'recalcularEstadosAutomaticamenteConModal')
+    .addItem('Auditar y resaltar columnas sobrantes', 'resaltarEstructuraNoOficial')
     .addItem('Sincronizar fichas clínicas', 'ejecutarSincronizarFichasClinicasPacientes')
     .addSeparator()
     .addItem('Limpiar datos operativos (depuración)', 'ejecutarLimpiarDatosOperativosDepuracion_')
@@ -381,7 +382,7 @@ function inicializarSistema() {
 /**
  * Crea una hoja si no existe y asegura que contenga los encabezados requeridos.
  * Si la hoja existe, añade al final de la fila 1 aquellos encabezados que falten.
- * Enfoque defensivo: No borra ni reordena columnas existentes.
+ * Enfoque defensivo: Resalta en rojo los encabezados que no pertenecen al esquema oficial.
  */
 function asegurarEstructuraHoja_(nombreHoja, encabezadosRequeridos) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -410,7 +411,45 @@ function asegurarEstructuraHoja_(nombreHoja, encabezadosRequeridos) {
   if (faltantes.length > 0) {
     // Añadir columnas faltantes al final de la fila 1
     sheet.getRange(1, lastCol + 1, 1, faltantes.length).setValues([faltantes]);
-    console.log(`Hoja ${nombreHoja}: Se han añadido columnas nuevas: ${faltantes.join(', ')}`);
+  }
+
+  // 5. Auditoría Visual: Resaltar oficiales (Verde) y sobrantes (Rojo)
+  const finalCol = sheet.getLastColumn();
+  if (finalCol > 0) {
+    const rangeFila1 = sheet.getRange(1, 1, 1, finalCol);
+    const headersFinales = rangeFila1.getValues()[0];
+    const backgrounds = headersFinales.map(h => {
+      const nombre = String(h).trim();
+      if (nombre === "") return null; // Sin formato para celdas vacías
+      if (encabezadosRequeridos.includes(nombre)) return '#d9ead3'; // Verde suave (Oficial)
+      return '#f4cccc'; // Rojo suave (No oficial/Sobrante)
+    });
+    
+    rangeFila1.setBackgrounds([backgrounds]);
+    rangeFila1.setFontWeight('bold');
+    rangeFila1.setHorizontalAlignment('center');
+  }
+}
+
+/**
+ * Función administrativa para auditar visualmente todas las hojas.
+ * Aplica el resaltado rojo a las columnas que no coinciden con HEADERS.
+ */
+function resaltarEstructuraNoOficial() {
+  const ui = SpreadsheetApp.getUi();
+  const resp = ui.alert('Auditoría de Estructura', 
+    'El sistema resaltará en ROJO los encabezados que no pertenezcan al diseño oficial.\n\n' +
+    '¿Deseas continuar?', ui.ButtonSet.YES_NO);
+  
+  if (resp !== ui.Button.YES) return;
+
+  try {
+    Object.keys(HEADERS).forEach(nombreHoja => {
+      asegurarEstructuraHoja_(nombreHoja, HEADERS[nombreHoja]);
+    });
+    ui.alert('Auditoría completada. Revisa los encabezados en rojo en las pestañas.');
+  } catch (e) {
+    ui.alert('Error durante la auditoría: ' + e.message);
   }
 }
 
