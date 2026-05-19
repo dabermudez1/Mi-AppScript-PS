@@ -417,6 +417,9 @@ function asegurarEstructuraHoja_(nombreHoja, encabezadosRequeridos, resaltar = f
   if (faltantes.length > 0) {
     // Añadir columnas faltantes al final de la fila 1
     sheet.getRange(1, lastCol + 1, 1, faltantes.length).setValues([faltantes]);
+    
+    // Sincronizar cambios antes de proceder con la auditoría visual
+    SpreadsheetApp.flush();
   }
 
   // 5. Auditoría Visual: Resaltar oficiales (Verde) y sobrantes (Rojo)
@@ -450,6 +453,11 @@ function resaltarEstructuraNoOficial() {
   if (resp !== ui.Button.YES) return;
 
   try {
+    // 1. Auditar hojas con encabezados fijos
+    asegurarEstructuraHoja_(SHEET_CATALOGOS, ['Catalogo', 'Valor'], true);
+    asegurarEstructuraHoja_('DIAS_BLOQUEADOS', ['Fecha', 'Bloqueado', 'Motivo'], true);
+
+    // 2. Auditar resto de hojas según objeto HEADERS
     Object.keys(HEADERS).forEach(nombreHoja => {
       asegurarEstructuraHoja_(nombreHoja, HEADERS[nombreHoja], true);
     });
