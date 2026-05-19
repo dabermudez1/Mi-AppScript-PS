@@ -154,6 +154,7 @@
             setStatus('❌ Error: ' + (error.message || String(error)), 'error');
           })
           .reservarPrimeraSesion_({ fechaISO, hora, nombreProvisional, nhcProvisional });
+          .reservarPrimeraSesion({ fechaISO, hora, nombreProvisional, nhcProvisional });
       }
 
       // Cargar slots al iniciar si ya hay una fecha preseleccionada (no aplica aquí, pero buena práctica)

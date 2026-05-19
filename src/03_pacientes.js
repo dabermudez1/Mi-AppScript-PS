@@ -647,7 +647,7 @@ function obtenerSlotsDisponiblesParaSeguimiento(fechaConsultaISO, modalidad) {
  * @param {string} [params.nhcProvisional] - NHC provisional para la reserva.
  * @returns {Object} Mensaje de confirmación.
  */
-function reservarPrimeraSesion_({ fechaISO, hora, nombreProvisional = '', nhcProvisional = '' }) {
+function reservarPrimeraSesion({ fechaISO, hora, nombreProvisional = '', nhcProvisional = '' }) {
   const fechaHoraInicio = normalizarFechaHora_(parseFechaISO_(fechaISO), hora);
   const duracionSlot = 60; // Duración estándar para 2.1
 
