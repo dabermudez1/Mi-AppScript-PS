@@ -679,15 +679,15 @@ function obtenerDetalleReserva21Formulario(sesionId) {
     throw new Error('Reserva no encontrada o no es una reserva provisional 2.1.');
   }
 
-  return {
+  const detalleReserva = {
     sesionId: reserva.SesionID,
     fechaISO: formatearFechaISOInput_(reserva.FechaSesion),
     hora: reserva.HoraInicio,
     nombreProvisional: reserva.NombrePaciente === NOMBRE_RESERVA_21_GENERICA ? '' : reserva.NombrePaciente,
     nhcProvisional: reserva.NHC === NHC_RESERVA_21_GENERICA ? '' : reserva.NHC
   };
-  Logger.log(`[SERVER] obtenerDetalleReserva21Formulario returning: ${JSON.stringify(detalle)}`);
-  return detalle;
+  Logger.log(`[SERVER] obtenerDetalleReserva21Formulario returning: ${JSON.stringify(detalleReserva)}`);
+  return detalleReserva;
 }
 
 /**

@@ -122,6 +122,7 @@
         google.script.run
           .withSuccessHandler(function(detalle) {
             try { // Add try-catch for client-side errors in success handler
+              console.log('DEBUG: Value of detalle received:', detalle, 'Type:', typeof detalle); // Added debug
               console.log('cargarDetalleReserva - success, detalle:', detalle); // Debugging
               if (detalle === null || detalle === undefined) {
                 console.error('cargarDetalleReserva - El servidor devolvió un detalle nulo o indefinido.');
