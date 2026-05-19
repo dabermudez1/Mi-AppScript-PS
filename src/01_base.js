@@ -289,6 +289,7 @@ function onOpen() {
   menu.addSubMenu(
   ui.createMenu('Operativa diaria')
     .addItem('Nuevo paciente', 'nuevoPaciente')
+    .addItem('Editar/Eliminar Reserva 2.1', 'editarEliminarReserva21') // Nuevo elemento de menú
     .addItem('Reservar 1ª Consulta (2.1)', 'reservarPrimeraConsulta') // Nuevo elemento de menú
     .addItem('Editar paciente', 'editarPaciente')
     .addItem('Reprogramar sesión', 'abrirReprogramarSesion')

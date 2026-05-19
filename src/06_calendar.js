@@ -234,6 +234,10 @@ function construirTituloEventoSesion_(sesion) {
     return '🔁 ' + base;
   }
 
+  if (sesion.EstadoSesion === ESTADOS_SESION.RESERVADA_PROVISIONAL) {
+    return '📝 RESERVA 2.1 - ' + (sesion.NombrePaciente || 'Sin Nombre') + ' - ' + (sesion.HoraInicio || '');
+  }
+
   return base;
 }
 
