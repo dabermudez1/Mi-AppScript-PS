@@ -61,12 +61,18 @@ function crearPacienteSegunModalidad_({
     motivoConsultaDiagnostico,
     motivoConsultaOtros,
     modalidad,
-    fechaPrimeraConsulta
+    fechaPrimeraConsulta,
+    slotSeguimiento // Nuevo: Objeto { fecha, hora } seleccionado manualmente
   }) {
   const config = obtenerConfigModalidad_(modalidad);
 
   // 1. Caso INDIVIDUAL: Verificamos cupo y calculamos primera sesión
   if (config.TipoModalidad === TIPOS_MODALIDAD.INDIVIDUAL) {
+    // Validación de seguridad: Para individuales es obligatorio haber elegido slot
+    if (!slotSeguimiento || !slotSeguimiento.fecha || !slotSeguimiento.hora) {
+      throw new Error('Es obligatorio seleccionar la primera sesión de seguimiento para pacientes individuales.');
+    }
+
     if (!hayCapacidadIndividual_()) {
       const pacienteId = crearPacienteEnSheet_({
         nombre, nhc, sexoGenero, motivoConsultaDiagnostico, motivoConsultaOtros,
@@ -81,28 +87,25 @@ function crearPacienteSegunModalidad_({
       };
     }
 
-    const slot = calcularPrimeraSesionIndividual_(fechaPrimeraConsulta, modalidad);
-    if (!slot) {
-      throw new Error('No se encontró un slot de agenda disponible para la modalidad individual.');
-    }
+    const fechaHoraInicio = normalizarFechaHora_(slotSeguimiento.fecha, slotSeguimiento.hora);
 
     const pacienteId = crearPacienteEnSheet_({
       nombre, nhc, sexoGenero, motivoConsultaDiagnostico, motivoConsultaOtros,
       modalidadSolicitada: modalidad, fechaPrimeraConsulta,
       estadoPaciente: ESTADOS_PACIENTE.ACTIVO,
-      fechaPrimeraSesionReal: slot.fecha,
-      proximaSesion: slot.fecha,
+      fechaPrimeraSesionReal: fechaHoraInicio,
+      proximaSesion: fechaHoraInicio,
       sesionesPlanificadas: Number(config.SesionesPorCiclo || 0),
       sesionesPendientes: Number(config.SesionesPorCiclo || 0)
     });
 
     const patientRepo = new PatientRepository();
     const pCompleto = patientRepo.findById(pacienteId); // Forzar recarga
-    if (pCompleto) generarSesionesPacienteIndividual_(pacienteId);
+    if (pCompleto) generarSesionesPacienteIndividual_(pacienteId, fechaHoraInicio);
     
     return {
       pacienteId,
-      mensaje: `Paciente creado correctamente.\nEstado: ACTIVO\nPrimera sesión: ${formatearFecha_(slot.fecha)} a las ${slot.hora}`
+      mensaje: `Paciente creado correctamente.\nEstado: ACTIVO\nPrimera sesión: ${formatearFecha_(fechaHoraInicio)} a las ${formatearHora_(fechaHoraInicio)}`
     };
   }
 
@@ -304,8 +307,9 @@ function procesarAltaGrupo_({
 /**
  * Genera las sesiones para un paciente individual.
  * @param {string} pacienteId - ID del paciente.
+ * @param {Date} fechaHoraPrimeraSesion - La fecha y hora pactada para la primera cita 2.2.
  */
-function generarSesionesPacienteIndividual_(pacienteId) {
+function generarSesionesPacienteIndividual_(pacienteId, fechaHoraPrimeraSesion) {
   const patientRepo = new PatientRepository();
   const sessionRepo = new SessionRepository();
   const availabilityService = new AvailabilityService();
@@ -321,7 +325,7 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   const frecuenciaDias = Number(config.FrecuenciaDias || 0);
   const duracionSlot = 30; // Minutos estándar para 2.2
 
-  console.log(`Iniciando generación para ${paciente.Nombre || 'Paciente'}. ID: ${pacienteId}. Planificadas: ${sesionesPlanificadas}`);
+  if (!fechaHoraPrimeraSesion) throw new Error('Se requiere la fecha de la primera sesión para generar el ciclo.');
 
   if (sesionesPlanificadas <= 0) {
     console.warn('No hay sesiones planificadas configuradas para esta modalidad.');
@@ -331,27 +335,24 @@ function generarSesionesPacienteIndividual_(pacienteId) {
   // Limpiar cualquier sesión previa por error para evitar duplicados si se reintenta
   borrarSesionesPaciente_(pacienteId);
 
-  // Sincronizar inicio de búsqueda: Fecha consulta + intervalo de frecuencia configurado
-  const intervaloDias = Number(config.FrecuenciaDias || 0);
-  let startSearch = sumarDiasNaturales_(paciente.FechaPrimeraConsulta, intervaloDias);
-  
-  // AJUSTE: No buscar slots en el pasado
-  const ahora = normalizarFechaHora_(new Date());
-  if (startSearch.getTime() < ahora.getTime()) {
-    startSearch = ahora;
-  }
-  
-  let currentSearchDateTime = startSearch;
+  let currentSearchDateTime = fechaHoraPrimeraSesion;
   
   const generatedSessions = [];
 
   for (let i = 0; i < sesionesPlanificadas; i++) {
-    console.log(`Buscando slot ${i + 1}/${sesionesPlanificadas} desde: ${currentSearchDateTime}`);
-    const nextSlot = availabilityService.findNextAvailableSlot(
-      currentSearchDateTime,
-      paciente.ModalidadSolicitada,
-      duracionSlot
-    );
+    let nextSlot;
+    
+    if (i === 0) {
+      // La primera sesión es la que ya eligió el usuario
+      nextSlot = { startDateTime: currentSearchDateTime, durationMinutes: duracionSlot };
+    } else {
+      // Las siguientes se buscan automáticamente
+      nextSlot = availabilityService.findNextAvailableSlot(
+        currentSearchDateTime,
+        paciente.ModalidadSolicitada,
+        duracionSlot
+      );
+    }
 
     if (!nextSlot) {
       console.error(`CRÍTICO: No hay slots para la sesión ${i+1}. Búsqueda falló en ${currentSearchDateTime}`);
@@ -571,6 +572,61 @@ function obtenerOpcionesModalidadFormulario() {
   ];
 }
 
+/**
+ * Busca slots disponibles para la primera sesión de seguimiento (2.2).
+ * Devuelve los primeros 7 días que tengan al menos un slot libre.
+ */
+function obtenerSlotsDisponiblesParaSeguimiento(fechaConsultaISO, modalidad) {
+  const fechaConsulta = parseFechaISO_(fechaConsultaISO);
+  const config = obtenerConfigModalidad_(modalidad);
+  const frecuencia = Number(config.FrecuenciaDias || 15);
+  
+  const availabilityService = new AvailabilityService();
+  const agendaService = new AgendaService();
+  
+  // Empezamos a buscar desde FechaConsulta + Frecuencia
+  let startSearch = sumarDiasNaturales_(fechaConsulta, frecuencia);
+  const hoy = new Date();
+  if (startSearch < hoy) startSearch = hoy;
+
+  const diasConSlots = [];
+  let currentDay = normalizarFechaHora_(startSearch, "00:00");
+  let diasBuscados = 0;
+  const maxDiasBúsqueda = 60; // Límite de seguridad para evitar loops infinitos
+
+  while (diasConSlots.length < 7 && diasBuscados < maxDiasBúsqueda) {
+    const slotsDelDia = agendaService.getAgendaForDay(currentDay);
+    const sessionsRepo = new SessionRepository();
+    const sesionesExistentes = sessionsRepo.findAll().filter(s => 
+      normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(currentDay).getTime()
+    );
+    
+    const occupied = availabilityService._getOccupiedSlotsFromSessions(sesionesExistentes);
+    
+    const libres = slotsDelDia.filter(slot => {
+      // Solo slots compatibles con seguimiento individual (2.2)
+      if (slot.type !== '2.2' && slot.type !== 'SEGUIMIENTO') return false;
+      return !availabilityService._isSlotOccupied(slot, occupied);
+    }).map(s => ({
+      hora: formatearHora_(s.startDateTime),
+      label: formatearHora_(s.startDateTime)
+    }));
+
+    if (libres.length > 0) {
+      diasConSlots.push({
+        fechaISO: formatearFechaISOInput_(currentDay),
+        fechaLabel: formatearFecha_(currentDay) + " (" + convertirDiaSemanaATexto_(currentDay) + ")",
+        slots: libres
+      });
+    }
+    
+    currentDay = sumarDiasNaturales_(currentDay, 1);
+    diasBuscados++;
+  }
+
+  return diasConSlots;
+}
+
 function guardarNuevoPacienteDesdeFormulario(formData) {
   const nombre = String(formData.nombre || '').trim();
   const nhc = String(formData.nhc || '').trim();
@@ -613,7 +669,8 @@ function guardarNuevoPacienteDesdeFormulario(formData) {
     motivoConsultaDiagnostico,
     motivoConsultaOtros,
     modalidad,
-    fechaPrimeraConsulta
+    fechaPrimeraConsulta,
+    slotSeguimiento: formData.slotSeguimiento // Objeto { fecha, hora }
   });
 }
 
@@ -1649,4 +1706,50 @@ function restaurarSesionesCanceladas_(pacienteId) {
   if (restauradas > 0) {
     if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_SESIONES] = null;
   }
+}
+
+/**
+ * Reconcilia Google Calendar eliminando eventos que ya no tienen una fila correspondiente
+ * en la hoja SESIONES. Útil para limpiar sesiones borradas manualmente o por error.
+ * 
+ * @param {number} diasAtras - Días hacia atrás para revisar (default 30).
+ * @param {number} diasVista - Días hacia adelante para revisar (default 180).
+ * @returns {number} Cantidad de eventos huérfanos eliminados.
+ */
+function limpiarEventosHuerfanosCalendar(diasAtras = 30, diasVista = 180) {
+  const sessionRepo = new SessionRepository();
+  const sesionesEnHoja = sessionRepo.findAll();
+  
+  // 1. Indexar todos los CalendarEventId que SÍ existen en Sheets para búsqueda O(1)
+  const idsValidos = new Set();
+  sesionesEnHoja.forEach(s => {
+    if (s.CalendarEventId) idsValidos.add(String(s.CalendarEventId));
+  });
+
+  const calendars = CalendarApp.getCalendarsByName(GOOGLE_CALENDAR_NAME);
+  if (calendars.length === 0) return 0;
+  const calendar = calendars[0];
+
+  // 2. Definir rango de búsqueda para no saturar la API
+  const hoy = new Date();
+  const inicio = sumarDiasNaturales_(hoy, -diasAtras);
+  const fin = sumarDiasNaturales_(hoy, diasVista);
+  
+  const eventos = calendar.getEvents(inicio, fin);
+  let borrados = 0;
+
+  // 3. Comparar y eliminar
+  eventos.forEach(event => {
+    const eventId = event.getId();
+    
+    // Si el evento está en nuestro calendario pero su ID no consta en nuestra base de datos...
+    if (!idsValidos.has(eventId)) {
+      // Opcional: Podrías verificar aquí si el título coincide con algún patrón de tu app
+      event.deleteEvent();
+      borrados++;
+    }
+  });
+
+  console.log(`Limpieza de calendario completada. Eventos huérfanos eliminados: ${borrados}`);
+  return borrados;
 }
