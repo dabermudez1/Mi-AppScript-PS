@@ -52,6 +52,7 @@
 
     <div class="actions">
       <button id="btnReservar" class="primary" onclick="reservar()">Reservar Slot</button>
+      <button id="btnVolver" class="secondary" onclick="volverAlPanel()">Volver al panel</button>
       <button id="btnCerrar" class="secondary" onclick="google.script.host.close()">Cerrar</button>
     </div>
 
@@ -154,6 +155,17 @@
             setStatus('❌ Error: ' + (error.message || String(error)), 'error');
           })
           .reservarPrimeraSesion({ fechaISO, hora, nombreProvisional, nhcProvisional });
+      }
+
+      function volverAlPanel() {
+        google.script.run
+          .withSuccessHandler(function() {
+            google.script.host.close();
+          })
+          .withFailureHandler(function(error) {
+            alert(error.message || String(error));
+          })
+          .abrirHomeDashboardDesdePantalla();
       }
 
       // Cargar slots al iniciar si ya hay una fecha preseleccionada (no aplica aquí, pero buena práctica)

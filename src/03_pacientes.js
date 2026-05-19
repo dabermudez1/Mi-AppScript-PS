@@ -745,27 +745,31 @@ function obtenerSlotsDisponiblesParaReserva21(fechaInicioISO, diasBusqueda = 7) 
     );
     const occupied = availabilityService._getOccupiedSlotsFromSessions(sesionesExistentes);
 
-    const libres = slotsDelDia.filter(slot => {
-      // Solo slots tipo 2.1 o PRIMERA
-      if (slot.type !== '2.1' && slot.type !== 'PRIMERA') return false;
-      // Que no estén ocupados
-      if (availabilityService._isSlotOccupied(slot, occupied)) return false;
-      // Que no estén en días bloqueados
-      if (typeof esFechaBloqueada_ !== 'function' || esFechaBloqueada_(slot.startDateTime)) return false;
-      // Que no estén en el pasado
-      if (slot.startDateTime.getTime() < new Date().getTime()) return false;
+    const options = [];
+    let lastSlotEnd = null;
 
-      return true;
-    }).map(s => ({
-      hora: formatearHora_(s.startDateTime),
-      label: formatearHora_(s.startDateTime)
-    }));
+    slotsDelDia.forEach(slot => {
+      if (slot.type !== '2.1' && slot.type !== 'PRIMERA') return;
+      if (availabilityService._isSlotOccupied(slot, occupied)) return;
+      if (typeof esFechaBloqueada_ === 'function' && esFechaBloqueada_(slot.startDateTime)) return;
+      if (slot.startDateTime.getTime() < new Date().getTime()) return;
 
-    if (libres.length > 0) {
+      // Evitar ofrecer slots que se solapen con el anterior (garantizar bloques limpios de 60 min)
+      // Si el anterior terminaba a las 10:00, no podemos ofrecer un slot que empiece a las 09:30
+      if (lastSlotEnd && slot.startDateTime.getTime() < lastSlotEnd.getTime()) return;
+
+      options.push({
+        hora: formatearHora_(slot.startDateTime),
+        label: formatearHora_(slot.startDateTime)
+      });
+      lastSlotEnd = sumarMinutos_(slot.startDateTime, slot.durationMinutes);
+    });
+
+    if (options.length > 0) {
       diasConSlots.push({
         fechaISO: formatearFechaISOInput_(currentDay),
         fechaLabel: formatearFecha_(currentDay) + " (" + convertirDiaSemanaATexto_(currentDay) + ")",
-        slots: libres
+        slots: options
       });
     }
 
