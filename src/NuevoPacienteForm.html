@@ -20,6 +20,8 @@
       .status { margin-top: 12px; font-size: 0.875rem; min-height: 1.25rem; font-style: italic; text-align: center; color: #6b7280; }
       .error { color: #dc2626; font-weight: bold; }
       .success { color: #16a34a; font-weight: bold; }
+       .hint { font-size: 0.75rem; color: #6b7280; margin-top: 4px; }
+      .loading-slots { color: #4f46e5; font-style: italic; }
     </style>
   </head>
   <body>
@@ -65,14 +67,22 @@
 
     <div class="field">
       <label for="modalidad">Modalidad</label>
-      <select id="modalidad"></select>
+      <select id="modalidad" onchange="onModalidadChange()"></select>
     </div>
 
     <div class="field">
-      <label for="fechaPrimeraConsulta">Fecha primera consulta</label>
-      <input id="fechaPrimeraConsulta" type="date" />
+      <label for="fechaPrimeraConsulta">Fecha primera consulta (2.1)</label>
+      <input id="fechaPrimeraConsulta" type="date" onchange="onFechaConsultaChange()" />
     </div>
 
+     <!-- Nuevo: Campo para seleccionar el slot de seguimiento (Solo para pacientes individuales) -->
+    <div id="fieldSlotSeguimiento" class="field" style="display:none;">
+      <label for="slotSeguimiento">Primera sesión de seguimiento (2.2)</label>
+      <select id="slotSeguimiento">
+        <option value="">-- Selecciona un hueco --</option>
+      </select>
+      <div id="slotStatus" class="hint"></div>
+    </div>
     <div class="actions">
   <button id="btnGuardar" class="primary" onclick="guardar()">Guardar Paciente</button>
   <button id="btnVolver" class="secondary" onclick="volverAlPanel()">Volver al panel</button>
@@ -100,12 +110,18 @@
         const select = document.getElementById('modalidad');
         select.innerHTML = '';
 
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Selecciona modalidad --';
+        select.appendChild(placeholder);
+
         opciones.forEach(function(op) {
           const option = document.createElement('option');
           option.value = op.value;
           option.textContent = op.label;
           select.appendChild(option);
         });
+        onModalidadChange();
       })
       .withFailureHandler(function(error) {
         setStatus(error.message || String(error), 'error');
@@ -122,6 +138,11 @@
     const modalidad = document.getElementById('modalidad').value;
     const fechaPrimeraConsulta = document.getElementById('fechaPrimeraConsulta').value;
 
+    if (modalidad === 'INDIVIDUAL' && !document.getElementById('slotSeguimiento').value) {
+      setStatus('Debes seleccionar el slot para la primera sesión de seguimiento.', 'error');
+      return;
+    }
+
     if (!nhc) {
       setStatus('El NHC es obligatorio.', 'error');
       return;
@@ -130,6 +151,13 @@
     if (motivoConsultaDiagnostico === 'Otros' && !motivoConsultaOtros) {
       setStatus('Debes indicar el motivo cuando eliges "Otros".', 'error');
       return;
+    }
+
+    const slotVal = document.getElementById('slotSeguimiento').value;
+    let slotSeguimiento = null;
+    if (modalidad === 'INDIVIDUAL' && slotVal) {
+      const partes = slotVal.split('|');
+      slotSeguimiento = { fecha: partes[0], hora: partes[1] };
     }
 
     const btn = document.getElementById('btnGuardar');
@@ -171,7 +199,8 @@
         motivoConsultaDiagnostico: motivoConsultaDiagnostico,
         motivoConsultaOtros: motivoConsultaOtros,
         modalidad: modalidad,
-        fechaPrimeraConsulta: fechaPrimeraConsulta
+        fechaPrimeraConsulta: fechaPrimeraConsulta,
+        slotSeguimiento: slotSeguimiento
       });
   }
 
@@ -210,6 +239,82 @@ function actualizarMotivoOtros() {
   }
 }
 
+function buscarSlotsDisponibles() {
+    const fecha = document.getElementById('fechaPrimeraConsulta').value;
+    const modalidad = document.getElementById('modalidad').value;
+    const select = document.getElementById('slotSeguimiento');
+    const status = document.getElementById('slotStatus');
+
+    
+    if (!fecha || modalidad !== 'INDIVIDUAL') {
+      select.innerHTML = '<option value="">-- Selecciona un hueco --</option>';
+      status.textContent = '';
+      return;
+    }
+
+    select.disabled = true;
+    select.innerHTML = '<option value="">Cargando disponibilidad...</option>';
+    status.textContent = '⏳ Buscando huecos libres...';
+    status.className = 'hint loading-slots';
+
+    google.script.run
+      .withSuccessHandler(function(diasConSlots) {
+        select.disabled = false;
+        select.innerHTML = '<option value="">-- Selecciona un hueco --</option>';
+        
+        if (!diasConSlots || diasConSlots.length === 0) {
+          status.textContent = '❌ No hay huecos de seguimiento disponibles en los próximos 60 días.';
+          status.className = 'hint error';
+          return;
+        }
+
+        diasConSlots.forEach(function(dia) {
+          const group = document.createElement('optgroup');
+          group.label = dia.fechaLabel;
+          
+          dia.slots.forEach(function(s) {
+            const opt = document.createElement('option');
+            opt.value = dia.fechaISO + '|' + s.hora;
+            opt.textContent = s.label;
+            group.appendChild(opt);
+          });
+          select.appendChild(group);
+        });
+
+        status.textContent = '✅ Disponibilidad cargada.';
+        status.className = 'hint success';
+      })
+      .withFailureHandler(function(error) {
+        select.disabled = false;
+        select.innerHTML = '<option value="">-- Error al cargar --</option>';
+        status.textContent = '❌ Error: ' + (error.message || String(error));
+        status.className = 'hint error';
+      })
+      .obtenerSlotsDisponiblesParaSeguimiento(fecha, modalidad);
+  }
+
+  function onModalidadChange() {
+    const modalidad = document.getElementById('modalidad').value;
+    const fieldSlot = document.getElementById('fieldSlotSeguimiento');
+    
+    if (modalidad === 'INDIVIDUAL') {
+      fieldSlot.style.display = 'block';
+      buscarSlotsDisponibles();
+    } else {
+      fieldSlot.style.display = 'none';
+      document.getElementById('slotSeguimiento').innerHTML = '<option value="">-- Selecciona un hueco --</option>';
+      document.getElementById('slotStatus').textContent = '';
+    }
+  }
+
+  function onFechaConsultaChange() {
+    const modalidad = document.getElementById('modalidad').value;
+    if (modalidad === 'INDIVIDUAL') {
+      buscarSlotsDisponibles();
+    }
+  }
+}
+
 function limpiarFormularioNuevoPaciente() {
   document.getElementById('nombre').value = '';
   document.getElementById('nhc').value = '';
@@ -219,6 +324,11 @@ function limpiarFormularioNuevoPaciente() {
   document.getElementById('motivoConsultaOtros').disabled = true;
   document.getElementById('modalidad').selectedIndex = 0;
   document.getElementById('fechaPrimeraConsulta').value = '';
+    
+    // Limpiar campos de slots
+    document.getElementById('fieldSlotSeguimiento').style.display = 'none';
+    document.getElementById('slotSeguimiento').innerHTML = '<option value="">-- Selecciona un hueco --</option>';
+    document.getElementById('slotStatus').textContent = '';
 }
 
   actualizarMotivoOtros();
