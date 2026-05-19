@@ -680,14 +680,15 @@ function obtenerDetalleReserva21Formulario(sesionId) {
   }
 
   const detalleReserva = {
-    sesionId: reserva.SesionID,
+    sesionId: String(reserva.SesionID || ''),
     fechaISO: formatearFechaISOInput_(reserva.FechaSesion),
-    hora: reserva.HoraInicio,
-    nombreProvisional: reserva.NombrePaciente === NOMBRE_RESERVA_21_GENERICA ? '' : reserva.NombrePaciente,
-    nhcProvisional: reserva.NHC === NHC_RESERVA_21_GENERICA ? '' : reserva.NHC
+    hora: formatearHora_(reserva.HoraInicio),
+    nombreProvisional: reserva.NombrePaciente === NOMBRE_RESERVA_21_GENERICA ? '' : String(reserva.NombrePaciente || ''),
+    nhcProvisional: reserva.NHC === NHC_RESERVA_21_GENERICA ? '' : String(reserva.NHC || '')
   };
-  Logger.log(`[SERVER] obtenerDetalleReserva21Formulario returning: ${JSON.stringify(detalleReserva)}`);
-  return detalleReserva;
+  
+  Logger.log(`[SERVER] obtenerDetalleReserva21Formulario returning POJO: ${JSON.stringify(detalleReserva)}`);
+  return JSON.parse(JSON.stringify(detalleReserva));
 }
 
 /**
@@ -1206,8 +1207,11 @@ function guardarEdicionPaciente(formData) {
 }
 
 function formatearFechaISOInput_(fecha) {
-  if (!(fecha instanceof Date)) return '';
-  return Utilities.formatDate(fecha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  if (!fecha) return '';
+  const d = (fecha instanceof Date) ? fecha : new Date(fecha);
+  if (isNaN(d.getTime())) return '';
+  
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
 function obtenerCatalogosFormularioEdicionPaciente() {

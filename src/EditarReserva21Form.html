@@ -125,9 +125,11 @@
               console.log('DEBUG: Value of detalle received:', detalle, 'Type:', typeof detalle); // Added debug
               console.log('cargarDetalleReserva - success, detalle:', detalle); // Debugging
               if (detalle === null || detalle === undefined) {
-                console.error('cargarDetalleReserva - El servidor devolvió un detalle nulo o indefinido.');
-                setStatus('Error: El servidor no pudo cargar los detalles de la reserva. Inténtalo de nuevo.', 'error');
-                return; // Salir temprano si detalle es null/undefined
+                throw new Error('El servidor devolvió datos vacíos (null/undefined).');
+              }
+              
+              if (!detalle.fechaISO || !detalle.sesionId) {
+                throw new Error('Los datos de la reserva están incompletos en el sistema.');
               }
               document.getElementById('fechaReserva').value = detalle.fechaISO;
               document.getElementById('nombreProvisional').value = detalle.nombreProvisional;
