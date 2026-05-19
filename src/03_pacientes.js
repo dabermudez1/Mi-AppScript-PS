@@ -686,6 +686,8 @@ function obtenerDetalleReserva21Formulario(sesionId) {
     nombreProvisional: reserva.NombrePaciente === NOMBRE_RESERVA_21_GENERICA ? '' : reserva.NombrePaciente,
     nhcProvisional: reserva.NHC === NHC_RESERVA_21_GENERICA ? '' : reserva.NHC
   };
+  Logger.log(`[SERVER] obtenerDetalleReserva21Formulario returning: ${JSON.stringify(detalle)}`);
+  return detalle;
 }
 
 /**

@@ -123,6 +123,11 @@
           .withSuccessHandler(function(detalle) {
             try { // Add try-catch for client-side errors in success handler
               console.log('cargarDetalleReserva - success, detalle:', detalle); // Debugging
+              if (detalle === null || detalle === undefined) {
+                console.error('cargarDetalleReserva - El servidor devolvió un detalle nulo o indefinido.');
+                setStatus('Error: El servidor no pudo cargar los detalles de la reserva. Inténtalo de nuevo.', 'error');
+                return; // Salir temprano si detalle es null/undefined
+              }
               document.getElementById('fechaReserva').value = detalle.fechaISO;
               document.getElementById('nombreProvisional').value = detalle.nombreProvisional;
               document.getElementById('nhcProvisional').value = detalle.nhcProvisional;
