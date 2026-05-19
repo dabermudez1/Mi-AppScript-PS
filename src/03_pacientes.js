@@ -12,6 +12,17 @@ function nuevoPaciente() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Nuevo paciente');
 }
 
+/**
+ * Abre el formulario para reservar una primera consulta (2.1).
+ */
+function reservarPrimeraConsulta() {
+  const html = HtmlService
+    .createHtmlOutputFromFile('ReservarPrimeraForm')
+    .setWidth(420)
+    .setHeight(450); // Altura ajustada para este formulario
+  SpreadsheetApp.getUi().showModalDialog(html, 'Reservar Primera Consulta (2.1)');
+}
+
 /***************
  * ENTRADAS UI
  ***************/
@@ -626,6 +637,145 @@ function obtenerSlotsDisponiblesParaSeguimiento(fechaConsultaISO, modalidad) {
 
   return diasConSlots;
 }
+
+/**
+ * Reserva un slot de primera consulta (2.1) con un paciente genérico del sistema.
+ * @param {Object} params
+ * @param {string} params.fechaISO - Fecha de la reserva en formato ISO (yyyy-MM-dd).
+ * @param {string} params.hora - Hora de la reserva en formato HH:mm.
+ * @param {string} [params.nombreProvisional] - Nombre provisional para la reserva.
+ * @param {string} [params.nhcProvisional] - NHC provisional para la reserva.
+ * @returns {Object} Mensaje de confirmación.
+ */
+function reservarPrimeraSesion_({ fechaISO, hora, nombreProvisional = '', nhcProvisional = '' }) {
+  const fechaHoraInicio = normalizarFechaHora_(parseFechaISO_(fechaISO), hora);
+  const duracionSlot = 60; // Duración estándar para 2.1
+
+  const availabilityService = new AvailabilityService();
+  const agendaService = new AgendaService();
+
+  // 1. Verificar que el slot esté realmente disponible
+  const agendaForDay = agendaService.getAgendaForDay(fechaHoraInicio);
+  const targetSlot = agendaForDay.find(slot =>
+    compararFechasHoras_(slot.startDateTime, fechaHoraInicio) === 0 &&
+    (slot.type === '2.1' || slot.type === 'PRIMERA') &&
+    slot.durationMinutes >= duracionSlot
+  );
+
+  if (!targetSlot) {
+    throw new Error(`El slot ${formatearFecha_(fechaHoraInicio)} a las ${formatearHora_(fechaHoraInicio)} no es un slot de primera consulta (2.1) válido o no existe en la plantilla.`);
+  }
+
+  const sessionsRepo = new SessionRepository();
+  const sesionesExistentes = sessionsRepo.findAll().filter(s =>
+    normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(fechaHoraInicio).getTime()
+  );
+  const occupied = availabilityService._getOccupiedSlotsFromSessions(sesionesExistentes);
+
+  if (availabilityService._isSlotOccupied(targetSlot, occupied)) {
+    throw new Error(`El slot ${formatearFecha_(fechaHoraInicio)} a las ${formatearHora_(fechaHoraInicio)} ya está ocupado.`);
+  }
+
+  // 2. Crear la sesión provisional
+  const sesionId = generarId_('SES');
+  const nuevaSesion = {
+    SesionID: sesionId,
+    PacienteID: PACIENTE_ID_RESERVA_21_GENERICA, // Paciente genérico del sistema
+    CicloID: '',
+    AsignacionID: '',
+    Modalidad: MODALIDADES.INDIVIDUAL, // Las 2.1 son individuales
+    NombrePaciente: nombreProvisional || NOMBRE_RESERVA_21_GENERICA,
+    NHC: nhcProvisional || NHC_RESERVA_21_GENERICA,
+    NumeroSesion: 0, // Sesión provisional, no parte de un ciclo
+    FechaSesion: normalizarFecha_(fechaHoraInicio),
+    EstadoSesion: ESTADOS_SESION.RESERVADA_PROVISIONAL, // Nuevo estado
+    FechaOriginal: normalizarFecha_(fechaHoraInicio),
+    ModificadaManual: true,
+    Notas: `Reserva provisional de 2.1. Nombre: ${nombreProvisional || 'N/A'}, NHC: ${nhcProvisional || 'N/A'}`,
+    CalendarEventId: '',
+    CalendarSyncStatus: '',
+    CalendarLastSync: '',
+    CalendarEventTitle: '',
+    CalendarHash: '',
+    HoraInicio: formatearHora_(fechaHoraInicio),
+    Duracion: duracionSlot,
+    TipoSlot: TIPOS_SESION_AGENDA.S21_RESERVA // Para identificarla fácilmente en Calendar
+  };
+
+  sessionsRepo.save(nuevaSesion);
+  SpreadsheetApp.flush();
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_SESIONES] = null;
+  eliminarCacheDashboard_(); // Para que se refleje en el dashboard
+
+  return {
+    mensaje: `Slot de primera consulta reservado correctamente para el ${formatearFecha_(fechaHoraInicio)} a las ${formatearHora_(fechaHoraInicio)}.`
+  };
+}
+
+/**
+ * Obtiene slots disponibles para reservar una primera consulta (2.1).
+ * @param {string} fechaInicioISO - Fecha a partir de la cual buscar (yyyy-MM-dd).
+ * @param {number} diasBusqueda - Número de días a buscar.
+ * @returns {Array<Object>} Lista de días con slots 2.1 disponibles.
+ */
+function obtenerSlotsDisponiblesParaReserva21(fechaInicioISO, diasBusqueda = 7) {
+  const fechaInicio = parseFechaISO_(fechaInicioISO);
+  if (!fechaInicio) throw new Error('Fecha de inicio no válida.');
+
+  const availabilityService = new AvailabilityService();
+  const agendaService = new AgendaService();
+
+  const diasConSlots = [];
+  let currentDay = normalizarFechaHora_(fechaInicio, "00:00");
+  const hoy = normalizarFechaHora_(new Date(), "00:00");
+
+  // Asegurarse de que la búsqueda no empiece en el pasado
+  if (currentDay.getTime() < hoy.getTime()) {
+    currentDay = hoy;
+  }
+
+  let diasProcesados = 0;
+  const maxDiasIteracion = 90; // Límite de seguridad para evitar loops infinitos
+
+  while (diasConSlots.length < diasBusqueda && diasProcesados < maxDiasIteracion) {
+    const slotsDelDia = agendaService.getAgendaForDay(currentDay);
+    const sessionsRepo = new SessionRepository();
+    const sesionesExistentes = sessionsRepo.findAll().filter(s =>
+      normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(currentDay).getTime()
+    );
+    const occupied = availabilityService._getOccupiedSlotsFromSessions(sesionesExistentes);
+
+    const libres = slotsDelDia.filter(slot => {
+      // Solo slots tipo 2.1 o PRIMERA
+      if (slot.type !== '2.1' && slot.type !== 'PRIMERA') return false;
+      // Que no estén ocupados
+      if (availabilityService._isSlotOccupied(slot, occupied)) return false;
+      // Que no estén en días bloqueados
+      if (typeof esFechaBloqueada_ !== 'function' || esFechaBloqueada_(slot.startDateTime)) return false;
+      // Que no estén en el pasado
+      if (slot.startDateTime.getTime() < new Date().getTime()) return false;
+
+      return true;
+    }).map(s => ({
+      hora: formatearHora_(s.startDateTime),
+      label: formatearHora_(s.startDateTime)
+    }));
+
+    if (libres.length > 0) {
+      diasConSlots.push({
+        fechaISO: formatearFechaISOInput_(currentDay),
+        fechaLabel: formatearFecha_(currentDay) + " (" + convertirDiaSemanaATexto_(currentDay) + ")",
+        slots: libres
+      });
+    }
+
+    currentDay = sumarDiasNaturales_(currentDay, 1);
+    diasProcesados++;
+  }
+
+  return diasConSlots;
+}
+
 
 function guardarNuevoPacienteDesdeFormulario(formData) {
   const nombre = String(formData.nombre || '').trim();

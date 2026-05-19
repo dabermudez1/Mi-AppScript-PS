@@ -266,7 +266,8 @@ class AvailabilityService {
     const map = {
       'SEGUIMIENTO': '2.2',
       'PRIMERA': '2.1',
-      'SEGUIMIENTO/GRUPO': '2.2/GRUPO'
+      'SEGUIMIENTO/GRUPO': '2.2/GRUPO',
+      '2.1/RESERVA': '2.1 (Reservado)' // Nuevo mapeo para reservas 2.1
     };
     return map[type] || type;
   }

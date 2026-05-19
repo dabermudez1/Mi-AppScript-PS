@@ -19,6 +19,10 @@ const SHEET_AGENDA_PLANTILLA = 'AGENDA_PLANTILLA';
 const SHEET_AGENDA_EXCEPCIONES = 'AGENDA_EXCEPCIONES';
 const SHEET_DATOS_CLINICOS_PACIENTES = 'DATOS_CLINICOS_PACIENTES';
 
+const PACIENTE_ID_RESERVA_21_GENERICA = 'SYS_RES_21';
+const NOMBRE_RESERVA_21_GENERICA = 'RESERVA 2.1';
+const NHC_RESERVA_21_GENERICA = 'SYS_RES_21';
+
 // Objeto global para caché de ejecución. Evita lecturas repetidas a Sheets en el mismo script.
 // Usamos 'var' para evitar el SyntaxError: Identifier has already been declared, 
 // que es común en Apps Script cuando hay colisiones de archivos o push duplicados.
@@ -53,7 +57,8 @@ const TIPOS_SESION_AGENDA = {
   S22: '2.2',
   S21: '2.1',
   GRUPO: '2.2/GRUPO',
-  DESCANSO: 'DESCANSO'
+  DESCANSO: 'DESCANSO',
+  S21_RESERVA: '2.1/RESERVA' // Nuevo tipo para reservas provisionales de 2.1
 };
 
 /***************
@@ -94,7 +99,8 @@ const ESTADOS_SESION = {
   COMPLETADA_AUTO: 'COMPLETADA_AUTO',
   COMPLETADA_MANUAL: 'COMPLETADA_MANUAL',
   REPROGRAMADA: 'REPROGRAMADA',
-  CANCELADA: 'CANCELADA'
+  CANCELADA: 'CANCELADA',
+  RESERVADA_PROVISIONAL: 'RESERVADA_PROVISIONAL' // Nuevo estado para reservas 2.1
 };
 
 /***************
@@ -283,6 +289,7 @@ function onOpen() {
   menu.addSubMenu(
   ui.createMenu('Operativa diaria')
     .addItem('Nuevo paciente', 'nuevoPaciente')
+    .addItem('Reservar 1ª Consulta (2.1)', 'reservarPrimeraConsulta') // Nuevo elemento de menú
     .addItem('Editar paciente', 'editarPaciente')
     .addItem('Reprogramar sesión', 'abrirReprogramarSesion')
     .addItem('Alta de paciente', 'altaPaciente')
