@@ -72,6 +72,7 @@
       let currentReservaId = null;
 
       function setStatus(message, type) {
+        console.log('setStatus:', message, type); // Debugging
         const el = document.getElementById('status');
         el.textContent = message || '';
         el.className = 'status ' + (type || '');
@@ -79,6 +80,7 @@
 
       function toggleForm(enable) {
         document.getElementById('fechaReserva').disabled = !enable;
+        console.log('toggleForm - fechaReserva disabled:', document.getElementById('fechaReserva').disabled); // Debugging
         document.getElementById('slotReserva').disabled = !enable;
         document.getElementById('nombreProvisional').disabled = !enable;
         document.getElementById('nhcProvisional').disabled = !enable;
@@ -88,6 +90,7 @@
 
       function cargarReservas() {
         google.script.run
+          .withUserObject(document.getElementById('reservaExistente')) // Pass select element for context
           .withSuccessHandler(function(reservas) {
             const select = document.getElementById('reservaExistente');
             select.innerHTML = '<option value="">-- Selecciona una reserva --</option>';
@@ -100,6 +103,7 @@
             toggleForm(false);
           })
           .withFailureHandler(function(error) {
+            console.error('Error en cargarReservas:', error); // Debugging
             setStatus('Error al cargar reservas: ' + (error.message || String(error)), 'error');
           })
           .obtenerReservas21Formulario();
@@ -107,6 +111,7 @@
 
       function cargarDetalleReserva() {
         currentReservaId = document.getElementById('reservaExistente').value;
+        console.log('cargarDetalleReserva - currentReservaId:', currentReservaId); // Debugging
         if (!currentReservaId) {
           toggleForm(false);
           limpiarCampos();
@@ -116,13 +121,22 @@
 
         google.script.run
           .withSuccessHandler(function(detalle) {
-            document.getElementById('fechaReserva').value = detalle.fechaISO;
-            document.getElementById('nombreProvisional').value = detalle.nombreProvisional;
-            document.getElementById('nhcProvisional').value = detalle.nhcProvisional;
-            toggleForm(true);
-            buscarSlotsDisponibles(detalle.hora); // Pasar la hora actual para preseleccionar
+            try { // Add try-catch for client-side errors in success handler
+              console.log('cargarDetalleReserva - success, detalle:', detalle); // Debugging
+              document.getElementById('fechaReserva').value = detalle.fechaISO;
+              document.getElementById('nombreProvisional').value = detalle.nombreProvisional;
+              document.getElementById('nhcProvisional').value = detalle.nhcProvisional;
+              toggleForm(true);
+              buscarSlotsDisponibles(detalle.hora); // Pasar la hora actual para preseleccionar
+            } catch (e) {
+              console.error('Error interno en cargarDetalleReserva success handler:', e); // Debugging
+              setStatus('Error interno al procesar detalle: ' + e.message, 'error');
+              toggleForm(false);
+              limpiarCampos();
+            }
           })
           .withFailureHandler(function(error) {
+            console.error('cargarDetalleReserva - failure:', error); // Debugging
             setStatus('Error al cargar detalle: ' + (error.message || String(error)), 'error');
             toggleForm(false);
             limpiarCampos();
@@ -138,6 +152,7 @@
         if (!fecha) {
           select.innerHTML = '<option value="">-- Selecciona una fecha --</option>';
           status.textContent = '';
+          select.disabled = false; // Ensure select is re-enabled even if no date
           return;
         }
 
@@ -148,6 +163,7 @@
 
         google.script.run
           .withSuccessHandler(function(diasConSlots) {
+            console.log('buscarSlotsDisponibles - success, diasConSlots:', diasConSlots); // Debugging
             select.disabled = false;
             select.innerHTML = '<option value="">-- Selecciona un hueco --</option>';
             
@@ -178,6 +194,7 @@
             status.className = 'hint success';
           })
           .withFailureHandler(function(error) {
+            console.error('buscarSlotsDisponibles - failure:', error); // Debugging
             select.disabled = false;
             select.innerHTML = '<option value="">-- Error al cargar --</option>';
             status.textContent = '❌ Error: ' + (error.message || String(error));
@@ -213,12 +230,14 @@
 
         google.script.run
           .withSuccessHandler(function(res) {
+            console.log('guardar - success:', res); // Debugging
             btn.innerText = 'Guardar Cambios';
             btn.disabled = false;
             setStatus(res.mensaje, 'success');
             cargarReservas(); // Recargar la lista de reservas
           })
           .withFailureHandler(function(error) {
+            console.error('guardar - failure:', error); // Debugging
             btn.innerText = 'Guardar Cambios';
             btn.disabled = false;
             setStatus('❌ Error: ' + (error.message || String(error)), 'error');
@@ -250,9 +269,11 @@
             limpiarCampos();
           })
           .withFailureHandler(function(error) {
+            console.error('eliminar - failure:', error); // Debugging
             btn.innerText = 'Eliminar Reserva';
             btn.disabled = false;
             setStatus('❌ Error: ' + (error.message || String(error)), 'error');
+            cargarReservas(); // Recargar la lista de reservas para reflejar el estado actual
           })
           .eliminarReserva21(currentReservaId);
       }
