@@ -125,6 +125,9 @@
               console.log('DEBUG: Value of detalle received:', detalle, 'Type:', typeof detalle); // Added debug
               console.log('cargarDetalleReserva - success, detalle:', detalle); // Debugging
               if (detalle === null || detalle === undefined) {
+                console.error('cargarDetalleReserva - El servidor devolvió un detalle nulo o indefinido.');
+                setStatus('Error: El servidor no pudo cargar los detalles de la reserva. Inténtalo de nuevo.', 'error');
+                return; // Salir temprano si detalle es null/undefined
                 throw new Error('El servidor devolvió datos vacíos (null/undefined).');
               }
               
@@ -168,6 +171,19 @@
         select.innerHTML = '<option value="">Cargando disponibilidad...</option>';
         status.textContent = '⏳ Buscando huecos libres...';
         status.className = 'hint loading-slots';
+
+        // --- CRITICAL DEBUGGING: Check function existence before chaining ---
+        if (typeof google.script.run.obtenerSlotsDisponiblesParaReserva21 !== 'function') {
+            console.error('CRITICAL ERROR: google.script.run.obtenerSlotsDisponiblesParaReserva21 is NOT a function. Type:', typeof google.script.run.obtenerSlotsDisponiblesParaReserva21);
+            select.disabled = false;
+            select.innerHTML = '<option value="">-- Error interno --</option>';
+            status.textContent = '❌ Error: La función de servidor "obtenerSlotsDisponiblesParaReserva21" no está disponible. Asegúrate de que el script esté guardado y desplegado correctamente.';
+            status.className = 'hint error';
+            // Re-enable form elements if they were disabled
+            toggleForm(true); 
+            return;
+        }
+        // --- END CRITICAL DEBUGGING ---
 
         google.script.run
           .withSuccessHandler(function(diasConSlots) {
