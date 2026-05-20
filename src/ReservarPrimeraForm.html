@@ -34,7 +34,7 @@
 
     <div class="field">
       <label for="slotReserva">Slot disponible (2.1)</label>
-      <select id="slotReserva">
+      <select id="slotReserva" onchange="actualizarMensajeFechaSeleccionada()">
         <option value="">-- Selecciona un hueco --</option>
       </select>
       <div id="slotStatus" class="hint"></div>
@@ -105,16 +105,45 @@
               select.appendChild(group);
             });
 
-            status.textContent = '✅ Disponibilidad cargada.';
-            status.className = 'hint success';
+            actualizarMensajeFechaSeleccionada();
           })
           .withFailureHandler(function(error) {
             select.disabled = false;
             select.innerHTML = '<option value="">-- Error al cargar --</option>';
             status.textContent = '❌ Error: ' + (error.message || String(error));
             status.className = 'hint error';
+            status.style.color = '';
           })
           .obtenerSlotsDisponiblesParaReserva21(fecha, 7); // Buscar 7 días a partir de la fecha seleccionada
+      }
+
+      function actualizarMensajeFechaSeleccionada() {
+        const select = document.getElementById('slotReserva');
+        const status = document.getElementById('slotStatus');
+        const slotVal = select.value;
+        
+        if (!slotVal) {
+          status.textContent = '✅ Disponibilidad cargada. Selecciona un hueco.';
+          status.className = 'hint success';
+          status.style.color = '';
+          return;
+        }
+
+        const partes = slotVal.split('|');
+        const fechaIso = partes[0];
+        const hora = partes[1];
+        const fechaBuscada = document.getElementById('fechaReserva').value;
+        const fechaStr = fechaIso.split('-').reverse().join('/');
+
+        if (fechaIso !== fechaBuscada) {
+           status.innerHTML = `📅 <strong>Nota:</strong> El slot seleccionado es para el día <strong>${fechaStr}</strong> a las ${hora}.`;
+           status.className = 'hint';
+           status.style.color = '#ca8a04'; // Destacado sutil (amarillo oscuro)
+        } else {
+           status.innerHTML = `✅ <strong>Slot seleccionado:</strong> ${fechaStr} a las ${hora}.`;
+           status.className = 'hint success';
+           status.style.color = '';
+        }
       }
 
       function reservar() {
