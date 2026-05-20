@@ -136,7 +136,7 @@
           return;
         }
 
-        setStatus('Cargando detalle...', '');
+        // setStatus('Cargando detalle...', ''); // Eliminado para evitar parpadeo
         google.script.run
           .withSuccessHandler(function(detalle) {
             if (!detalle || !detalle.sesionId) {
@@ -280,7 +280,9 @@
           .withSuccessHandler(function(res) {
             btn.innerText = 'Guardar Cambios';
             setStatus(res.mensaje, 'success');
-            cargarReservas(); // Recargar la lista y resetear el form
+            setTimeout(function() {
+              cargarReservas(); // Recargar la lista y resetear el form
+            }, 1500); // Delay para que el usuario vea el mensaje de éxito
           })
           .withFailureHandler(function(error) {
             btn.innerText = 'Guardar Cambios';
@@ -305,7 +307,9 @@
         google.script.run
           .withSuccessHandler(function(res) {
             setStatus(res.mensaje, 'success');
-            cargarReservas(); // Recargar la lista y resetear el form
+            setTimeout(function() {
+              cargarReservas(); // Recargar la lista y resetear el form
+            }, 1500); // Delay para que el usuario vea el mensaje de éxito
           })
           .withFailureHandler(function(error) {
             btn.innerText = 'Eliminar Reserva';
