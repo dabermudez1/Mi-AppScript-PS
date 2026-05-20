@@ -23,6 +23,17 @@ function reservarPrimeraConsulta() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Reservar Primera Consulta (2.1)');
 }
 
+/**
+ * Abre el formulario para editar o eliminar una reserva de primera consulta (2.1).
+ */
+function editarEliminarReserva21() {
+  const html = HtmlService
+    .createHtmlOutputFromFile('EditarReserva21Form')
+    .setWidth(420)
+    .setHeight(550); // Altura ajustada
+  SpreadsheetApp.getUi().showModalDialog(html, 'Editar/Eliminar Reserva 2.1');
+}
+
 /***************
  * ENTRADAS UI
  ***************/
@@ -781,6 +792,127 @@ function obtenerSlotsDisponiblesParaReserva21(fechaInicioISO, diasBusqueda = 7) 
   return diasConSlots;
 }
 
+/**
+ * Obtiene una lista de reservas 2.1 provisionales para el formulario de edición/eliminación.
+ * @returns {Array<Object>} Lista de objetos de reserva.
+ */
+function obtenerReservas21Formulario() {
+  const sessionRepo = new SessionRepository();
+  const reservas = sessionRepo.findAll().filter(s =>
+    s.EstadoSesion === ESTADOS_SESION.RESERVADA_PROVISIONAL &&
+    s.PacienteID === PACIENTE_ID_RESERVA_21_GENERICA
+  );
+
+  return reservas.map(r => ({
+    sesionId: r.SesionID,
+    label: `${formatearFecha_(r.FechaSesion)} ${formatearHora_(r.HoraInicio)} - ${r.NombrePaciente || 'Sin Nombre'}`
+  })).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
+ * Obtiene los detalles de una reserva 2.1 provisional específica.
+ * @param {string} sesionId - ID de la sesión de reserva.
+ * @returns {Object} Detalles de la reserva (POJO limpio para evitar errores de serialización).
+ */
+function obtenerDetalleReserva21Formulario(sesionId) {
+  const sessionRepo = new SessionRepository();
+  const reserva = sessionRepo.findOneBy('SesionID', sesionId);
+
+  if (!reserva || reserva.EstadoSesion !== ESTADOS_SESION.RESERVADA_PROVISIONAL) {
+    throw new Error('Reserva no encontrada o no es una reserva provisional 2.1.');
+  }
+
+  const detalleReserva = {
+    sesionId: String(reserva.SesionID || ''),
+    fechaISO: formatearFechaISOInput_(reserva.FechaSesion),
+    hora: formatearHora_(reserva.HoraInicio),
+    nombreProvisional: reserva.NombrePaciente === NOMBRE_RESERVA_21_GENERICA ? '' : String(reserva.NombrePaciente || ''),
+    nhcProvisional: reserva.NHC === NHC_RESERVA_21_GENERICA ? '' : String(reserva.NHC || '')
+  };
+  
+  Logger.log(`[SERVER] obtenerDetalleReserva21Formulario returning POJO: ${JSON.stringify(detalleReserva)}`);
+  return JSON.parse(JSON.stringify(detalleReserva));
+}
+
+/**
+ * Elimina una reserva 2.1 provisional y su evento de Calendar.
+ */
+function eliminarReserva21(sesionId) {
+  const sessionRepo = new SessionRepository();
+  const reserva = sessionRepo.findOneBy('SesionID', sesionId);
+
+  if (!reserva || reserva.EstadoSesion !== ESTADOS_SESION.RESERVADA_PROVISIONAL) {
+    throw new Error('Reserva no encontrada o no es una reserva provisional 2.1.');
+  }
+
+  if (reserva.CalendarEventId) {
+    try {
+      const calendar = obtenerOCrearCalendarioConsulta_();
+      const event = obtenerEventoSeguro_(calendar, reserva.CalendarEventId);
+      if (event) event.deleteEvent();
+    } catch (e) {
+      Logger.log(`Error al eliminar evento de Calendar ${reserva.CalendarEventId}: ${e.message}`);
+    }
+  }
+
+  sessionRepo.delete({ SesionID: sesionId });
+  SpreadsheetApp.flush();
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_SESIONES] = null;
+  eliminarCacheDashboard_();
+
+  return { mensaje: 'Reserva eliminada correctamente.' };
+}
+
+/**
+ * Guarda los cambios realizados en una reserva 2.1.
+ */
+function guardarEdicionReserva21(formData) {
+  const sessionRepo = new SessionRepository();
+  const reserva = sessionRepo.findOneBy('SesionID', formData.sesionId);
+
+  if (!reserva || reserva.EstadoSesion !== ESTADOS_SESION.RESERVADA_PROVISIONAL) {
+    throw new Error('Reserva no encontrada.');
+  }
+
+  const nuevaFechaHoraInicio = normalizarFechaHora_(parseFechaISO_(formData.fechaISO), formData.hora);
+  const duracionSlot = 60; 
+
+  // Validar disponibilidad si cambia el tiempo
+  if (compararFechasHoras_(reserva.FechaSesion, nuevaFechaHoraInicio) !== 0 || reserva.HoraInicio !== formData.hora) {
+    const availabilityService = new AvailabilityService();
+    const agendaService = new AgendaService();
+
+    const agendaForDay = agendaService.getAgendaForDay(nuevaFechaHoraInicio);
+    const targetSlot = agendaForDay.find(slot =>
+      compararFechasHoras_(slot.startDateTime, nuevaFechaHoraInicio) === 0 &&
+      (slot.type === '2.1' || slot.type === 'PRIMERA')
+    );
+
+    if (!targetSlot) throw new Error('El nuevo slot no es válido en la agenda.');
+
+    const sesionesExistentes = sessionRepo.findAll().filter(s =>
+      s.SesionID !== reserva.SesionID && 
+      normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(nuevaFechaHoraInicio).getTime()
+    );
+    const occupied = availabilityService._getOccupiedSlotsFromSessions(sesionesExistentes);
+
+    if (availabilityService._isSlotOccupied(targetSlot, occupied)) throw new Error('El slot ya está ocupado.');
+  }
+
+  reserva.FechaSesion = normalizarFecha_(nuevaFechaHoraInicio);
+  reserva.HoraInicio = formatearHora_(nuevaFechaHoraInicio);
+  reserva.NombrePaciente = formData.nombreProvisional || NOMBRE_RESERVA_21_GENERICA;
+  reserva.NHC = formData.nhcProvisional || NHC_RESERVA_21_GENERICA;
+  reserva.ModificadaManual = true;
+
+  sessionRepo.save(reserva);
+  SpreadsheetApp.flush();
+  if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_SESIONES] = null;
+  eliminarCacheDashboard_();
+  sincronizarSesionesAGoogleCalendar();
+
+  return { mensaje: 'Reserva actualizada correctamente.' };
+}
 
 function guardarNuevoPacienteDesdeFormulario(formData) {
   const nombre = String(formData.nombre || '').trim();
@@ -1198,8 +1330,11 @@ function guardarEdicionPaciente(formData) {
 }
 
 function formatearFechaISOInput_(fecha) {
-  if (!(fecha instanceof Date)) return '';
-  return Utilities.formatDate(fecha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  if (!fecha) return '';
+  const d = (fecha instanceof Date) ? fecha : new Date(fecha);
+  if (isNaN(d.getTime())) return '';
+  
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
 function obtenerCatalogosFormularioEdicionPaciente() {
