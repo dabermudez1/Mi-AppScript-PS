@@ -182,12 +182,34 @@ function obtenerDatosHomeDashboard() {
       EstadoCiclo: c.EstadoCiclo
     }));
 
-  // 1. Obtener pacientes reales con próxima sesión
-  const proximosPacientesReales = pacientes
-    .filter(p => (p.EstadoPaciente === 'ACTIVO' || p.EstadoPaciente === 'ACTIVO_PENDIENTE_INICIO') && 
-                 p.ProximaSesion instanceof Date && p.ProximaSesion >= ahora);
+  // --- INICIO: Lógica para "Próximos Pacientes" ---
 
-  // 2. Obtener reservas 2.1 provisionales futuras
+  // 1. Obtener la próxima sesión real para cada paciente activo o pendiente
+  const proximasSesionesPorPaciente = new Map();
+  sesiones // Usamos las sesiones ya filtradas por el repo (solo pacientes reales)
+    .filter(s => s.EstadoSesion === ESTADOS_SESION.PENDIENTE || s.EstadoSesion === ESTADOS_SESION.REPROGRAMADA)
+    .forEach(s => {
+      const pid = s.PacienteID;
+      const fechaSesion = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
+      if (fechaSesion >= ahora) {
+        if (!proximasSesionesPorPaciente.has(pid) || fechaSesion < proximasSesionesPorPaciente.get(pid).ProximaSesion) {
+          proximasSesionesPorPaciente.set(pid, { ...s, ProximaSesion: fechaSesion });
+        }
+      }
+    });
+
+  const proximosPacientesReales = Array.from(proximasSesionesPorPaciente.values()).map(s => {
+    const pacienteOriginal = pacientes.find(p => p.PacienteID === s.PacienteID);
+    return {
+      PacienteID: s.PacienteID,
+      Nombre: s.NombrePaciente,
+      ModalidadSolicitada: s.Modalidad,
+      EstadoPaciente: pacienteOriginal ? pacienteOriginal.EstadoPaciente : 'ACTIVO',
+      ProximaSesion: s.ProximaSesion
+    };
+  });
+
+  // 2. Obtener reservas 2.1 provisionales futuras (usando la lista de sesiones sin filtrar)
   const proximasReservas21 = todasLasSesionesReales
     .filter(s => {
       const fechaSesion = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
@@ -196,12 +218,11 @@ function obtenerDatosHomeDashboard() {
              fechaSesion >= ahora;
     })
     .map(s => ({
-      // Mock de objeto paciente para unificar el tratamiento
-      PacienteID: s.SesionID, // Usamos SesionID como clave única para la UI
+      PacienteID: s.SesionID,
       Nombre: s.NombrePaciente,
-      ModalidadSolicitada: '-', // Como solicitado
+      ModalidadSolicitada: '-',
       EstadoPaciente: ESTADOS_SESION.RESERVADA_PROVISIONAL,
-      ProximaSesion: normalizarFechaHora_(s.FechaSesion, s.HoraInicio) // Objeto Date para ordenar
+      ProximaSesion: normalizarFechaHora_(s.FechaSesion, s.HoraInicio)
     }));
 
   // 3. Unir, ordenar, cortar y mapear al formato final
@@ -216,6 +237,8 @@ function obtenerDatosHomeDashboard() {
       ProximaSesion: formatearFecha_(p.ProximaSesion),
       HoraProximaSesion: formatearHora_(p.ProximaSesion)
     }));
+  
+  // --- FIN: Lógica para "Próximos Pacientes" ---
 
   const alertas = construirAlertasHome_(pacientes, ciclos, sesiones, hoy);
 
