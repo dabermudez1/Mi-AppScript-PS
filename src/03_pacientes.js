@@ -19,7 +19,7 @@ function reservarPrimeraConsulta() {
   const html = HtmlService
     .createHtmlOutputFromFile('ReservarPrimeraForm')
     .setWidth(420)
-    .setHeight(450); // Altura ajustada para este formulario
+    .setHeight(550); // Altura ajustada para este formulario
   SpreadsheetApp.getUi().showModalDialog(html, 'Reservar Primera Consulta (2.1)');
 }
 
@@ -30,7 +30,7 @@ function editarEliminarReserva21() {
   const html = HtmlService
     .createHtmlOutputFromFile('EditarReserva21Form')
     .setWidth(420)
-    .setHeight(550); // Altura ajustada
+    .setHeight(750); // Altura ajustada
   SpreadsheetApp.getUi().showModalDialog(html, 'Editar/Eliminar Reserva 2.1');
 }
 
