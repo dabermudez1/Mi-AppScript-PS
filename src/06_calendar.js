@@ -22,6 +22,7 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
   props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '0');
   props.deleteProperty('TASK_SYNC_CALENDAR_INDEX');
   props.deleteProperty('TASK_SYNC_CALENDAR_MODIFIED');
+  props.deleteProperty('TASK_SYNC_CALENDAR_DELETED');
   
   limpiarTriggersSyncCalendar_();
   
@@ -49,6 +50,7 @@ function continuarSincronizacionCalendarLote() {
 
   const startIndex = parseInt(props.getProperty('TASK_SYNC_CALENDAR_INDEX') || '0', 10);
   let totalActualizadosGlobales = parseInt(props.getProperty('TASK_SYNC_CALENDAR_MODIFIED') || '0', 10);
+  let totalEliminadosGlobales = parseInt(props.getProperty('TASK_SYNC_CALENDAR_DELETED') || '0', 10);
 
   // 1) Cargar NHCs (es muy rápido en memoria)
   const pacientes = patientRepo.findAll();
@@ -67,12 +69,36 @@ function continuarSincronizacionCalendarLote() {
   }
 
   let actualizadosEnLote = 0;
+  let eliminadosEnLote = 0;
   const sesionesModificadas = [];
   let timeoutAlcanzado = false;
   let currentIndex = startIndex;
 
   for (; currentIndex < sesionesDeseadas.length; currentIndex++) {
     const sesion = sesionesDeseadas[currentIndex];
+
+    // Lógica para sesiones canceladas: eliminar el evento del calendario.
+    if (sesion.EstadoSesion === ESTADOS_SESION.CANCELADA) {
+      if (sesion.CalendarEventId) {
+        try {
+          const ev = obtenerEventoSeguro_(calendar, sesion.CalendarEventId);
+          if (ev) {
+            ev.deleteEvent();
+            eliminadosEnLote++;
+            totalEliminadosGlobales++;
+          }
+        } catch (e) {
+          console.error(`Error al eliminar evento cancelado ${sesion.CalendarEventId}: ${e.message}`);
+        }
+        
+        sesion.CalendarEventId = '';
+        sesion.CalendarSyncStatus = 'ELIMINADO';
+        sesion.CalendarHash = ''; // Limpiar hash para forzar re-evaluación si cambia de estado
+        sesion.CalendarLastSync = new Date();
+        sesionesModificadas.push(sesion);
+      }
+      continue; // Pasar a la siguiente sesión
+    }
     const currentHash = generarHashSesionCalendar_(sesion);
 
     // OPTIMIZACIÓN CLAVE: Si el hash coincide, ya tiene ID y no está en ERROR, saltamos.
@@ -151,6 +177,7 @@ function continuarSincronizacionCalendarLote() {
     // Pausar y programar siguiente lote
     props.setProperty('TASK_SYNC_CALENDAR_INDEX', currentIndex.toString());
     props.setProperty('TASK_SYNC_CALENDAR_MODIFIED', totalActualizadosGlobales.toString());
+    props.setProperty('TASK_SYNC_CALENDAR_DELETED', totalEliminadosGlobales.toString());
     
     ScriptApp.newTrigger('continuarSincronizacionCalendarLote')
       .timeBased()
@@ -160,17 +187,17 @@ function continuarSincronizacionCalendarLote() {
     // Fin de la iteración. Procedemos a limpiar huérfanos.
     props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '95');
     
-    let eliminados = 0;
+    let eliminadosHuerfanos = 0;
     try {
       if (typeof limpiarEventosHuerfanosCalendar === 'function') {
         // Buscamos 60 días atrás y 180 adelante como zona de seguridad
-        eliminados = limpiarEventosHuerfanosCalendar(60, 180);
+        eliminadosHuerfanos = limpiarEventosHuerfanosCalendar(60, 180);
       }
     } catch(e) {
        console.warn("No se pudo limpiar huérfanos: " + e.message);
     }
 
-    finalizarSyncCalendar_(props, totalActualizadosGlobales, eliminados);
+    finalizarSyncCalendar_(props, totalActualizadosGlobales, totalEliminadosGlobales + eliminadosHuerfanos);
   }
 }
 
@@ -182,6 +209,7 @@ function finalizarSyncCalendar_(props, actualizados, eliminados) {
   props.setProperty('TASK_SYNC_CALENDAR_RUNNING', 'false');
   props.deleteProperty('TASK_SYNC_CALENDAR_INDEX');
   props.deleteProperty('TASK_SYNC_CALENDAR_MODIFIED');
+  props.deleteProperty('TASK_SYNC_CALENDAR_DELETED');
 }
 
 /***************
@@ -289,10 +317,6 @@ function construirTituloEventoSesion_(sesion) {
     sesion.EstadoSesion === ESTADOS_SESION.COMPLETADA_MANUAL
   ) {
     return '✅ ' + base;
-  }
-
-  if (sesion.EstadoSesion === ESTADOS_SESION.CANCELADA) {
-    return '❌ ' + base;
   }
 
   if (sesion.EstadoSesion === ESTADOS_SESION.REPROGRAMADA) {
