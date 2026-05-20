@@ -82,6 +82,18 @@ function obtenerDatosHomeDashboard() {
     esperaMedia = Math.round(sumaDias / pacientesEspera.length);
   }
 
+  // --- INICIO: CÁLCULO DEL KPI DE RESERVAS 2.1 ---
+  const reservasProvisionales = sesiones.filter(s => 
+    s.EstadoSesion === ESTADOS_SESION.RESERVADA_PROVISIONAL &&
+    s.PacienteID === PACIENTE_ID_RESERVA_21_GENERICA
+  );
+  const totalReservadas = reservasProvisionales.length;
+  const pasadasHastaHoy = reservasProvisionales.filter(s => {
+    const f = s.FechaSesion instanceof Date ? s.FechaSesion : parseFechaES_(s.FechaSesion);
+    return f && normalizarFecha_(f).getTime() <= hoyMs;
+  }).length;
+  // --- FIN: CÁLCULO DEL KPI ---
+
   const resumen = {
     totalPacientes: pacientes.length,
     activos: pacientes.filter(p => normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ACTIVO).length,
@@ -96,7 +108,9 @@ function obtenerDatosHomeDashboard() {
     alta: pacientes.filter(p => normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ALTA).length,
     pendienteInicio: pacientes.filter(p => normalize(p.EstadoPaciente) === ESTADOS_PACIENTE.ACTIVO_PENDIENTE_INICIO).length,
     gruposEnCurso: ciclos.filter(c => normalize(c.EstadoCiclo) === ESTADOS_CICLO.EN_CURSO).length,
-    altasMesActual: altasMesActual
+    altasMesActual: altasMesActual,
+    primerasReservadasTotal: totalReservadas,
+    primerasReservadasPasadas: pasadasHastaHoy
   };
 
   const ocupacionPorModalidad = Object.values(MODALIDADES).map(modalidad => {
