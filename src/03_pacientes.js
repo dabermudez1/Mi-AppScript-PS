@@ -813,6 +813,7 @@ function obtenerReservas21Formulario() {
  * Obtiene los detalles de una reserva 2.1 provisional específica.
  * @param {string} sesionId - ID de la sesión de reserva.
  * @returns {Object} Detalles de la reserva (POJO limpio para evitar errores de serialización).
+ * @returns {Object} Detalles de la reserva.
  */
 function obtenerDetalleReserva21Formulario(sesionId) {
   const sessionRepo = new SessionRepository();
@@ -836,6 +837,8 @@ function obtenerDetalleReserva21Formulario(sesionId) {
 
 /**
  * Elimina una reserva 2.1 provisional y su evento de Calendar.
+ * @param {string} sesionId - ID de la sesión a eliminar.
+ * @returns {Object} Mensaje de confirmación.
  */
 function eliminarReserva21(sesionId) {
   const sessionRepo = new SessionRepository();
@@ -845,6 +848,7 @@ function eliminarReserva21(sesionId) {
     throw new Error('Reserva no encontrada o no es una reserva provisional 2.1.');
   }
 
+  // Eliminar evento de Google Calendar si existe
   if (reserva.CalendarEventId) {
     try {
       const calendar = obtenerOCrearCalendarioConsulta_();
@@ -852,6 +856,7 @@ function eliminarReserva21(sesionId) {
       if (event) event.deleteEvent();
     } catch (e) {
       Logger.log(`Error al eliminar evento de Calendar ${reserva.CalendarEventId}: ${e.message}`);
+      // No lanzamos error para no bloquear la eliminación de la sesión en Sheets
     }
   }
 
@@ -865,6 +870,14 @@ function eliminarReserva21(sesionId) {
 
 /**
  * Guarda los cambios realizados en una reserva 2.1.
+ * Guarda los cambios en una reserva 2.1 provisional.
+ * @param {Object} formData - Datos del formulario.
+ * @param {string} formData.sesionId - ID de la sesión a editar.
+ * @param {string} formData.fechaISO - Nueva fecha en formato ISO.
+ * @param {string} formData.hora - Nueva hora.
+ * @param {string} [formData.nombreProvisional] - Nuevo nombre provisional.
+ * @param {string} [formData.nhcProvisional] - Nuevo NHC provisional.
+ * @returns {Object} Mensaje de confirmación.
  */
 function guardarEdicionReserva21(formData) {
   const sessionRepo = new SessionRepository();
@@ -872,12 +885,15 @@ function guardarEdicionReserva21(formData) {
 
   if (!reserva || reserva.EstadoSesion !== ESTADOS_SESION.RESERVADA_PROVISIONAL) {
     throw new Error('Reserva no encontrada.');
+    throw new Error('Reserva no encontrada o no es una reserva provisional 2.1.');
   }
 
   const nuevaFechaHoraInicio = normalizarFechaHora_(parseFechaISO_(formData.fechaISO), formData.hora);
   const duracionSlot = 60; 
+  const duracionSlot = 60; // Duración estándar para 2.1
 
   // Validar disponibilidad si cambia el tiempo
+  // Si la fecha/hora ha cambiado, verificar disponibilidad
   if (compararFechasHoras_(reserva.FechaSesion, nuevaFechaHoraInicio) !== 0 || reserva.HoraInicio !== formData.hora) {
     const availabilityService = new AvailabilityService();
     const agendaService = new AgendaService();
@@ -886,30 +902,44 @@ function guardarEdicionReserva21(formData) {
     const targetSlot = agendaForDay.find(slot =>
       compararFechasHoras_(slot.startDateTime, nuevaFechaHoraInicio) === 0 &&
       (slot.type === '2.1' || slot.type === 'PRIMERA')
+      (slot.type === '2.1' || slot.type === 'PRIMERA') &&
+      slot.durationMinutes >= duracionSlot
     );
 
     if (!targetSlot) throw new Error('El nuevo slot no es válido en la agenda.');
+    if (!targetSlot) {
+      throw new Error(`El nuevo slot ${formatearFecha_(nuevaFechaHoraInicio)} a las ${formatearHora_(nuevaFechaHoraInicio)} no es un slot de primera consulta (2.1) válido o no existe en la plantilla.`);
+    }
 
     const sesionesExistentes = sessionRepo.findAll().filter(s =>
       s.SesionID !== reserva.SesionID && 
+      s.SesionID !== reserva.SesionID && // Ignorar la propia sesión que estamos moviendo
       normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(nuevaFechaHoraInicio).getTime()
     );
     const occupied = availabilityService._getOccupiedSlotsFromSessions(sesionesExistentes);
 
     if (availabilityService._isSlotOccupied(targetSlot, occupied)) throw new Error('El slot ya está ocupado.');
+    if (availabilityService._isSlotOccupied(targetSlot, occupied)) {
+      throw new Error(`El nuevo slot ${formatearFecha_(nuevaFechaHoraInicio)} a las ${formatearHora_(nuevaFechaHoraInicio)} ya está ocupado.`);
+    }
   }
 
+  // Actualizar campos de la reserva
   reserva.FechaSesion = normalizarFecha_(nuevaFechaHoraInicio);
   reserva.HoraInicio = formatearHora_(nuevaFechaHoraInicio);
   reserva.NombrePaciente = formData.nombreProvisional || NOMBRE_RESERVA_21_GENERICA;
   reserva.NHC = formData.nhcProvisional || NHC_RESERVA_21_GENERICA;
   reserva.ModificadaManual = true;
+  reserva.Notas = `Reserva provisional de 2.1. Nombre: ${reserva.NombrePaciente || 'N/A'}, NHC: ${reserva.NHC || 'N/A'}`;
+  reserva.ModificadaManual = true; // Se ha editado manualmente
 
   sessionRepo.save(reserva);
   SpreadsheetApp.flush();
   if (typeof __EXECUTION_CACHE__ !== 'undefined') __EXECUTION_CACHE__[SHEET_SESIONES] = null;
   eliminarCacheDashboard_();
-  sincronizarSesionesAGoogleCalendar();
+  
+  // No es necesario forzar la sincronización de Calendar aquí.
+  // El evento se actualizará en la próxima sincronización programada o manual.
 
   return { mensaje: 'Reserva actualizada correctamente.' };
 }
