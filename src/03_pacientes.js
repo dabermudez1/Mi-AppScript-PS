@@ -2023,9 +2023,16 @@ function limpiarEventosHuerfanosCalendar(diasAtras = 30, diasVista = 180) {
     
     // Si el evento está en nuestro calendario pero su ID no consta en nuestra base de datos...
     if (!idsValidos.has(eventId)) {
-      // Opcional: Podrías verificar aquí si el título coincide con algún patrón de tu app
-      event.deleteEvent();
-      borrados++;
+       // SEGURIDAD CRÍTICA: Solo borramos si el evento tiene la "firma" de nuestra aplicación.
+      // Evita que el sistema borre reuniones personales añadidas a mano en Calendar.
+      const desc = event.getDescription() || '';
+      const titulo = event.getTitle() || '';
+      const esDelSistema = desc.includes('PACIENTE:') || titulo.includes('✅') || titulo.includes('🗓️') || titulo.includes('🔁') || titulo.includes('PRIMERA 2.1');
+      
+      if (esDelSistema && !esEventoDiaBloqueado_(event)) {
+        event.deleteEvent();
+        borrados++;
+      }
     }
   });
 
