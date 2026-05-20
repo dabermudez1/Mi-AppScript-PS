@@ -40,6 +40,12 @@ function limpiarTriggersSyncCalendar_() {
 }
 
 function continuarSincronizacionCalendarLote() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) {
+    console.warn("Proceso de sincronización ya en curso. Omitiendo ejecución para evitar colisiones.");
+    return;
+  }
+  try {
   const startTime = Date.now();
   const MAX_EXECUTION_TIME = 4 * 60 * 1000; // Límite de seguridad: 4 minutos (Google corta a los 6m)
   
@@ -198,6 +204,9 @@ function continuarSincronizacionCalendarLote() {
     }
 
     finalizarSyncCalendar_(props, totalActualizadosGlobales, totalEliminadosGlobales + eliminadosHuerfanos);
+  }
+  } finally {
+    lock.releaseLock();
   }
 }
 
