@@ -182,16 +182,37 @@ function obtenerDatosHomeDashboard() {
       EstadoCiclo: c.EstadoCiclo
     }));
 
-  const proximosPacientes = pacientes
+  // 1. Obtener pacientes reales con próxima sesión
+  const proximosPacientesReales = pacientes
     .filter(p => (p.EstadoPaciente === 'ACTIVO' || p.EstadoPaciente === 'ACTIVO_PENDIENTE_INICIO') && 
-                 p.ProximaSesion instanceof Date && p.ProximaSesion >= ahora)
+                 p.ProximaSesion instanceof Date && p.ProximaSesion >= ahora);
+
+  // 2. Obtener reservas 2.1 provisionales futuras
+  const proximasReservas21 = todasLasSesionesReales
+    .filter(s => {
+      const fechaSesion = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
+      return normalize(s.EstadoSesion) === ESTADOS_SESION.RESERVADA_PROVISIONAL &&
+             normalize(s.PacienteID) === PACIENTE_ID_RESERVA_21_GENERICA &&
+             fechaSesion >= ahora;
+    })
+    .map(s => ({
+      // Mock de objeto paciente para unificar el tratamiento
+      PacienteID: s.SesionID, // Usamos SesionID como clave única para la UI
+      Nombre: s.NombrePaciente,
+      ModalidadSolicitada: '-', // Como solicitado
+      EstadoPaciente: ESTADOS_SESION.RESERVADA_PROVISIONAL,
+      ProximaSesion: normalizarFechaHora_(s.FechaSesion, s.HoraInicio) // Objeto Date para ordenar
+    }));
+
+  // 3. Unir, ordenar, cortar y mapear al formato final
+  const proximosPacientes = [...proximosPacientesReales, ...proximasReservas21]
     .sort((a, b) => a.ProximaSesion.getTime() - b.ProximaSesion.getTime())
     .slice(0, 10)
     .map(p => ({ 
       PacienteID: p.PacienteID, 
       Nombre: p.Nombre, 
       Modalidad: p.ModalidadSolicitada || '-',
-      EstadoPaciente: p.EstadoPaciente, 
+      EstadoPaciente: p.EstadoPaciente,
       ProximaSesion: formatearFecha_(p.ProximaSesion),
       HoraProximaSesion: formatearHora_(p.ProximaSesion)
     }));
