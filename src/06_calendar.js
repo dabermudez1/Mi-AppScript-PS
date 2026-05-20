@@ -17,107 +17,172 @@ function crearCalendarioConsulta() {
 
 function sincronizarSesionesAGoogleCalendar(calendarParam) {
   const props = PropertiesService.getUserProperties();
+  // Si el usuario le da al botón, forzamos inicio limpio
   props.setProperty('TASK_SYNC_CALENDAR_RUNNING', 'true');
   props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '0');
+  props.deleteProperty('TASK_SYNC_CALENDAR_INDEX');
+  props.deleteProperty('TASK_SYNC_CALENDAR_MODIFIED');
   
-  const calendar = calendarParam || obtenerOCrearCalendarioConsulta_();
+  limpiarTriggersSyncCalendar_();
   
+  // Iniciamos el proceso por lotes
+  continuarSincronizacionCalendarLote();
+}
+
+function limpiarTriggersSyncCalendar_() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t => {
+    if (t.getHandlerFunction() === 'continuarSincronizacionCalendarLote') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+}
+
+function continuarSincronizacionCalendarLote() {
+  const startTime = Date.now();
+  const MAX_EXECUTION_TIME = 4 * 60 * 1000; // Límite de seguridad: 4 minutos (Google corta a los 6m)
+  
+  const props = PropertiesService.getUserProperties();
+  const calendar = obtenerOCrearCalendarioConsulta_();
   const sessionRepo = new SessionRepository();
   const patientRepo = new PatientRepository();
 
-  // 1) Cargar NHCs para la descripción
+  const startIndex = parseInt(props.getProperty('TASK_SYNC_CALENDAR_INDEX') || '0', 10);
+  let totalActualizadosGlobales = parseInt(props.getProperty('TASK_SYNC_CALENDAR_MODIFIED') || '0', 10);
+
+  // 1) Cargar NHCs (es muy rápido en memoria)
   const pacientes = patientRepo.findAll();
   const nhcByPacienteId = new Map(pacientes.map(p => [String(p.PacienteID), String(p.NHC || '')]));
 
-  // 2) Identificar rango de fechas y sesiones deseadas
+  // 2) Obtener TODAS las sesiones
   const todasLasSesiones = sessionRepo.findAll();
-  
   const sesionesDeseadas = todasLasSesiones.map(s => ({
     ...s,
     NHC: nhcByPacienteId.get(String(s.PacienteID)) || ''
   }));
   
-  if (sesionesDeseadas.length === 0) return;
+  if (sesionesDeseadas.length === 0) {
+    finalizarSyncCalendar_(props, 0, 0);
+    return;
+  }
 
-  // 3) Obtener eventos actuales en Google para mapear por ID
-  const fechas = sesionesDeseadas.map(s => new Date(s.FechaSesion).getTime());
-  const minTime = Math.min(...fechas);
-  const maxTime = Math.max(...fechas);
-  const buffer = 24 * 60 * 60 * 1000 * 2; // 2 días de margen
-  const eventosEnRango = minTime ? calendar.getEvents(new Date(minTime - buffer), new Date(maxTime + buffer)) : [];
-  const googleEventsMap = new Map();
-  eventosEnRango.forEach(ev => {
-    if (!esEventoDiaBloqueado_(ev)) googleEventsMap.set(ev.getId(), ev);
-  });
+  let actualizadosEnLote = 0;
+  const sesionesModificadas = [];
+  let timeoutAlcanzado = false;
+  let currentIndex = startIndex;
 
-  // 4) Procesar Sincronización
-  let actualizados = 0;
-  const total = sesionesDeseadas.length;
+  for (; currentIndex < sesionesDeseadas.length; currentIndex++) {
+    const sesion = sesionesDeseadas[currentIndex];
+    const currentHash = generarHashSesionCalendar_(sesion);
 
-  sesionesDeseadas.forEach((sesion, index) => {
-    // FIX: Reportar progreso más frecuentemente (cada 2 sesiones)
-    if (index % 2 === 0 || index === total - 1) {
-      const prg = Math.max(1, Math.round((index / total) * 100));
+    // OPTIMIZACIÓN CLAVE: Si el hash coincide, ya tiene ID y no está en ERROR, saltamos.
+    // Esto ahorra el 99% de las llamadas a la API de Calendar.
+    if (currentHash === sesion.CalendarHash && 
+        sesion.CalendarEventId && 
+        sesion.CalendarSyncStatus !== 'ERROR') {
+      continue;
+    }
+
+    try {
+      const titulo = construirTituloEventoSesion_(sesion);
+      const desc = construirDescripcionEventoSesion_(sesion);
+      const color = obtenerColorPorModalidad_(sesion.Modalidad);
+      const fecha = normalizarFecha_(sesion.FechaSesion);
+      const horaInicioStr = sesion.HoraInicio;
+      const duracion = Number(sesion.Duracion || 30);
+
+      let start = null;
+      let end = null;
+      if (horaInicioStr) {
+        start = normalizarFechaHora_(sesion.FechaSesion, horaInicioStr);
+        end = sumarMinutos_(start, duracion);
+      }
+
+      let ev = sesion.CalendarEventId ? obtenerEventoSeguro_(calendar, sesion.CalendarEventId) : null;
+
+      if (ev) {
+        if (start && end) ev.setTime(start, end); else ev.setAllDayDate(fecha);
+        ev.setTitle(titulo);
+        ev.setDescription(desc);
+        try { ev.setColor(color); } catch(e){}
+        sesion.CalendarSyncStatus = 'ACTUALIZADO';
+      } else {
+        const nuevoEv = start && end
+          ? calendar.createEvent(titulo, start, end, { description: desc })
+          : calendar.createAllDayEvent(titulo, fecha, { description: desc });
+        try { nuevoEv.setColor(color); } catch(e){}
+        sesion.CalendarEventId = nuevoEv.getId();
+        sesion.CalendarSyncStatus = 'CREADO';
+      }
+
+      sesion.CalendarHash = currentHash;
+      sesion.CalendarLastSync = new Date();
+      
+      sesionesModificadas.push(sesion);
+      actualizadosEnLote++;
+      totalActualizadosGlobales++;
+
+    } catch (error) {
+      console.error(`Error sync sesion ${sesion.SesionID}: ${error.message}`);
+      sesion.CalendarSyncStatus = 'ERROR';
+      sesion.CalendarLastSync = new Date();
+      sesionesModificadas.push(sesion);
+    }
+
+    if (currentIndex % 10 === 0) {
+      const prg = Math.max(1, Math.round((currentIndex / sesionesDeseadas.length) * 100));
       props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', prg.toString());
     }
 
-    const titulo = construirTituloEventoSesion_(sesion);
+    // Evaluar timeout
+    if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+      timeoutAlcanzado = true;
+      currentIndex++; // Para que el trigger empiece en la siguiente sesión
+      break;
+    }
+  }
 
-    const desc = construirDescripcionEventoSesion_(sesion);
-    const color = obtenerColorPorModalidad_(sesion.Modalidad);
-    const fecha = normalizarFecha_(sesion.FechaSesion);
-    const horaInicioStr = sesion.HoraInicio; // Nuevo campo
-    const duracion = Number(sesion.Duracion || 30); // Minutos
+  // Volcar a Sheets solo las que hemos modificado para ahorrar tiempo
+  if (sesionesModificadas.length > 0) {
+    sessionRepo.saveAll(sesionesModificadas);
+  }
 
-    let startTime = null;
-    let endTime = null;
-    if (horaInicioStr) {
-      startTime = normalizarFechaHora_(sesion.FechaSesion, horaInicioStr);
-      endTime = sumarMinutos_(startTime, duracion);
+  if (timeoutAlcanzado) {
+    // Pausar y programar siguiente lote
+    props.setProperty('TASK_SYNC_CALENDAR_INDEX', currentIndex.toString());
+    props.setProperty('TASK_SYNC_CALENDAR_MODIFIED', totalActualizadosGlobales.toString());
+    
+    ScriptApp.newTrigger('continuarSincronizacionCalendarLote')
+      .timeBased()
+      .after(1000) // Reanudar lo antes posible (1 segundo)
+      .create();
+  } else {
+    // Fin de la iteración. Procedemos a limpiar huérfanos.
+    props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '95');
+    
+    let eliminados = 0;
+    try {
+      if (typeof limpiarEventosHuerfanosCalendar === 'function') {
+        // Buscamos 60 días atrás y 180 adelante como zona de seguridad
+        eliminados = limpiarEventosHuerfanosCalendar(60, 180);
+      }
+    } catch(e) {
+       console.warn("No se pudo limpiar huérfanos: " + e.message);
     }
 
-    let ev = (sesion.CalendarEventId && sesion.CalendarEventId !== "") 
-      ? googleEventsMap.get(sesion.CalendarEventId) 
-      : null;
+    finalizarSyncCalendar_(props, totalActualizadosGlobales, eliminados);
+  }
+}
 
-    if (ev) {
-      // Si el evento tiene hora, actualizamos con hora. Si no, con all-day date.
-      if (startTime && endTime) ev.setTime(startTime, endTime); else ev.setAllDayDate(fecha);
-      ev.setTitle(titulo);
-      ev.setDescription(desc);
-      try { ev.setColor(color); } catch(e){}
-    } else {
-      const nuevoEv = startTime && endTime
-        ? calendar.createEvent(titulo, startTime, endTime, { description: desc })
-        : calendar.createAllDayEvent(titulo, fecha, { description: desc });
-      try { nuevoEv.setColor(color); } catch(e){}
-      sesion.CalendarEventId = nuevoEv.getId();
-      sesion.CalendarSyncStatus = 'CREADO';
-    }
-    sesion.CalendarLastSync = new Date();
-    actualizados++;
-  });
-
-  // 5) Guardar todos los cambios en la hoja en un solo paso (Batch Save)
-  props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '95');
-  sessionRepo.saveAll(sesionesDeseadas);
-
-  // 6) Limpiar eventos huérfanos en Google
-  const idsValidos = new Set(sesionesDeseadas.map(s => s.CalendarEventId).filter(id => id));
-  let eliminados = 0;
-  googleEventsMap.forEach((ev, id) => {
-    if (!idsValidos.has(id)) {
-      ev.deleteEvent();
-      eliminados++;
-    }
-  });
-
-  const resultMsg = `Sincronización finalizada: ${actualizados} procesados, ${eliminados} eliminados.`;
+function finalizarSyncCalendar_(props, actualizados, eliminados) {
+  limpiarTriggersSyncCalendar_();
+  const resultMsg = `Sincronización completada: ${actualizados} actualizados, ${eliminados} eliminados.`;
   props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '100');
   props.setProperty('TASK_SYNC_CALENDAR_RESULT', resultMsg);
   props.setProperty('TASK_SYNC_CALENDAR_RUNNING', 'false');
+  props.deleteProperty('TASK_SYNC_CALENDAR_INDEX');
+  props.deleteProperty('TASK_SYNC_CALENDAR_MODIFIED');
 }
-
 
 /***************
  * CALENDAR CORE
@@ -269,6 +334,7 @@ function generarHashSesionCalendar_(sesion) {
   const str = [
     sesion.SesionID || '',
     sesion.NombrePaciente || '',
+    sesion.NHC || '', // Ahora sí incluimos NHC para detectar cambios de paciente
     sesion.Modalidad || '',
     sesion.NumeroSesion || '',
     sesion.HoraInicio || '', // Nuevo
