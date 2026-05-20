@@ -626,6 +626,8 @@ function obtenerSlotsDisponiblesParaReserva21(fechaInicioISO, diasABuscar = 7) {
     const libres = slotsDelDia.filter(slot => {
       // Solo slots compatibles con primera consulta (2.1)
       if (slot.type !== '2.1' && slot.type !== 'PRIMERA') return false;
+      // RESTRICCIÓN: Las sesiones 2.1 solo pueden empezar en horas en punto (00 minutos)
+      if (slot.startDateTime.getMinutes() !== 0) return false;
       return !availabilityService._isSlotOccupied(slot, occupied);
     }).map(s => ({
       hora: formatearHora_(s.startDateTime),
