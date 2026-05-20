@@ -83,9 +83,14 @@ function obtenerDatosHomeDashboard() {
   }
 
   // --- INICIO: CÁLCULO DEL KPI DE RESERVAS 2.1 ---
-  const reservasProvisionales = sesiones.filter(s => 
-    s.EstadoSesion === ESTADOS_SESION.RESERVADA_PROVISIONAL &&
-    s.PacienteID === PACIENTE_ID_RESERVA_21_GENERICA
+  // Usamos BaseRepository directo para evitar filtros internos de SessionRepository 
+  // que excluyen sesiones si su PacienteID no existe en la hoja PACIENTES.
+  const rawSessionRepo = new BaseRepository(SHEET_SESIONES, HEADERS[SHEET_SESIONES]);
+  const todasLasSesionesReales = rawSessionRepo.findAll();
+
+  const reservasProvisionales = todasLasSesionesReales.filter(s => 
+    normalize(s.EstadoSesion) === ESTADOS_SESION.RESERVADA_PROVISIONAL &&
+    normalize(s.PacienteID) === PACIENTE_ID_RESERVA_21_GENERICA
   );
   const totalReservadas = reservasProvisionales.length;
   const pasadasHastaHoy = reservasProvisionales.filter(s => {
