@@ -297,6 +297,36 @@
         });
       }
 
+      function cargarSelectEstadoSesion(valores) {
+        const select = document.getElementById('filtroEstadoSesion');
+        
+        // Conservar selección del usuario al refrescar, o aplicar valor por defecto si es la primera carga
+        let currentValue = 'NO_CANCELADAS'; 
+        if (select.options.length > 0) {
+          currentValue = select.value; 
+        }
+        select.innerHTML = '';
+
+        const optNoCanc = document.createElement('option');
+        optNoCanc.value = 'NO_CANCELADAS';
+        optNoCanc.textContent = 'Todas (excepto Canceladas)';
+        select.appendChild(optNoCanc);
+
+        const optAll = document.createElement('option');
+        optAll.value = '';
+        optAll.textContent = 'Absolutamente todas';
+        select.appendChild(optAll);
+
+        (valores || []).forEach(function(valor) {
+          const option = document.createElement('option');
+          option.value = valor;
+          option.textContent = valor;
+          select.appendChild(option);
+        });
+        
+        select.value = currentValue;
+      }
+
       function cargarDatos() {
         google.script.run
           .withSuccessHandler(function(data) {
@@ -306,7 +336,7 @@
             estadosSync = data.estadosSync || [];
 
             cargarSelect('filtroModalidad', modalidades, 'Todas las modalidades');
-            cargarSelect('filtroEstadoSesion', estadosSesion, 'Todos los estados');
+            cargarSelectEstadoSesion(estadosSesion);
             cargarSelect('filtroSync', estadosSync, 'Todos los estados sync');
 
             aplicarContextoPacientePreseleccionado();
@@ -355,7 +385,14 @@
 
           const matchNombre = !search || (s.nombrePaciente || '').toLowerCase().includes(search);
           const matchModalidad = !filtroModalidad || s.modalidad === filtroModalidad;
-          const matchEstadoSesion = !filtroEstadoSesion || s.estadoSesion === filtroEstadoSesion;
+          
+          let matchEstadoSesion = true;
+          if (filtroEstadoSesion === 'NO_CANCELADAS') {
+            matchEstadoSesion = s.estadoSesion !== 'CANCELADA';
+          } else if (filtroEstadoSesion !== '') {
+            matchEstadoSesion = s.estadoSesion === filtroEstadoSesion;
+          }
+
           const matchSync = !filtroSync || s.calendarSyncStatus === filtroSync;
 
           const fechaSesion = parseFechaPantalla(s.fechaSesion);
