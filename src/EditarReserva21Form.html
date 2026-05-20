@@ -89,6 +89,10 @@
       }
 
       function cargarReservas() {
+        const select = document.getElementById('reservaExistente');
+        select.disabled = true;
+        select.innerHTML = '<option value="">Cargando reservas...</option>';
+        setStatus('⏳ Cargando reservas existentes...', '');
         google.script.run
           .withUserObject(document.getElementById('reservaExistente')) // Pass select element for context
           .withSuccessHandler(function(reservas) {
@@ -100,10 +104,15 @@
               option.textContent = r.label;
               select.appendChild(option);
             });
+            select.disabled = false; // Re-enable after loading
+            setStatus('Reservas cargadas.', 'success');
             toggleForm(false);
           })
           .withFailureHandler(function(error) {
             console.error('Error en cargarReservas:', error); // Debugging
+            const select = document.getElementById('reservaExistente');
+            select.disabled = false; // Re-enable on failure
+            select.innerHTML = '<option value="">-- Error al cargar --</option>';
             setStatus('Error al cargar reservas: ' + (error.message || String(error)), 'error');
           })
           .obtenerReservas21Formulario();
@@ -256,6 +265,8 @@
             console.log('guardar - success:', res); // Debugging
             btn.innerText = 'Guardar Cambios';
             btn.disabled = false;
+            document.getElementById('btnVolver').disabled = false; // Re-habilitar
+            document.getElementById('btnCerrar').disabled = false; // Re-habilitar
             setStatus(res.mensaje, 'success');
             cargarReservas(); // Recargar la lista de reservas
           })
@@ -263,6 +274,8 @@
             console.error('guardar - failure:', error); // Debugging
             btn.innerText = 'Guardar Cambios';
             btn.disabled = false;
+            document.getElementById('btnVolver').disabled = false; // Re-habilitar
+            document.getElementById('btnCerrar').disabled = false; // Re-habilitar
             setStatus('❌ Error: ' + (error.message || String(error)), 'error');
           })
           .guardarEdicionReserva21({ sesionId: currentReservaId, fechaISO, hora, nombreProvisional, nhcProvisional });
@@ -288,6 +301,8 @@
             btn.innerText = 'Eliminar Reserva';
             btn.disabled = false;
             setStatus(res.mensaje, 'success');
+            document.getElementById('btnVolver').disabled = false; // Re-habilitar
+            document.getElementById('btnCerrar').disabled = false; // Re-habilitar
             cargarReservas(); // Recargar la lista de reservas
             limpiarCampos();
           })
@@ -295,6 +310,8 @@
             console.error('eliminar - failure:', error); // Debugging
             btn.innerText = 'Eliminar Reserva';
             btn.disabled = false;
+            document.getElementById('btnVolver').disabled = false; // Re-habilitar
+            document.getElementById('btnCerrar').disabled = false; // Re-habilitar
             setStatus('❌ Error: ' + (error.message || String(error)), 'error');
             cargarReservas(); // Recargar la lista de reservas para reflejar el estado actual
           })
