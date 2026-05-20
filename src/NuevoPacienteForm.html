@@ -78,7 +78,7 @@
      <!-- Nuevo: Campo para seleccionar el slot de seguimiento (Solo para pacientes individuales) -->
     <div id="fieldSlotSeguimiento" class="field" style="display:none;">
       <label for="slotSeguimiento">Primera sesión de seguimiento (2.2)</label>
-      <select id="slotSeguimiento">
+      <select id="slotSeguimiento" onchange="actualizarMensajeFechaSeleccionada()">
         <option value="">-- Selecciona un hueco --</option>
       </select>
       <div id="slotStatus" class="hint"></div>
@@ -281,16 +281,38 @@ function buscarSlotsDisponibles() {
           select.appendChild(group);
         });
 
-        status.textContent = '✅ Disponibilidad cargada.';
-        status.className = 'hint success';
+        actualizarMensajeFechaSeleccionada();
       })
       .withFailureHandler(function(error) {
         select.disabled = false;
         select.innerHTML = '<option value="">-- Error al cargar --</option>';
         status.textContent = '❌ Error: ' + (error.message || String(error));
         status.className = 'hint error';
+        status.style.color = '';
       })
       .obtenerSlotsDisponiblesParaSeguimiento(fecha, modalidad);
+  }
+
+  function actualizarMensajeFechaSeleccionada() {
+    const select = document.getElementById('slotSeguimiento');
+    const status = document.getElementById('slotStatus');
+    const slotVal = select.value;
+    
+    if (!slotVal) {
+      status.textContent = '✅ Disponibilidad cargada. Selecciona un hueco.';
+      status.className = 'hint success';
+      status.style.color = '';
+      return;
+    }
+
+    const partes = slotVal.split('|');
+    const fechaIso = partes[0];
+    const hora = partes[1];
+    const fechaStr = fechaIso.split('-').reverse().join('/');
+
+    status.innerHTML = `📅 <strong>Nota:</strong> El slot seleccionado es para el día <strong>${fechaStr}</strong> a las ${hora}.`;
+    status.className = 'hint';
+    status.style.color = '#ca8a04'; // Destacado sutil (amarillo oscuro)
   }
 
   function onModalidadChange() {
@@ -304,6 +326,7 @@ function buscarSlotsDisponibles() {
       fieldSlot.style.display = 'none';
       document.getElementById('slotSeguimiento').innerHTML = '<option value="">-- Selecciona un hueco --</option>';
       document.getElementById('slotStatus').textContent = '';
+      document.getElementById('slotStatus').style.color = '';
     }
   }
 
@@ -328,6 +351,7 @@ function limpiarFormularioNuevoPaciente() {
     document.getElementById('fieldSlotSeguimiento').style.display = 'none';
     document.getElementById('slotSeguimiento').innerHTML = '<option value="">-- Selecciona un hueco --</option>';
     document.getElementById('slotStatus').textContent = '';
+    document.getElementById('slotStatus').style.color = '';
 }
 
   actualizarMotivoOtros();
