@@ -161,12 +161,12 @@
         const status = document.getElementById('slotStatus');
 
         if (!fecha) {
-          select.innerHTML = '<option value="">-- Selecciona una fecha --</option>';
+          select.innerHTML = '<option value="">-- Selecciona una fecha para buscar huecos--</option>';
           status.textContent = '';
           select.disabled = false; // Ensure select is re-enabled even if no date
           return;
         }
-
+        select.innerHTML = '<option value="">Cargando disponibilidad...</option>'; // Clear previous options immediately
         select.disabled = true;
         select.innerHTML = '<option value="">Cargando disponibilidad...</option>';
         status.textContent = '⏳ Buscando huecos libres...';
@@ -177,10 +177,8 @@
             console.error('CRITICAL ERROR: google.script.run.obtenerSlotsDisponiblesParaReserva21 is NOT a function. Type:', typeof google.script.run.obtenerSlotsDisponiblesParaReserva21);
             select.disabled = false;
             select.innerHTML = '<option value="">-- Error interno --</option>';
-            status.textContent = '❌ Error: La función de servidor "obtenerSlotsDisponiblesParaReserva21" no está disponible. Asegúrate de que el script esté guardado y desplegado correctamente.';
+            status.textContent = '❌ Error: La función de servidor "obtenerSlotsDisponiblesParaReserva21" no está disponible. Asegúrate de que el script esté guardado y desplegado correctamente.'; // More explicit error
             status.className = 'hint error';
-            // Re-enable form elements if they were disabled
-            toggleForm(true); 
             return;
         }
         // --- END CRITICAL DEBUGGING ---
@@ -220,6 +218,7 @@
           .withFailureHandler(function(error) {
             console.error('buscarSlotsDisponibles - failure:', error); // Debugging
             select.disabled = false;
+            select.innerHTML = '<option value="">-- Error al cargar --</option>'; // Reset after failure
             select.innerHTML = '<option value="">-- Error al cargar --</option>';
             status.textContent = '❌ Error: ' + (error.message || String(error));
             status.className = 'hint error';
