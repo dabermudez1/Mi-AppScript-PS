@@ -300,7 +300,7 @@ function construirTituloEventoSesion_(sesion) {
   }
 
   if (sesion.EstadoSesion === ESTADOS_SESION.RESERVADA_PROVISIONAL) {
-    return '📝 RESERVA 2.1 - ' + (sesion.NombrePaciente || 'Sin Nombre') + ' - ' + (sesion.HoraInicio || '');
+    return 'PRIMERA 2.1 - ' + (sesion.NombrePaciente || 'Sin Nombre');
   }
 
   return base;
@@ -317,7 +317,6 @@ function construirDescripcionEventoSesion_(sesion) {
     'SESION: S' + (sesion.NumeroSesion || ''),
     'MODALIDAD: ' + modalidad,
     'ESTADO: ' + (sesion.EstadoSesion || ''),
-    'HORA: ' + (sesion.HoraInicio || '-'), // Nuevo
     'DURACION: ' + (sesion.Duracion || '30') + ' min',
     'FECHA (DIA ENTERO): ' + formatearFecha_(sesion.FechaSesion),
     'FECHA ORIGINAL: ' + formatearFecha_(sesion.FechaOriginal),
