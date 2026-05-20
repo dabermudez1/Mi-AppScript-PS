@@ -840,6 +840,69 @@ function guardarEdicionReserva21(formData) {
   return { mensaje: 'Reserva actualizada correctamente.' };
 }
 
+/**
+ * Crea una nueva sesión de reserva provisional 2.1.
+ * @param {Object} formData - Datos del formulario.
+ * @param {string} formData.fechaISO - Fecha en formato ISO.
+ * @param {string} formData.hora - Hora.
+ * @param {string} [formData.nombreProvisional] - Nombre provisional.
+ * @param {string} [formData.nhcProvisional] - NHC provisional.
+ * @returns {Object} Mensaje de confirmación.
+ */
+function reservarPrimeraSesion(formData) {
+  const sessionRepo = new SessionRepository();
+  const availabilityService = new AvailabilityService();
+  const agendaService = new AgendaService();
+
+  const fechaHoraInicio = normalizarFechaHora_(parseFechaISO_(formData.fechaISO), formData.hora);
+  const duracionSlot = 60; // Duración estándar para 2.1
+
+  // Verificar disponibilidad
+  const agendaForDay = agendaService.getAgendaForDay(fechaHoraInicio);
+  const targetSlot = agendaForDay.find(slot =>
+    compararFechasHoras_(slot.startDateTime, fechaHoraInicio) === 0 &&
+    (slot.type === '2.1' || slot.type === 'PRIMERA') &&
+    slot.durationMinutes >= duracionSlot
+  );
+
+  if (!targetSlot) {
+    throw new Error(`El slot ${formatearFecha_(fechaHoraInicio)} a las ${formatearHora_(fechaHoraInicio)} no es un slot de primera consulta (2.1) válido o no existe en la plantilla.`);
+  }
+
+  const sesionesExistentes = sessionRepo.findAll().filter(s =>
+    normalizarFecha_(s.FechaSesion).getTime() === normalizarFecha_(fechaHoraInicio).getTime()
+  );
+  const occupied = availabilityService._getOccupiedSlotsFromSessions(sesionesExistentes);
+
+  if (availabilityService._isSlotOccupied(targetSlot, occupied)) {
+    throw new Error(`El slot ${formatearFecha_(fechaHoraInicio)} a las ${formatearHora_(fechaHoraInicio)} ya está ocupado.`);
+  }
+
+  // Crear la sesión de reserva
+  const sesionId = generarId_('SES');
+  const nuevaReserva = {
+    SesionID: sesionId,
+    PacienteID: PACIENTE_ID_RESERVA_21_GENERICA,
+    CicloID: '',
+    AsignacionID: '',
+    Modalidad: 'INDIVIDUAL', // Las 2.1 son siempre individuales
+    NombrePaciente: formData.nombreProvisional || NOMBRE_RESERVA_21_GENERICA,
+    NHC: formData.nhcProvisional || NHC_RESERVA_21_GENERICA,
+    NumeroSesion: 0, // No es una sesión de ciclo
+    FechaSesion: normalizarFecha_(fechaHoraInicio),
+    HoraInicio: formatearHora_(fechaHoraInicio),
+    Duracion: duracionSlot,
+    EstadoSesion: ESTADOS_SESION.RESERVADA_PROVISIONAL,
+    FechaOriginal: normalizarFecha_(fechaHoraInicio),
+    Notas: `Reserva provisional de 2.1. Nombre: ${formData.nombreProvisional || 'N/A'}, NHC: ${formData.nhcProvisional || 'N/A'}`
+  };
+
+  sessionRepo.save(nuevaReserva);
+  eliminarCacheDashboard_();
+
+  return { mensaje: 'Reserva creada correctamente.' };
+}
+
 function guardarNuevoPacienteDesdeFormulario(formData) {
   const nombre = String(formData.nombre || '').trim();
   const nhc = String(formData.nhc || '').trim();
