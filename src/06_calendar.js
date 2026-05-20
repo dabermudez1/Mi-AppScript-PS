@@ -306,28 +306,31 @@ function obtenerEventoSeguro_(calendar, eventId) {
  * CONSTRUCCIÓN EVENTO
  ***************/
 function construirTituloEventoSesion_(sesion) {
-  const paciente = sesion.NombrePaciente || 'Paciente';
-  const sesionLabel = 'Sesión S' + (sesion.NumeroSesion || '');
-  const modalidad = sesion.Modalidad || '';
+  const paciente = String(sesion.NombrePaciente || 'Paciente').trim();
+  const sesionLabel = 'S' + (sesion.NumeroSesion || '');
+  const modalidad = String(sesion.Modalidad || '').trim();
 
   const base = [paciente, sesionLabel, modalidad].filter(Boolean).join(' - ');
 
-  if (
-    sesion.EstadoSesion === ESTADOS_SESION.COMPLETADA_AUTO ||
-    sesion.EstadoSesion === ESTADOS_SESION.COMPLETADA_MANUAL
-  ) {
-    return '✅ ' + base;
-  }
+  // --- ESTANDARIZACIÓN DE EMOJIS ---
+  // ✅: Sesión realizada.
+  // 🗓️: Sesión futura, pendiente.
+  // 🔁: Sesión que ha sido movida.
+  // Sin emoji: Reserva provisional, para distinguirla claramente.
 
-  if (sesion.EstadoSesion === ESTADOS_SESION.REPROGRAMADA) {
-    return '🔁 ' + base;
+  switch (sesion.EstadoSesion) {
+    case ESTADOS_SESION.COMPLETADA_AUTO:
+    case ESTADOS_SESION.COMPLETADA_MANUAL:
+      return '✅ ' + base;
+    case ESTADOS_SESION.PENDIENTE:
+      return '🗓️ ' + base;
+    case ESTADOS_SESION.REPROGRAMADA:
+      return '🔁 ' + base;
+    case ESTADOS_SESION.RESERVADA_PROVISIONAL:
+      return 'PRIMERA 2.1 - ' + (sesion.NombrePaciente || 'Sin Nombre');
+    default:
+      return base; // Para CANCELADA (ya no se usa), ERROR, etc.
   }
-
-  if (sesion.EstadoSesion === ESTADOS_SESION.RESERVADA_PROVISIONAL) {
-    return 'PRIMERA 2.1 - ' + (sesion.NombrePaciente || 'Sin Nombre');
-  }
-
-  return base;
 }
 
 function construirDescripcionEventoSesion_(sesion) {
