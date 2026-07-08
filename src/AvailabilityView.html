@@ -207,21 +207,23 @@
         getSlotClasses(slot) {
           const type = String(slot.templateType || '').toUpperCase();
           let bgColor = 'bg-gray-50'; // Default
-          let borderColor = 'border-gray-200';
+          const classes = { 'border-gray-200': true };
 
           if (slot.status === 'FREE' || slot.status === 'OCCUPIED') {
             if (type.includes('SEGUIMIENTO') || type.includes('2.2')) { bgColor = 'bg-green-50'; }
             else if (type.includes('PRIMERA') || type.includes('2.1')) { bgColor = 'bg-blue-50'; }
             else if (type.includes('GRUPO')) { bgColor = 'bg-purple-50'; }
           }
-
-          if (slot.status === 'OCCUPIED') { borderColor = 'border-gray-400'; }
+          if (slot.status === 'OCCUPIED') {
+            classes['border-gray-500'] = true;
+            classes['border-2'] = true; // Borde más grueso
+          }
           if (slot.status === 'TEMPLATE_REST') { bgColor = 'bg-gray-100'; }
           if (slot.status === 'MISMATCH') { bgColor = 'bg-red-50'; }
 
           return {
             [bgColor]: true,
-            [borderColor]: true,
+            ...classes,
             'opacity-30': this.filter && !this.isSlotHighlighted(slot)
           };
         },
