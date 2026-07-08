@@ -222,6 +222,8 @@
           <template x-if="data.calendarUrl">
             <button @click="window.open(data.calendarUrl, '_blank')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-600 text-xs font-bold transition italic">🔗 Abrir Calendar Web</button>
           </template>
+          <hr class="my-1 border-gray-100">
+          <button @click="callAction('homeAbrirPantallaDisponibilidad')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-indigo-600 font-bold text-xs uppercase transition">Ver Disponibilidad</button>
         </div>
       </div>
 

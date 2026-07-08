@@ -429,6 +429,10 @@ function homeFichaClinicaPaciente() { fichaClinicaPaciente(); }
 function homeVerIncidenciasCalendario() { verIncidenciasCalendario(); }
 function homeObtenerResumenIncidenciasCalendario() { return obtenerResumenIncidenciasCalendario(); }
 
+function homeAbrirPantallaDisponibilidad() {
+  abrirPantallaDisponibilidad();
+}
+
 function volverAlPanelDesdeDiasBloqueados() {
   abrirHomeDashboard(); // Re-abre el panel de control
 }
