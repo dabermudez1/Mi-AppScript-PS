@@ -345,7 +345,8 @@ class AvailabilityService {
           status: '',
           occupiedBy: '',
           sessionNumber: null,
-          durationMinutes: agendaSlot.durationMinutes // Añadido para el frontend
+          durationMinutes: agendaSlot.durationMinutes, // Añadido para el frontend
+          sessionStatus: null // Nuevo campo para el estado de la sesión
         };
 
         if (agendaSlot.type === 'DESCANSO') {
@@ -364,6 +365,7 @@ class AvailabilityService {
               slotState.occupiedBy = occupyingSession.NombrePaciente || 'N/A';
               slotState.sessionNumber = occupyingSession.NumeroSesion || null;
               slotState.durationMinutes = Number(occupyingSession.Duracion || agendaSlot.durationMinutes); // Usar duración real de la sesión
+              slotState.sessionStatus = occupyingSession.EstadoSesion || null;
             }
           } else {
             slotState.status = 'FREE';

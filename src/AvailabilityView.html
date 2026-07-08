@@ -109,9 +109,12 @@
 
                 <template x-if="slot.status === 'OCCUPIED'">
                   <div class="mt-1 flex-grow flex flex-col justify-center">
-                    <p class="text-[11px] text-gray-700 font-bold truncate" x-text="slot.occupiedBy"></p>
-                    <p class="text-[9px] text-gray-500">
-                      <span x-text="`Sesión ${slot.sessionNumber || '-'}`"></span>
+                    <p class="text-[11px] text-gray-700 font-bold truncate flex items-center">
+                      <span x-text="getEmojiForStatus(slot.sessionStatus)" class="mr-1"></span>
+                      <span x-text="slot.occupiedBy"></span>
+                    </p>
+                    <p class="text-[9px] text-gray-500 pl-4">
+                      <span x-text="`S${slot.sessionNumber || '-'}`"></span>
                     </p>
                   </div>
                 </template>
@@ -275,6 +278,19 @@
                 return 'Descanso definido en la plantilla';
             }
             return `Slot a las ${slot.time}`;
+        },
+
+        getEmojiForStatus(status) {
+          switch (status) {
+            case 'PENDIENTE':
+              return '🗓️';
+            case 'REPROGRAMADA':
+              return '🔁';
+            case 'COMPLETADA_AUTO':
+            case 'COMPLETADA_MANUAL':
+              return '✅';
+            default: return '';
+          }
         },
 
         updateCurrentDateFromResponse(weekData) {
