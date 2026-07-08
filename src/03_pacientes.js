@@ -402,10 +402,8 @@ function generarSesionesPacienteIndividual_(pacienteId, fechaHoraPrimeraSesion) 
       CalendarSyncStatus: '',
       CalendarLastSync: '',
       CalendarEventTitle: '',
-      CalendarHash: '',
       CalendarHash: '', // El hash se recalculará en la sync
       HoraInicio: formatearHora_(nextSlot.startDateTime),
-      Duracion: nextSlot.durationMinutes || duracionSlot
       Duracion: duracionSlot // FORZAMOS 30 min para asegurar que no hereda la duración de un slot de 60min
     };
     generatedSessions.push(nuevaSesion);
