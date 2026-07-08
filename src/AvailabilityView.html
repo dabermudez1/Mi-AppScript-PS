@@ -30,22 +30,22 @@
       <!-- Navegación por Mes -->
       <div class="flex items-center space-x-2 mr-4">
         <span class="text-sm font-medium text-gray-600">Ir a:</span>
-        <select x-model="selectedMonth" @change="jumpToDate()" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <select x-model="selectedMonth" @change="jumpToDate()" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Mes">
           <template x-for="(month, index) in months" :key="index">
             <option :value="index" x-text="month"></option>
           </template>
         </select>
-        <select x-model="selectedYear" @change="jumpToDate()" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          <template x-for="year in years" :key="year">
-            <option :value="year" x-text="year"></option>
-          </template>
-        </select>
-        <select x-model="selectedWeek" @change="jumpToDate()" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <select x-model="selectedWeek" @change="jumpToDate()" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Semana">
           <option value="1">Semana 1</option>
           <option value="2">Semana 2</option>
           <option value="3">Semana 3</option>
           <option value="4">Semana 4</option>
           <option value="5">Semana 5</option>
+        </select>
+        <select x-model="selectedYear" @change="jumpToDate()" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Año">
+          <template x-for="year in years" :key="year">
+            <option :value="year" x-text="year"></option>
+          </template>
         </select>
       </div>
       <!-- Filtros -->
@@ -103,7 +103,9 @@
                 'text-red-800': slot.status === 'MISMATCH'
               }" x-text="slot.templateType"></p>
               <template x-if="slot.status === 'OCCUPIED'">
-                <p class="text-[9px] text-blue-600 truncate" x-text="`Ocupado: ${slot.occupiedBy}`"></p>
+                <p class="text-[9px] text-blue-600 truncate">
+                  <span x-text="`S${slot.sessionNumber || '-'}`" class="font-bold"></span> <span x-text="slot.occupiedBy"></span>
+                </p>
               </template>
             </div>
           </template>
@@ -128,10 +130,11 @@
         years: [],
 
         init() {
-          const today = new Date();
+          const today = new Date(); // Usamos la fecha actual para pre-seleccionar la semana
           this.selectedMonth = 6; // Julio
           this.selectedYear = 2026;
-          this.years = Array.from({length: 11}, (_, i) => 2026 - 5 + i);
+          // Generamos un rango de años centrado en 2026
+          this.years = Array.from({length: 11}, (_, i) => 2026 - 5 + i); 
           this.selectedWeek = Math.ceil(today.getDate() / 7);
 
           this.loadWeekData();
@@ -195,7 +198,7 @@
 
         getSlotTitle(slot) {
             if (slot.status === 'OCCUPIED') {
-                return `Ocupado por: ${slot.occupiedBy}`;
+                return `Ocupado por: ${slot.occupiedBy} (Sesión ${slot.sessionNumber || 'N/A'})`;
             }
             if (slot.status === 'FREE') {
                 return `Libre | Tipo de plantilla: ${slot.templateType}`;

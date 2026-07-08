@@ -326,7 +326,8 @@ class AvailabilityService {
           time: formatearHora_(agendaSlot.startDateTime),
           templateType: agendaSlot.type,
           status: '',
-          occupiedBy: ''
+          occupiedBy: '',
+          sessionNumber: null
         };
 
         if (agendaSlot.type === 'DESCANSO') {
@@ -341,7 +342,10 @@ class AvailabilityService {
                 const end = sumarMinutos_(start, Number(s.Duracion || 30));
                 return agendaSlot.startDateTime < end && sumarMinutos_(agendaSlot.startDateTime, agendaSlot.durationMinutes) > start;
             });
-            slotState.occupiedBy = occupyingSession ? (occupyingSession.NombrePaciente || 'N/A') : 'Desconocido';
+            if (occupyingSession) {
+              slotState.occupiedBy = occupyingSession.NombrePaciente || 'N/A';
+              slotState.sessionNumber = occupyingSession.NumeroSesion || null;
+            }
           } else {
             slotState.status = 'FREE';
           }
