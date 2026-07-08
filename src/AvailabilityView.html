@@ -22,9 +22,18 @@
   <div class="p-4 sm:p-6 lg:p-8" x-cloak>
     <!-- Cabecera y Navegación -->
     <header class="flex justify-between items-center mb-6">
-      <div>
+      <div class="flex-1">
         <h1 class="text-2xl font-bold text-gray-800">Vista de Disponibilidad</h1>
         <p class="text-sm text-gray-500" x-text="`Semana del ${weekData[0]?.dateLabel || ''} al ${weekData[6]?.dateLabel || ''}`"></p>
+      </div>
+      <!-- Filtros -->
+      <div class="flex items-center space-x-2 mr-4">
+        <span class="text-sm font-medium text-gray-600">Ver huecos para:</span>
+        <button @click="setFilter('INDIVIDUAL')" :class="{'bg-indigo-100 text-indigo-700': filter === 'INDIVIDUAL', 'bg-white': filter !== 'INDIVIDUAL'}" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Individual</button>
+        <button @click="setFilter('GRUPO')" :class="{'bg-indigo-100 text-indigo-700': filter === 'GRUPO', 'bg-white': filter !== 'GRUPO'}" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Grupo</button>
+        <button x-show="filter" @click="setFilter(null)" class="px-2 py-1.5 bg-white border-none rounded-md text-sm font-medium text-gray-500 hover:text-gray-800">
+          &times; Limpiar
+        </button>
       </div>
       <div class="flex items-center space-x-2">
         <button @click="changeWeek(-7)" class="px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">‹ Semana Anterior</button>
@@ -57,12 +66,13 @@
             </div>
           </template>
           <template x-for="slot in day.slots" :key="slot.time">
-            <div class="p-1.5 rounded-md border" :class="{
+            <div class="p-1.5 rounded-md border transition-opacity duration-300" :class="{
               'bg-green-50 border-green-200': slot.status === 'FREE',
               'bg-blue-50 border-blue-200': slot.status === 'OCCUPIED',
               'bg-gray-100 border-gray-200': slot.status === 'TEMPLATE_REST',
-              'bg-red-50 border-red-200': slot.status === 'MISMATCH'
-            }">
+              'bg-red-50 border-red-200': slot.status === 'MISMATCH',
+              'opacity-30': filter && !isSlotHighlighted(slot)
+            }" :title="getSlotTitle(slot)">
               <p class="text-[10px] font-bold text-gray-800" x-text="slot.time"></p>
               <p class="text-[10px] font-semibold" :class="{
                 'text-green-800': slot.status === 'FREE',
@@ -87,6 +97,7 @@
         loading: true,
         currentDate: new Date(),
         weekData: [],
+        filter: null, // 'INDIVIDUAL', 'GRUPO', o null
 
         init() {
           this.loadWeekData();
@@ -115,6 +126,42 @@
             this.currentDate.setDate(this.currentDate.getDate() + days);
           }
           this.loadWeekData();
+        },
+
+        setFilter(type) {
+          this.filter = (this.filter === type) ? null : type;
+        },
+
+        isSlotHighlighted(slot) {
+          if (!this.filter) return true; // Si no hay filtro, todo está "resaltado"
+          if (slot.status !== 'FREE') return false; // Solo resaltamos huecos libres
+
+          const slotType = String(slot.templateType || '').toUpperCase();
+
+          if (this.filter === 'INDIVIDUAL') {
+            // Un slot individual es para 'SEGUIMIENTO' o 'PRIMERA'
+            return slotType === 'SEGUIMIENTO' || slotType === '2.2' || slotType === 'PRIMERA' || slotType === '2.1';
+          }
+          
+          if (this.filter === 'GRUPO') {
+            // Un slot de grupo es cualquiera que contenga 'GRUPO'
+            return slotType.includes('GRUPO');
+          }
+
+          return false;
+        },
+
+        getSlotTitle(slot) {
+            if (slot.status === 'OCCUPIED') {
+                return `Ocupado por: ${slot.occupiedBy}`;
+            }
+            if (slot.status === 'FREE') {
+                return `Libre | Tipo de plantilla: ${slot.templateType}`;
+            }
+            if (slot.status === 'TEMPLATE_REST') {
+                return 'Descanso definido en la plantilla';
+            }
+            return `Slot a las ${slot.time}`;
         },
 
         // Helper para formatear la fecha para la cabecera

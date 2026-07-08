@@ -54,3 +54,23 @@ function parseFechaISO_(texto) {
 
   return normalizarFecha_(fecha); // normalizarFecha_ está en 01_base.js y es global
 }
+
+/**
+ * Parsea una fecha en formato ISO (YYYY-MM-DD) a un objeto Date.
+ * @param {string} texto - La fecha en formato ISO.
+ * @returns {Date|null}
+ */
+function parseFechaISO_(texto) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((texto || '').trim());
+  if (!m) return null;
+
+  const year = Number(m[1]);
+  const month = Number(m[2]) - 1;
+  const day = Number(m[3]);
+
+  const fecha = new Date(year, month, day);
+
+  if (fecha.getFullYear() !== year || fecha.getMonth() !== month || fecha.getDate() !== day) return null;
+
+  return normalizarFecha_(fecha); // normalizarFecha_ está en 01_base.js y es global
+}
