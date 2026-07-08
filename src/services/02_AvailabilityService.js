@@ -13,13 +13,22 @@ class AvailabilityService {
    * Encuentra el siguiente slot disponible compatible con la modalidad y duración requerida.
    * @param {Date} startSearchDateTime - Fecha y hora a partir de la cual empezar a buscar.
    * @param {string} modality - Modalidad del paciente (ej. INDIVIDUAL, GRUPO_1).
-   * @param {number} requiredDurationMinutes - Duración requerida del slot en minutos (ej. 30, 90).
+   * @param {number} [requiredDurationMinutes] - Duración requerida. Si no se pasa, se deduce de la modalidad.
    * @param {string} [ignoreCicloId] - ID del ciclo cuyas sesiones deben ignorarse (para reprogramación).
    * @returns {AgendaSlot|null} El primer slot disponible encontrado, o null si no hay.
    */
-  findNextAvailableSlot(startSearchDateTime, modality, requiredDurationMinutes, ignoreCicloId = null) {
+  findNextAvailableSlot(startSearchDateTime, modality, requiredDurationMinutes = null, ignoreCicloId = null) {
     // Aseguramos que empezamos a buscar con la hora correcta
     let currentDateTime = new Date(startSearchDateTime.getTime());
+
+    // --- NUEVA LÓGICA ---
+    // Si no se especifica una duración, la deducimos de la modalidad para evitar errores.
+    if (!requiredDurationMinutes) {
+      const tipoModalidad = modality.startsWith('GRUPO') ? 'GRUPO' : 'INDIVIDUAL';
+      requiredDurationMinutes = this.agendaService._getSlotDuration(tipoModalidad === 'GRUPO' ? 'SEGUIMIENTO/GRUPO' : 'SEGUIMIENTO');
+    }
+    // --- FIN NUEVA LÓGICA ---
+
     // Para ciclos, 60 días de búsqueda es más que suficiente y evita Timeouts
     let searchLimitDate = sumarDiasNaturales_(currentDateTime, 60); 
 
