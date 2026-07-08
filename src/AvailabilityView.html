@@ -88,25 +88,39 @@
               <p class="text-xs italic text-gray-400 text-center">Sin plantilla</p>
             </div>
           </template>
-          <template x-for="slot in day.slots" :key="slot.time">
-            <div class="p-1.5 rounded-md border transition-opacity duration-300" :class="{
-              'bg-green-50 border-green-200': slot.status === 'FREE',
-              'bg-blue-50 border-blue-200': slot.status === 'OCCUPIED',
-              'bg-gray-100 border-gray-200': slot.status === 'TEMPLATE_REST',
-              'bg-red-50 border-red-200': slot.status === 'MISMATCH',
-              'opacity-30': filter && !isSlotHighlighted(slot)
-            }" :title="getSlotTitle(slot)">
-              <p class="text-[10px] font-bold text-gray-800" x-text="slot.time"></p>
-              <p class="text-[10px] font-semibold" :class="{
-                'text-green-800': slot.status === 'FREE',
-                'text-blue-800': slot.status === 'OCCUPIED',
-                'text-gray-500': slot.status === 'TEMPLATE_REST',
-                'text-red-800': slot.status === 'MISMATCH'
-              }" x-text="slot.templateType"></p>
-              <template x-if="slot.status === 'OCCUPIED'">
-                <p class="text-[9px] text-blue-600 truncate">
-                  <span x-text="`S${slot.sessionNumber || '-'}`" class="font-bold"></span> <span x-text="slot.occupiedBy"></span>
-                </p>
+          <template x-for="(slot, index) in getProcessedSlots(day.slots)" :key="slot.time">
+            <div x-show="!slot.isHidden" 
+                 class="p-1.5 rounded-md border transition-opacity duration-300" 
+                 :class="getSlotClasses(slot)" 
+                 :style="`min-height: ${slot.span * 40}px`"
+                 :title="getSlotTitle(slot)">
+              
+              <div class="flex flex-col h-full">
+                <p class="text-[10px] font-bold text-gray-800" x-text="slot.time"></p>
+                
+                <p class="text-[10px] font-semibold" :class="{
+                  'text-green-800': slot.templateType.includes('SEGUIMIENTO') || slot.templateType.includes('2.2'),
+                  'text-blue-800': slot.templateType.includes('PRIMERA') || slot.templateType.includes('2.1'),
+                  'text-purple-800': slot.templateType.includes('GRUPO'),
+                  'text-gray-500': slot.status === 'TEMPLATE_REST',
+                  'text-red-800': slot.status === 'MISMATCH'
+                }" x-text="slot.templateType"></p>
+
+                <template x-if="slot.status === 'OCCUPIED'">
+                  <div class="mt-1 flex-grow flex flex-col justify-center">
+                    <p class="text-[11px] text-gray-700 font-bold truncate" x-text="slot.occupiedBy"></p>
+                    <p class="text-[9px] text-gray-500">
+                      <span x-text="`Sesión ${slot.sessionNumber || '-'}`"></span>
+                    </p>
+                  </div>
+                </template>
+
+                <template x-if="slot.status === 'FREE'">
+                   <div class="mt-1 flex-grow flex items-center justify-center">
+                    <span class="text-xs font-bold text-green-600">Libre</span>
+                  </div>
+                </template>
+
               </template>
             </div>
           </template>
@@ -176,6 +190,54 @@
 
         setFilter(type) {
           this.filter = (this.filter === type) ? null : type;
+        },
+
+        getSlotClasses(slot) {
+          const type = String(slot.templateType || '').toUpperCase();
+          let bgColor = 'bg-gray-50'; // Default
+          let borderColor = 'border-gray-200';
+
+          if (slot.status === 'FREE' || slot.status === 'OCCUPIED') {
+            if (type.includes('SEGUIMIENTO') || type.includes('2.2')) { bgColor = 'bg-green-50'; }
+            else if (type.includes('PRIMERA') || type.includes('2.1')) { bgColor = 'bg-blue-50'; }
+            else if (type.includes('GRUPO')) { bgColor = 'bg-purple-50'; }
+          }
+
+          if (slot.status === 'OCCUPIED') { borderColor = 'border-gray-400'; }
+          if (slot.status === 'TEMPLATE_REST') { bgColor = 'bg-gray-100'; }
+          if (slot.status === 'MISMATCH') { bgColor = 'bg-red-50'; }
+
+          return {
+            [bgColor]: true,
+            [borderColor]: true,
+            'opacity-30': this.filter && !this.isSlotHighlighted(slot)
+          };
+        },
+
+        getProcessedSlots(slots) {
+          if (!slots) return [];
+          const processed = JSON.parse(JSON.stringify(slots)); // Deep copy
+          
+          for (let i = 0; i < processed.length; i++) {
+            const slot = processed[i];
+            slot.isHidden = false;
+            slot.span = 1;
+
+            if (slot.status === 'OCCUPIED' || slot.status === 'FREE') {
+              const duration = slot.durationMinutes || 30;
+              const slotsToSpan = Math.ceil(duration / 30);
+
+              if (slotsToSpan > 1) {
+                slot.span = slotsToSpan;
+                for (let j = 1; j < slotsToSpan; j++) {
+                  if (i + j < processed.length) {
+                    processed[i + j].isHidden = true;
+                  }
+                }
+              }
+            }
+          }
+          return processed;
         },
 
         isSlotHighlighted(slot) {
