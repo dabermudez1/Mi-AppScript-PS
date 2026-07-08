@@ -74,3 +74,10 @@ function parseFechaISO_(texto) {
 
   return normalizarFecha_(fecha); // normalizarFecha_ está en 01_base.js y es global
 }
+
+/**
+ * Cierra la vista de disponibilidad y vuelve a abrir el panel principal.
+ */
+function volverAlPanelDesdeDisponibilidad() {
+  abrirHomeDashboard();
+}
