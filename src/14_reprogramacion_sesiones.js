@@ -155,6 +155,7 @@ function reprogramarSesionGrupo_(data) {
       const slot = availabilityService.findNextAvailableSlot(
         normalizarFechaHora_(proximaMinima, "00:00"), 
         ciclo.Modalidad, 
+        'SEGUIMIENTO/GRUPO', // Especificamos el tipo de sesión
         90, 
         cicloId // Ignoramos colisiones con nuestras propias sesiones futuras
       );

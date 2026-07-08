@@ -13,11 +13,12 @@ class AvailabilityService {
    * Encuentra el siguiente slot disponible compatible con la modalidad y duración requerida.
    * @param {Date} startSearchDateTime - Fecha y hora a partir de la cual empezar a buscar.
    * @param {string} modality - Modalidad del paciente (ej. INDIVIDUAL, GRUPO_1).
+   * @param {string} sessionType - Tipo de sesión a buscar (ej. 'PRIMERA', 'SEGUIMIENTO').
    * @param {number} [requiredDurationMinutes] - Duración requerida. Si no se pasa, se deduce de la modalidad.
    * @param {string} [ignoreCicloId] - ID del ciclo cuyas sesiones deben ignorarse (para reprogramación).
    * @returns {AgendaSlot|null} El primer slot disponible encontrado, o null si no hay.
    */
-  findNextAvailableSlot(startSearchDateTime, modality, requiredDurationMinutes = null, ignoreCicloId = null) {
+  findNextAvailableSlot(startSearchDateTime, modality, sessionType, requiredDurationMinutes = null, ignoreCicloId = null) {
     // Aseguramos que empezamos a buscar con la hora correcta
     let currentDateTime = new Date(startSearchDateTime.getTime());
 
@@ -51,7 +52,7 @@ class AvailabilityService {
       return this._isSlotCompatible({
         type: s.TipoSlot,
         durationMinutes: this.agendaService._getSlotDuration(s.TipoSlot)
-      }, modality, requiredDurationMinutes);
+      }, modality, sessionType, requiredDurationMinutes);
     });
     if (!hasTemplate) throw new Error(`No hay slots de tipo ${modality} configurados en la 'Plantilla de Agenda'.`);
 
@@ -94,7 +95,7 @@ class AvailabilityService {
         // Si el slot de la agenda ya pasó la hora de inicio de búsqueda, o es el mismo slot
         if (agendaSlot.startDateTime.getTime() >= currentDateTime.getTime()) {
           // Verificar si el slot es compatible con la modalidad y duración
-          if (this._isSlotCompatible(agendaSlot, modality, requiredDurationMinutes)) {
+          if (this._isSlotCompatible(agendaSlot, modality, sessionType, requiredDurationMinutes)) {
             // Verificar si el slot está ocupado por una sesión existente
             if (!this._isSlotOccupied(agendaSlot, occupiedSlots)) {
               // Verificar si el día está completamente bloqueado (ej. por DIAS_BLOQUEADOS)
@@ -127,19 +128,26 @@ class AvailabilityService {
    * Determina si un slot de la agenda es compatible con una modalidad y duración requerida.
    * @param {AgendaSlot} agendaSlot - El slot de la agenda.
    * @param {string} modality - La modalidad del paciente.
+   * @param {string} sessionType - El tipo de sesión ('PRIMERA', 'SEGUIMIENTO').
    * @param {number} requiredDurationMinutes - Duración requerida.
    * @returns {boolean} True si es compatible, false en caso contrario.
    */
-  _isSlotCompatible(agendaSlot, modality, requiredDurationMinutes) {
+  _isSlotCompatible(agendaSlot, modality, sessionType, requiredDurationMinutes) {
     const slotType = String(agendaSlot.type || '').trim().toUpperCase();
     const mod = String(modality || '').trim().toUpperCase();
+    const sessType = String(sessionType || '').trim().toUpperCase();
 
     // Reglas de compatibilidad de tipo de slot
     if (slotType === 'DESCANSO' || slotType === '') return false;
 
     if (mod === 'INDIVIDUAL') {
-      // Las sesiones 2.2 generadas solo deben ir en slots tipo 2.2 o SEGUIMIENTO
-      if (slotType !== '2.2' && slotType !== 'SEGUIMIENTO' && slotType !== '2.1' && slotType !== 'PRIMERA') return false;
+      if (sessType === 'PRIMERA') {
+        // Una PRIMERA solo puede ir en un slot de PRIMERA
+        if (slotType !== '2.1' && slotType !== 'PRIMERA') return false;
+      } else { // Por defecto, asumimos SEGUIMIENTO
+        // Un SEGUIMIENTO solo puede ir en un slot de SEGUIMIENTO
+        if (slotType !== '2.2' && slotType !== 'SEGUIMIENTO') return false;
+      }
     } else if (mod.startsWith('GRUPO')) {
       // Un ciclo (ej. GRUPO_1) puede usar slots específicos o el genérico 'GRUPO'
       const tiposValidos = [mod, 'GRUPO', '2.2/GRUPO', 'SEGUIMIENTO/GRUPO'];
