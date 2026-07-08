@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .loading-spinner { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
+    @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gray-100" x-data="availabilityView()" x-init="init()">
+
+  <!-- Pantalla de carga -->
+  <div x-show="loading" class="fixed inset-0 bg-white bg-opacity-80 flex flex-col items-center justify-center z-50" style="display:none;">
+    <div class="loading-spinner h-16 w-16 border-4 border-gray-200 rounded-full mb-4"></div>
+    <p class="text-indigo-600 font-bold">Analizando agenda...</p>
+  </div>
+
+  <div class="p-4 sm:p-6 lg:p-8" x-cloak>
+    <!-- Cabecera y Navegación -->
+    <header class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Vista de Disponibilidad</h1>
+        <p class="text-sm text-gray-500" x-text="`Semana del ${weekData[0]?.dateLabel || ''} al ${weekData[6]?.dateLabel || ''}`"></p>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button @click="changeWeek(-7)" class="px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">‹ Semana Anterior</button>
+        <button @click="changeWeek(0)" class="px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Semana Actual</button>
+        <button @click="changeWeek(7)" class="px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Semana Siguiente ›</button>
+      </div>
+    </header>
+
+    <!-- Rejilla de Disponibilidad -->
+    <div class="grid grid-cols-7 gap-1 bg-gray-200 p-1 rounded-lg">
+      <!-- Cabeceras de Día -->
+      <template x-for="day in weekData" :key="day.dateLabel">
+        <div class="bg-gray-50 p-2 text-center rounded-t-md">
+          <p class="font-bold text-gray-700 text-sm" x-text="day.dayOfWeekLabel"></p>
+          <p class="text-xs text-gray-500" x-text="day.dateLabel"></p>
+        </div>
+      </template>
+
+      <!-- Contenido de Slots -->
+      <template x-for="day in weekData" :key="day.dateLabel">
+        <div class="bg-white rounded-b-md p-2 space-y-1">
+          <template x-if="day.isBlocked">
+            <div class="h-full flex items-center justify-center bg-gray-200 rounded-md p-4">
+              <p class="text-xs font-semibold text-gray-500 text-center" x-text="day.blockReason"></p>
+            </div>
+          </template>
+          <template x-if="!day.isBlocked && day.slots.length === 0">
+             <div class="h-full flex items-center justify-center bg-gray-50 rounded-md p-4">
+              <p class="text-xs italic text-gray-400 text-center">Sin plantilla</p>
+            </div>
+          </template>
+          <template x-for="slot in day.slots" :key="slot.time">
+            <div class="p-1.5 rounded-md border" :class="{
+              'bg-green-50 border-green-200': slot.status === 'FREE',
+              'bg-blue-50 border-blue-200': slot.status === 'OCCUPIED',
+              'bg-gray-100 border-gray-200': slot.status === 'TEMPLATE_REST',
+              'bg-red-50 border-red-200': slot.status === 'MISMATCH'
+            }">
+              <p class="text-[10px] font-bold text-gray-800" x-text="slot.time"></p>
+              <p class="text-[10px] font-semibold" :class="{
+                'text-green-800': slot.status === 'FREE',
+                'text-blue-800': slot.status === 'OCCUPIED',
+                'text-gray-500': slot.status === 'TEMPLATE_REST',
+                'text-red-800': slot.status === 'MISMATCH'
+              }" x-text="slot.templateType"></p>
+              <template x-if="slot.status === 'OCCUPIED'">
+                <p class="text-[9px] text-blue-600 truncate" x-text="`Ocupado: ${slot.occupiedBy}`"></p>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+
+  </div>
+
+  <script>
+    function availabilityView() {
+      return {
+        loading: true,
+        currentDate: new Date(),
+        weekData: [],
+
+        init() {
+          this.loadWeekData();
+        },
+
+        loadWeekData() {
+          this.loading = true;
+          const dateISO = this.currentDate.toISOString().split('T')[0];
+          
+          google.script.run
+            .withSuccessHandler(response => {
+              this.weekData = response.weekData;
+              this.loading = false;
+            })
+            .withFailureHandler(error => {
+              alert('Error al cargar los datos: ' + error.message);
+              this.loading = false;
+            })
+            .getAvailabilityViewData(dateISO);
+        },
+
+        changeWeek(days) {
+          if (days === 0) {
+            this.currentDate = new Date(); // Volver a la semana actual
+          } else {
+            this.currentDate.setDate(this.currentDate.getDate() + days);
+          }
+          this.loadWeekData();
+        },
+
+        // Helper para formatear la fecha para la cabecera
+        formatDate(date) {
+          const d = new Date(date);
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          return `${day}/${month}/${year}`;
+        }
+      }
+    }
+  </script>
+</body>
+</html>

@@ -282,6 +282,7 @@ function onOpen() {
       .addItem('Gestionar catálogos', 'gestionarCatalogos')
       .addItem('Gestionar configuración modalidades', 'gestionarConfigModalidades')
       .addItem('Gestionar días bloqueados', 'gestionarDiasBloqueados')
+      .addItem('Ver Disponibilidad Semanal', 'abrirPantallaDisponibilidad') // <-- NUEVA PANTALLA
       .addSeparator()
       .addItem('Gestionar Agenda (Slots y Excepciones)', 'gestionarAgenda')
   );

@@ -271,4 +271,100 @@ class AvailabilityService {
     };
     return map[type] || type;
   }
+
+  /**
+   * Genera una representación detallada del estado de la agenda para una semana completa.
+   * @param {Date} startDate - Cualquier día de la semana que se quiere visualizar.
+   * @returns {Array<Object>} Un array de 7 objetos, uno por cada día de la semana.
+   */
+  getWeeklyState(startDate) {
+    const weekData = [];
+    const startOfWeek = this._getStartOfWeek(startDate);
+
+    // Carga masiva de datos para toda la semana
+    const allSessions = this.sessionRepo.findAll();
+    const blockedDaysMap = obtenerMapaDiasBloqueados_();
+
+    for (let i = 0; i < 7; i++) {
+      const currentDate = sumarDiasNaturales_(startOfWeek, i);
+      const dateKey = obtenerClaveFecha_(currentDate);
+      const dayOfWeekLabel = convertirDiaSemanaATexto_(currentDate);
+
+      const dayInfo = {
+        dateLabel: formatearFecha_(currentDate),
+        dayOfWeekLabel: dayOfWeekLabel,
+        isBlocked: false,
+        blockReason: '',
+        slots: []
+      };
+
+      // Comprobar si es fin de semana o un día bloqueado
+      if (esFinDeSemana_(currentDate)) {
+        dayInfo.isBlocked = true;
+        dayInfo.blockReason = 'Fin de semana';
+      } else if (blockedDaysMap[dateKey]) {
+        dayInfo.isBlocked = true;
+        dayInfo.blockReason = blockedDaysMap[dateKey].motivo || 'Día bloqueado';
+      }
+
+      if (dayInfo.isBlocked) {
+        weekData.push(dayInfo);
+        continue;
+      }
+
+      // Obtener plantilla y sesiones para el día
+      const agendaForDay = this.agendaService.getAgendaForDay(currentDate);
+      const sessionsForDay = allSessions.filter(s =>
+        s.FechaSesion && normalizarFecha_(s.FechaSesion).getTime() === currentDate.getTime() &&
+        s.EstadoSesion !== ESTADOS_SESION.CANCELADA
+      );
+
+      const occupiedSlots = this._getOccupiedSlotsFromSessions(sessionsForDay);
+
+      dayInfo.slots = agendaForDay.map(agendaSlot => {
+        const slotState = {
+          time: formatearHora_(agendaSlot.startDateTime),
+          templateType: agendaSlot.type,
+          status: '',
+          occupiedBy: ''
+        };
+
+        if (agendaSlot.type === 'DESCANSO') {
+          slotState.status = 'TEMPLATE_REST';
+        } else {
+          const isOccupied = this._isSlotOccupied(agendaSlot, occupiedSlots);
+          if (isOccupied) {
+            slotState.status = 'OCCUPIED';
+            // Encontrar qué sesión ocupa este slot
+            const occupyingSession = sessionsForDay.find(s => {
+                const start = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
+                const end = sumarMinutos_(start, Number(s.Duracion || 30));
+                return agendaSlot.startDateTime < end && sumarMinutos_(agendaSlot.startDateTime, agendaSlot.durationMinutes) > start;
+            });
+            slotState.occupiedBy = occupyingSession ? (occupyingSession.NombrePaciente || 'N/A') : 'Desconocido';
+          } else {
+            slotState.status = 'FREE';
+          }
+        }
+        return slotState;
+      });
+
+      weekData.push(dayInfo);
+    }
+
+    return weekData;
+  }
+
+  /**
+   * Calcula el inicio de la semana (Lunes) para una fecha dada.
+   * @param {Date} date - La fecha.
+   * @returns {Date} El lunes de esa semana.
+   * @private
+   */
+  _getStartOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay(); // Domingo = 0, Lunes = 1, ...
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajuste para que Lunes sea el primer día
+    return new Date(d.setDate(diff));
+  }
 }
