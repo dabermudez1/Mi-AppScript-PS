@@ -22,9 +22,24 @@
   <div class="p-4 sm:p-6 lg:p-8" x-cloak>
     <!-- Cabecera y Navegación -->
     <header class="flex justify-between items-center mb-6">
-      <div class="flex-1">
+      <div class="flex-1 pr-4">
         <h1 class="text-2xl font-bold text-gray-800">Vista de Disponibilidad</h1>
+        <p class="text-lg font-semibold text-indigo-600" x-text="weekOfMonthLabel"></p>
         <p class="text-sm text-gray-500" x-text="`Semana del ${weekData[0]?.dateLabel || ''} al ${weekData[6]?.dateLabel || ''}`"></p>
+      </div>
+      <!-- Navegación por Mes -->
+      <div class="flex items-center space-x-2 mr-4">
+        <span class="text-sm font-medium text-gray-600">Ir a:</span>
+        <select x-model="selectedMonth" @change="jumpToDate()" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <template x-for="(month, index) in months" :key="index">
+            <option :value="index" x-text="month"></option>
+          </template>
+        </select>
+        <select x-model="selectedYear" @change="jumpToDate()" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <template x-for="year in years" :key="year">
+            <option :value="year" x-text="year"></option>
+          </template>
+        </select>
       </div>
       <!-- Filtros -->
       <div class="flex items-center space-x-2 mr-4">
@@ -97,9 +112,20 @@
         loading: true,
         currentDate: new Date(),
         weekData: [],
+        weekOfMonthLabel: '',
         filter: null, // 'INDIVIDUAL', 'GRUPO', o null
+        selectedMonth: new Date().getMonth(),
+        selectedYear: new Date().getFullYear(),
+        months: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
+        years: Array.from({length: 10}, (_, i) => new Date().getFullYear() - 5 + i),
 
         init() {
+          const today = new Date();
+          this.selectedMonth = today.getMonth();
+          this.selectedYear = today.getFullYear();
+          const currentYear = today.getFullYear();
+          this.years = Array.from({length: 11}, (_, i) => currentYear - 5 + i);
+
           this.loadWeekData();
         },
 
@@ -109,6 +135,8 @@
           
           google.script.run
             .withSuccessHandler(response => {
+              this.updateCurrentDateFromResponse(response.weekData);
+              this.updateWeekOfMonthLabel(response.weekData);
               this.weekData = response.weekData;
               this.loading = false;
             })
@@ -125,6 +153,11 @@
           } else {
             this.currentDate.setDate(this.currentDate.getDate() + days);
           }
+          this.loadWeekData();
+        },
+
+        jumpToDate() {
+          this.currentDate = new Date(this.selectedYear, this.selectedMonth, 1);
           this.loadWeekData();
         },
 
@@ -162,6 +195,29 @@
                 return 'Descanso definido en la plantilla';
             }
             return `Slot a las ${slot.time}`;
+        },
+
+        updateCurrentDateFromResponse(weekData) {
+          if (!weekData || weekData.length === 0) return;
+          const firstDayStr = weekData[0].dateLabel; // "DD/MM/YYYY"
+          const parts = firstDayStr.split('/');
+          const date = new Date(parts[2], parts[1] - 1, parts[0]);
+          this.selectedMonth = date.getMonth();
+          this.selectedYear = date.getFullYear();
+        },
+
+        updateWeekOfMonthLabel(weekData) {
+            if (!weekData || weekData.length === 0) {
+                this.weekOfMonthLabel = '';
+                return;
+            }
+            const firstDayStr = weekData[0].dateLabel; // "DD/MM/YYYY"
+            const parts = firstDayStr.split('/');
+            const date = new Date(parts[2], parts[1] - 1, parts[0]);
+            
+            const weekNumber = Math.ceil(date.getDate() / 7);
+            const monthName = this.months[date.getMonth()];
+            this.weekOfMonthLabel = `Semana ${weekNumber} de ${monthName}`;
         },
 
         // Helper para formatear la fecha para la cabecera
