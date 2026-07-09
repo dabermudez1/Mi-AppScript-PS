@@ -394,7 +394,10 @@ class AvailabilityService {
             if (occupyingSession) {
               slotState.occupiedBy = occupyingSession.NombrePaciente || 'N/A';
               slotState.sessionNumber = occupyingSession.NumeroSesion || null;
-              slotState.durationMinutes = Number(occupyingSession.Duracion || agendaSlot.durationMinutes); // Usar duración real de la sesión
+              // --- CORRECCIÓN CLAVE ---
+              // La duración de la sesión ocupada debe basarse en su MODALIDAD, no en la plantilla.
+              // Esto evita que una sesión individual de 30min se "estire" si cae en un slot de grupo de 90min.
+              slotState.durationMinutes = this._getSlotDuration(occupyingSession.Modalidad);
               slotState.sessionStatus = occupyingSession.EstadoSesion || null;
             }
           } else {
