@@ -272,8 +272,8 @@
         // Función para renderizar los sub-slots ocupados dentro de un bloque parcialmente ocupado
         renderOccupiedSubSlot(subSlot) {
           return `
-            <div class="absolute bg-gray-200 border border-gray-500 rounded p-1"
-                 style="height: 38px; top: calc(1.5rem + ${subSlot.offset * 40}px); left: 1px; right: 1px;"
+            <div class="absolute bg-gray-200 border border-gray-500 rounded p-1 z-10"
+                 style="height: 38px; top: ${subSlot.offset * 40}px; left: 0; right: 0;"
                  title="Ocupado por: ${subSlot.occupiedBy}">
               <p class="text-[10px] text-gray-700 font-bold truncate flex items-center">
                 <span class="mr-1">${this.getEmojiForStatus(subSlot.sessionStatus)}</span>
