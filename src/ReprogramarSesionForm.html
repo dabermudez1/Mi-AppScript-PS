@@ -18,7 +18,28 @@
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     .secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; }
     .secondary:hover { background-color: #f3f4f6; }
-    #statusGuardar { margin-top: 12px; font-size: 0.875rem; min-height: 1.25rem; font-style: italic; text-align: center; }
+    
+    /* --- NUEVO: Estilos para el área de notificación --- */
+    .notification {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      display: none; /* Oculto por defecto */
+    }
+    .notification.success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+    .notification.error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+    /* --- FIN NUEVO --- */
   </style>
 </head>
 <body>
@@ -93,7 +114,9 @@
   <button id="btnVolver" class="secondary" onclick="volverAlPanel()">Volver al panel</button>
   <button id="btnCerrar" class="secondary" onclick="google.script.host.close()">Cerrar</button>
 </div>
-<div id="statusGuardar" style="margin-top: 8px; font-size: 13px; font-style: italic;"></div>
+
+<!-- --- NUEVO: Área de notificaciones --- -->
+<div id="notification-area" class="notification"></div>
 
 <script>
   let sesionesPendientesIndividual = [];
@@ -286,6 +309,59 @@
       .obtenerSlotsDisponiblesParaReprogramacion(fecha, modalidad, cicloId);
   }
 
+  /**
+   * --- NUEVO: Manejador de éxito para las llamadas al servidor. ---
+   * Muestra el resultado en el área de notificaciones y refresca los datos.
+   */
+  function onSuccess(response) {
+    const notificationArea = document.getElementById('notification-area');
+    
+    // Construir el mensaje de detalle
+    let detailHtml = `<strong>${response.mensaje}</strong>`;
+    if (response.detalle) {
+      const d = response.detalle;
+      if (d.fechaAnterior) { // Repro individual
+        detailHtml += `<br><small>Movida sesión ${d.numeroSesion} de ${d.nombre} del ${d.fechaAnterior} a las ${d.horaAnterior} al <strong>${d.fechaNueva} a las ${d.horaNueva}</strong>.</small>`;
+      } else { // Repro grupal
+        detailHtml += `<br><small>Movida sesión ${d.numeroSesion} de ${d.nombre} a la nueva fecha <strong>${d.fechaNueva} a las ${d.horaNueva}</strong>.</small>`;
+      }
+    }
+
+    notificationArea.className = 'notification success';
+    notificationArea.innerHTML = detailHtml;
+
+    // Refrescar la lista de sesiones pendientes
+    const modalidad = document.getElementById('modalidad').value;
+    if (modalidad === 'INDIVIDUAL') {
+      const pacienteId = document.getElementById('paciente').value;
+      if (pacienteId) {
+        cargarSesionesPendientesIndividual();
+      }
+    } else {
+      const cicloId = document.getElementById('ciclo').value;
+      if (cicloId) {
+        cargarSesionesPendientesGrupo();
+      }
+    }
+    
+    // Habilitar el botón de guardar de nuevo
+    const btnGuardar = document.getElementById('btnGuardar');
+    btnGuardar.disabled = false;
+    btnGuardar.innerText = 'Guardar Reprogramación';
+  }
+
+  /**
+   * --- NUEVO: Manejador de errores. ---
+   * Muestra el error en el área de notificaciones.
+   */
+  function onFailure(error) {
+    const notificationArea = document.getElementById('notification-area');
+    notificationArea.className = 'notification error';
+    notificationArea.innerHTML = `<strong>Error:</strong> ${error.message}`;
+    document.getElementById('btnGuardar').disabled = false;
+    document.getElementById('btnGuardar').innerText = 'Guardar Reprogramación';
+  }
+
   function guardar() {
     const modalidad = document.getElementById('modalidad').value;
 
@@ -328,65 +404,17 @@
     };
     
     const btnGuardar = document.getElementById('btnGuardar');
-    const statusGuardar = document.getElementById('statusGuardar');
+    const notificationArea = document.getElementById('notification-area');
     
     // Bloquear UI
     btnGuardar.disabled = true;
     btnGuardar.innerText = 'Procesando...';
-    statusGuardar.innerText = '⏳ Guardando cambios en el sistema...';
-    statusGuardar.style.color = '#666';
+    notificationArea.style.display = 'none'; // Ocultar notificaciones viejas
 
     google.script.run
-    .withSuccessHandler(function(res) {
-      statusGuardar.innerText = '✅ ¡Guardado con éxito!';
-      statusGuardar.style.color = 'green';
-      
-      btnGuardar.disabled = false;
-      
-      alert(res.mensaje);
-
-      if (origenPantalla === 'SESIONES') {
-        google.script.run
-          .withSuccessHandler(function() {
-            google.script.host.close();
-          })
-          .withFailureHandler(function(error) {
-            alert(error.message || String(error));
-          })
-          .abrirPantallaSesionesDesdePantalla();
-        return;
-      }
-
-      if (origenPantalla === 'INCIDENCIAS') {
-        google.script.run
-          .withSuccessHandler(function() {
-            google.script.host.close();
-          })
-          .withFailureHandler(function(error) {
-            alert(error.message || String(error));
-          })
-          .verIncidenciasCalendario();
-        return;
-      }
-
-      google.script.run
-        .withSuccessHandler(function() {
-          google.script.host.close();
-        })
-        .withFailureHandler(function(error) {
-          alert(error.message || String(error));
-        })
-        .abrirHomeDashboardDesdePantalla();
-    })
-    .withFailureHandler(function(err) {
-      // Restaurar UI en caso de error
-      btnGuardar.disabled = false;
-      btnGuardar.innerText = 'Guardar';
-      statusGuardar.innerText = '❌ Error al guardar.';
-      statusGuardar.style.color = 'red';
-      alert(err.message || String(err));
-    })
-    .guardarReprogramacion(data);
+      .withSuccessHandler(onSuccess)
+      .withFailureHandler(onFailure)
+      .guardarReprogramacion(data);
   }
 
   function volverAlPanel() {
