@@ -89,10 +89,12 @@ function reprogramarSesionIndividual_(data) {
     mensaje: 'Sesión individual reprogramada correctamente.',
     pacienteId: pacienteId, // Devolvemos el ID para el refresco
     detalle: {
-      nombre: paciente.Nombre,
-      numeroSesion: sesionActualizada.NumeroSesion,
+      // --- CORRECCIÓN: Usar datos de la sesión ANTES de la modificación ---
+      nombre: sesionOriginal.NombrePaciente,
+      numeroSesion: sesionOriginal.NumeroSesion,
       fechaAnterior: formatearFecha_(sesionOriginal.FechaSesion),
       horaAnterior: formatearHora_(sesionOriginal.HoraInicio),
+      // --- Usar datos de la sesión DESPUÉS de la modificación ---
       fechaNueva: formatearFecha_(sesionActualizada.FechaSesion),
       horaNueva: formatearHora_(sesionActualizada.HoraInicio)
     }
@@ -300,7 +302,7 @@ function obtenerSesionesPendientesIndividualFormulario(pacienteId) {
     numeroSesion: s.NumeroSesion,
     fechaActual: formatearFecha_(s.FechaSesion),
     horaActual: formatearHora_(s.HoraInicio),
-    label: `Sesión ${s.NumeroSesion} | ${formatearFecha_(s.FechaSesion)}`
+    label: `Sesión ${s.NumeroSesion} | ${formatearFecha_(s.FechaSesion)} (${formatearHora_(s.HoraInicio)})`
   })).sort((a, b) => a.numeroSesion - b.numeroSesion);
 }
 
@@ -318,7 +320,7 @@ function obtenerSesionesPendientesGrupoFormulario(cicloId) {
     numeroSesion: s.NumeroSesion,
     fechaActual: formatearFecha_(s.FechaSesion),
     horaActual: formatearHora_(s.HoraInicio),
-    label: `Sesión ${s.NumeroSesion} | ${formatearFecha_(s.FechaSesion)}`
+    label: `Sesión ${s.NumeroSesion} | ${formatearFecha_(s.FechaSesion)} (${formatearHora_(s.HoraInicio)})`
   })).sort((a, b) => a.numeroSesion - b.numeroSesion);
 }
 
