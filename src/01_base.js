@@ -790,8 +790,17 @@ function sumarDiasNaturales_(fecha, dias) {
  * @returns {Date} Un nuevo objeto Date con la fecha y hora normalizadas.
  */
 function normalizarFechaHora_(date, timeString) {
-  // Intentar convertir a Date si no lo es (por si viene como string de la hoja)
-  let d = (date instanceof Date) ? new Date(date.getTime()) : new Date(date);
+  let d;
+  // --- CORRECCIÓN CRÍTICA DE TIMEZONE ---
+  // Si 'date' es un string (ej: "2026-10-20" de un input), new Date(date) lo interpreta como UTC.
+  // Esto causa el bug de "un día antes" en zonas horarias positivas.
+  // La solución es parsear el string manualmente para construir la fecha en la zona horaria del script.
+  if (typeof date === 'string' && date.includes('-')) {
+    const parts = date.split('T')[0].split('-');
+    d = new Date(parts[0], parts[1] - 1, parts[2]);
+  } else {
+    d = (date instanceof Date) ? new Date(date.getTime()) : new Date(date);
+  }
   
   if (isNaN(d.getTime())) {
     throw new Error('El primer argumento debe ser una fecha válida.');
