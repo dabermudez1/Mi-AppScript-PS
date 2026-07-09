@@ -54,6 +54,9 @@ function guardarReprogramacion(data) {
  * INDIVIDUAL
  ***************/
 function reprogramarSesionIndividual_(data) {
+  const sessionRepo = new SessionRepository();
+  const sesionOriginal = sessionRepo.findPendientesByPaciente(data.pacienteId).find(s => Number(s.NumeroSesion) === Number(data.numeroSesion));
+  if (!sesionOriginal) throw new Error("No se encontró la sesión original para reprogramar.");
   const sessionService = new SessionService();
 
   const pacienteId = data.pacienteId;
@@ -81,7 +84,15 @@ function reprogramarSesionIndividual_(data) {
   }
 
   return {
-    mensaje: 'Sesión individual reprogramada correctamente.'
+    mensaje: 'Sesión individual reprogramada correctamente.',
+    detalle: {
+      nombre: sesion.NombrePaciente,
+      numeroSesion: sesion.NumeroSesion,
+      fechaAnterior: formatearFecha_(sesionOriginal.FechaSesion),
+      horaAnterior: formatearHora_(sesionOriginal.HoraInicio),
+      fechaNueva: formatearFecha_(sesion.FechaSesion),
+      horaNueva: formatearHora_(sesion.HoraInicio)
+    }
   };
 }
 
@@ -209,7 +220,13 @@ function reprogramarSesionGrupo_(data) {
   }
 
   return {
-    mensaje: msgResult
+    mensaje: msgResult,
+    detalle: {
+      nombre: `Grupo ${ciclo.Modalidad} - Ciclo ${ciclo.NumeroCiclo}`,
+      numeroSesion: numeroSesion,
+      fechaNueva: formatearFecha_(nuevaFecha),
+      horaNueva: nuevaHora
+    }
   };
 }
 
