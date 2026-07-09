@@ -74,13 +74,13 @@
             </div>
           </template>
           <template x-for="slot in getProcessedSlots(day.slots)" :key="slot.time">
-            <div class="relative p-1.5 rounded-md border transition-opacity duration-300" 
+            <div class="relative flex flex-col rounded-md border transition-opacity duration-300"
                  :class="getSlotClasses(slot)" 
-                 :style="`min-height: ${slot.span * 40}px`"
+                 :style="`height: ${slot.span * 40}px`"
                  :title="getSlotTitle(slot)">
               
-              <!-- --- CORRECCIÓN: Contenedor para la información del bloque principal --- -->
-              <div class="absolute top-1 left-1.5">
+              <!-- Header (time and template type) -->
+              <div class="flex-shrink-0 px-1.5 pt-1 pb-0.5">
                 <p class="text-[10px] font-bold text-gray-800" x-text="slot.time"></p>
                 <p class="text-[10px] font-semibold" :class="{
                   'text-green-800': slot.templateType.includes('SEGUIMIENTO') || slot.templateType.includes('2.2'),
@@ -91,19 +91,21 @@
                 }" x-text="slot.templateType"></p>
               </div>
 
-              <!-- Renderizar sub-slots ocupados -->
-              <template x-if="slot.status === 'PARTIALLY_OCCUPIED' || slot.status === 'OCCUPIED'">
-                <template x-for="occupied in slot.occupiedSlots" :key="occupied.time">
-                  <div x-html="renderOccupiedSubSlot(occupied)"></div>
+              <!-- Content area for occupied sub-slots and "Libre" text -->
+              <div class="relative flex-grow overflow-hidden px-1.5 pb-1.5"> <!-- Add padding to content area -->
+                <template x-if="slot.status === 'PARTIALLY_OCCUPIED' || slot.status === 'OCCUPIED'">
+                  <template x-for="occupied in slot.occupiedSlots" :key="occupied.time">
+                    <div x-html="renderOccupiedSubSlot(occupied)"></div>
+                  </template>
                 </template>
-              </template>
 
-              <!-- Mostrar 'Libre' solo si está completamente libre -->
-              <template x-if="slot.status === 'FREE'">
-                  <div class="h-full flex items-center justify-center">
-                  <span class="text-xs font-bold text-green-600">Libre</span>
-                </div>
-              </template>
+                <!-- Mostrar 'Libre' solo si está completamente libre -->
+                <template x-if="slot.status === 'FREE'">
+                    <div class="h-full flex items-center justify-center">
+                    <span class="text-xs font-bold text-green-600">Libre</span>
+                  </div>
+                </template>
+              </div>
             </div>
           </template>
         </div>
