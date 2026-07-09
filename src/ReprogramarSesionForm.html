@@ -188,7 +188,7 @@
     }
   }
 
-  function cargarSesionesPendientesIndividual(pacienteId) {
+  function cargarSesionesPendientesIndividual(pacienteId, callback) {
     const select = document.getElementById('numeroSesionInd');
     const fechaActual = document.getElementById('fechaActualInd');
 
@@ -216,14 +216,16 @@
         });
 
         mostrarFechaActualIndividual();
+        if (typeof callback === 'function') callback(); // Ejecutar callback al final
       })
       .withFailureHandler(function(err) {
         alert(err.message || String(err));
+        if (typeof callback === 'function') callback(); // Ejecutar callback también en caso de error
       })
       .obtenerSesionesPendientesIndividualFormulario(pacienteId);
   }
 
-  function cargarSesionesPendientesGrupo(cicloId) {
+  function cargarSesionesPendientesGrupo(cicloId, callback) {
     const select = document.getElementById('numeroSesionGrp');
     const fechaActual = document.getElementById('fechaActualGrp');
 
@@ -251,9 +253,11 @@
         });
 
         mostrarFechaActualGrupo();
+        if (typeof callback === 'function') callback(); // Ejecutar callback al final
       })
       .withFailureHandler(function(err) {
         alert(err.message || String(err));
+        if (typeof callback === 'function') callback(); // Ejecutar callback también en caso de error
       })
       .obtenerSesionesPendientesGrupoFormulario(cicloId);
   }
@@ -330,18 +334,22 @@
     notificationArea.className = 'notification success';
     notificationArea.innerHTML = detailHtml;
 
+    // --- CORRECCIÓN CLAVE ---
+    // La reactivación del botón ahora se pasa como un callback que se ejecutará
+    // DESPUÉS de que la lista de sesiones se haya recargado.
+    const onRefreshComplete = function() {
+      const btnGuardar = document.getElementById('btnGuardar');
+      btnGuardar.disabled = false;
+      btnGuardar.innerText = 'Guardar Reprogramación';
+    };
+
     // Refrescar la lista de sesiones pendientes
     const modalidad = document.getElementById('modalidad').value;
     if (modalidad === 'INDIVIDUAL') {
-      cargarSesionesPendientesIndividual(document.getElementById('pacienteId').value);
+      cargarSesionesPendientesIndividual(document.getElementById('pacienteId').value, onRefreshComplete);
     } else {
-      cargarSesionesPendientesGrupo(document.getElementById('cicloId').value);
+      cargarSesionesPendientesGrupo(document.getElementById('cicloId').value, onRefreshComplete);
     }
-
-    // Habilitar el botón de guardar de nuevo
-    const btnGuardar = document.getElementById('btnGuardar');
-    btnGuardar.disabled = false;
-    btnGuardar.innerText = 'Guardar Reprogramación';
   }
 
   /**
