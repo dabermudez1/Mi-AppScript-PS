@@ -73,9 +73,8 @@
               <p class="text-xs italic text-gray-400 text-center">Sin plantilla</p>
             </div>
           </template>
-          <template x-for="(slot, index) in getProcessedSlots(day.slots)" :key="slot.time">
-            <div x-show="!slot.isHidden" 
-                 class="p-1.5 rounded-md border transition-opacity duration-300" 
+          <template x-for="slot in getProcessedSlots(day.slots)" :key="slot.time">
+            <div class="relative p-1.5 rounded-md border transition-opacity duration-300" 
                  :class="getSlotClasses(slot)" 
                  :style="`min-height: ${slot.span * 40}px`"
                  :title="getSlotTitle(slot)">
@@ -91,24 +90,19 @@
                   'text-red-800': slot.status === 'MISMATCH'
                 }" x-text="slot.templateType"></p>
 
-                <template x-if="slot.status === 'OCCUPIED'">
-                  <div class="mt-1 flex-grow flex flex-col justify-center">
-                    <p class="text-[11px] text-gray-700 font-bold truncate flex items-center">
-                      <span x-text="getEmojiForStatus(slot.sessionStatus)" class="mr-1"></span>
-                      <span x-text="slot.occupiedBy"></span>
-                    </p>
-                    <p class="text-[9px] text-gray-500 pl-4">
-                      <span x-text="`S${slot.sessionNumber || '-'}`"></span>
-                    </p>
-                  </div>
+                <!-- Renderizar sub-slots ocupados -->
+                <template x-if="slot.status === 'PARTIALLY_OCCUPIED' || slot.status === 'OCCUPIED'">
+                  <template x-for="occupied in slot.occupiedSlots" :key="occupied.time">
+                    <div x-html="renderOccupiedSubSlot(occupied)"></div>
+                  </template>
                 </template>
 
-                <template x-if="slot.status === 'FREE'">
+                <!-- Mostrar 'Libre' solo si no está totalmente ocupado -->
+                <template x-if="slot.status === 'FREE' || slot.status === 'PARTIALLY_OCCUPIED'">
                    <div class="mt-1 flex-grow flex items-center justify-center">
                     <span class="text-xs font-bold text-green-600">Libre</span>
                   </div>
                 </template>
-
               </template>
             </div>
           </template>
@@ -278,8 +272,8 @@
         // Función para renderizar los sub-slots ocupados dentro de un bloque parcialmente ocupado
         renderOccupiedSubSlot(subSlot) {
           return `
-            <div class="absolute w-full bg-gray-200 border border-gray-500 rounded p-1 z-10" 
-                 style="height: 38px; top: ${subSlot.offset * 40 + 1}px;"
+            <div class="absolute w-full bg-gray-200 border border-gray-500 rounded p-1 z-10"
+                 style="height: 38px; top: ${subSlot.offset * 40 + 1}px; left: 0; right: 0;"
                  title="Ocupado por: ${subSlot.occupiedBy}">
               <p class="text-[10px] text-gray-700 font-bold truncate flex items-center">
                 <span class="mr-1">${this.getEmojiForStatus(subSlot.sessionStatus)}</span>
