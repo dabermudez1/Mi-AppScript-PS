@@ -132,17 +132,17 @@ class AvailabilityService {
     // Reglas de compatibilidad de tipo de slot
     if (normalizedTemplateType === 'DESCANSO' || normalizedTemplateType === '') return false;
 
-    switch (searchType) {
+    switch (normalizedSearchType) {
       case 'SEGUIMIENTO':
         // Una sesión de seguimiento individual puede ir en un slot de SEGUIMIENTO o en uno de PRIMERA.
-        if (normalizedSlotType !== 'SEGUIMIENTO' && normalizedSlotType !== 'PRIMERA') {
+        if (normalizedTemplateType !== 'SEGUIMIENTO' && normalizedTemplateType !== 'PRIMERA') {
           return false;
         }
         break;
       
       case 'PRIMERA':
         // Una primera consulta solo puede ir en un slot de PRIMERA.
-        if (normalizedSlotType !== 'PRIMERA') {
+        if (normalizedTemplateType !== 'PRIMERA') {
           return false;
         }
         break;
@@ -150,7 +150,7 @@ class AvailabilityService {
       case 'GRUPO':
       case 'SEGUIMIENTO/GRUPO':
         // Una sesión de grupo solo puede ir en un slot de GRUPO.
-        if (normalizedSlotType !== 'SEGUIMIENTO/GRUPO') {
+        if (normalizedTemplateType !== 'SEGUIMIENTO/GRUPO') {
           return false;
         }
         break;
