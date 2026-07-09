@@ -302,32 +302,36 @@
    * Muestra el resultado en el área de notificaciones y refresca los datos.
    */
   function onSuccess(response) {
-    const notificationArea = document.getElementById('notification-area');
+    // --- ROBUST CONFIRMATION ---
+    // We will build a detailed message and use a blocking alert() to guarantee the user sees it.
+    // This is the most reliable way to handle the confirmation request.
+    let confirmationMessage = response.mensaje || 'Operación completada con éxito.';
     
-    // Construir el mensaje de detalle
-    let detailHtml = `<strong>${response.mensaje}</strong>`;
     if (response.detalle) {
       const d = response.detalle;
-      let refreshCall = '';
       if (d.fechaAnterior) { // Repro individual
-        detailHtml += `<br><small>Movida sesión ${d.numeroSesion} de ${d.nombre} del ${d.fechaAnterior} a las ${d.horaAnterior} al <strong>${d.fechaNueva} a las ${d.horaNueva}</strong>.</small>`;
-        refreshCall = `cargarSesionesPendientesIndividual('${response.pacienteId}')`;
-      } else { // Repro grupal
-        detailHtml += `<br><small>Movida sesión ${d.numeroSesion} de ${d.nombre} a la nueva fecha <strong>${d.fechaNueva} a las ${d.horaNueva}</strong>.</small>`;
-        refreshCall = `cargarSesionesPendientesGrupo('${response.cicloId}')`;
+        // For individual sessions, the backend message is simple, so we build a more detailed one.
+        confirmationMessage += `\n\nDetalles:\n- Sesión: ${d.numeroSesion} de ${d.nombre}\n- Movida de: ${d.fechaAnterior} a las ${d.horaAnterior}\n- A la nueva fecha: ${d.fechaNueva} a las ${d.horaNueva}`;
       }
-      // --- NUEVO: Añadimos un enlace para refrescar manualmente ---
-      detailHtml += ` <a href="#" onclick="${refreshCall}; this.style.display='none'; return false;">(Refrescar lista)</a>`;
     }
 
-    notificationArea.className = 'notification success';
-    notificationArea.innerHTML = detailHtml;
+    // The alert() function blocks everything until the user clicks "OK".
+    alert(confirmationMessage);
 
-    // Limpiar campos de acción para indicar que la operación terminó
+    // After the user confirms, we proceed with cleaning and refreshing the UI.
     document.getElementById('fecha').value = '';
     const selectHora = document.getElementById('hora');
     selectHora.innerHTML = '<option value="">-- Selecciona una fecha primero --</option>';
     document.getElementById('statusSlots').textContent = '';
+    document.getElementById('notification-area').style.display = 'none';
+
+    // Refresh the pending sessions list
+    const modalidad = document.getElementById('modalidad').value;
+    if (modalidad === 'INDIVIDUAL') {
+      cargarSesionesPendientesIndividual(document.getElementById('pacienteId').value);
+    } else {
+      cargarSesionesPendientesGrupo(document.getElementById('cicloId').value);
+    }
 
     // Reactivar el botón inmediatamente
     const btnGuardar = document.getElementById('btnGuardar');
