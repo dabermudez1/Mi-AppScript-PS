@@ -264,7 +264,7 @@
 
   function buscarSlotsDisponibles() {
     const fecha = document.getElementById('fecha').value;
-    const modalidad = document.getElementById('modalidad').value;
+    const modalidad = document.getElementById('modalidad').value; // Asegúrate de que la modalidad esté seleccionada
     const cicloId = document.getElementById('cicloId').value;
     const selectHora = document.getElementById('hora');
     const status = document.getElementById('statusSlots');
@@ -272,29 +272,37 @@
     if (!fecha || !modalidad) return;
 
     selectHora.innerHTML = '<option value="">Cargando slots...</option>';
+    selectHora.disabled = true;
     status.textContent = 'Consultando disponibilidad...';
 
     google.script.run
-      .withSuccessHandler(function(slots) {
+      .withSuccessHandler(function(diasConSlots) {
+        selectHora.disabled = false;
         selectHora.innerHTML = '';
-        if (slots.length === 0) {
-          selectHora.innerHTML = '<option value="">Sin huecos disponibles</option>';
-          status.textContent = 'No hay slots libres para este día.';
+        if (!diasConSlots || diasConSlots.length === 0) {
+          selectHora.innerHTML = '<option value="">No hay huecos en los próximos 60 días</option>';
+          status.textContent = 'No se encontraron slots libres.';
         } else {
-          status.textContent = slots.length + ' huecos encontrados.';
-          slots.forEach(s => {
-            let o = document.createElement('option');
-            o.value = s.hora;
-            o.textContent = s.label;
-            selectHora.appendChild(o);
+          status.textContent = 'Disponibilidad encontrada. Selecciona un hueco.';
+          selectHora.innerHTML = '<option value="">-- Selecciona un hueco --</option>';
+          diasConSlots.forEach(function(dia) {
+            const group = document.createElement('optgroup');
+            group.label = dia.fechaLabel;
+            dia.slots.forEach(function(s) {
+              const opt = document.createElement('option');
+              opt.value = dia.fechaISO + '|' + s.hora;
+              opt.textContent = s.label;
+              group.appendChild(opt);
+            });
+            selectHora.appendChild(group);
           });
         }
       })
       .withFailureHandler(err => {
         status.textContent = 'Error al buscar slots.';
-        alert(err.message);
+        selectHora.innerHTML = '<option value="">-- Error --</option>';
       })
-      .obtenerSlotsDisponiblesParaReprogramacion(fecha, modalidad, cicloId);
+      .obtenerMultiplesSlotsDisponibles(fecha, modalidad, cicloId);
   }
 
   /**
@@ -386,7 +394,8 @@
       pacienteId: document.getElementById('pacienteId').value,
       cicloId: document.getElementById('cicloId').value,
       numeroSesion: numeroSesion,
-      fecha: fecha.split('-').reverse().join('/'),
+      // --- CORRECCIÓN: La fecha ahora viene del valor del slot seleccionado ---
+      fecha: document.getElementById('hora').value.split('|')[0].split('-').reverse().join('/'),
       hora: hora,
       cascada: document.getElementById('cascada').checked
     };
@@ -402,7 +411,7 @@
     google.script.run
       .withSuccessHandler(onSuccess)
       .withFailureHandler(onFailure)
-      .guardarReprogramacion(data);
+      .guardarReprogramacion(data); // La función de guardado no necesita cambios
   }
 
   function volverAlPanel() {
@@ -509,7 +518,11 @@
 
   function renderSesiones(lista, modalidad) {
     const select = (modalidad === 'INDIVIDUAL') ? document.getElementById('numeroSesionInd') : document.getElementById('numeroSesionGrp');
-    const dataStore = (modalidad === 'INDIVIDUAL') ? 'sesionesPendientesIndividual' : 'sesionesPendientesGrupo';
+    let dataStore;
+    if (modalidad === 'INDIVIDUAL') {
+        sesionesPendientesIndividual = lista || [];
+        dataStore = 'sesionesPendientesIndividual';
+    }
 
     window[dataStore] = lista || [];
 

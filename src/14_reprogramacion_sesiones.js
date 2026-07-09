@@ -236,39 +236,60 @@ function reprogramarSesionGrupo_(data) {
 
 /**
  * Obtiene los slots libres para una fecha y modalidad específica.
- * Utilizado por el formulario de reprogramación para ofrecer opciones válidas.
+ * Busca en los próximos días y devuelve una estructura agrupada por fecha.
  */
-function obtenerSlotsDisponiblesParaReprogramacion(fechaISO, modalidad, cicloId) {
+function obtenerMultiplesSlotsDisponibles(fechaISO, modalidad, cicloId) {
   if (!fechaISO || !modalidad) return [];
   
   const availabilityService = new AvailabilityService();
+  const agendaService = new AgendaService();
   const fecha = parseFechaISO_(fechaISO);
   if (!fecha) return [];
 
-  const dateKey = obtenerClaveFecha_(fecha);
-  const agendaForDay = availabilityService.agendaService.getAgendaForDay(fecha);
-  
-  // Obtenemos sesiones del día para calcular huecos ocupados
-  const sessionsForDay = availabilityService.sessionRepo.findAll().filter(s => 
-    s.FechaSesion instanceof Date && 
-    obtenerClaveFecha_(s.FechaSesion) === dateKey &&
-    s.EstadoSesion !== ESTADOS_SESION.CANCELADA &&
-    (!cicloId || String(s.CicloID) !== String(cicloId)) // Permitir reprogramar sobre sí mismo
-  );
-  
-  const occupiedSlots = availabilityService._getOccupiedSlotsFromSessions(sessionsForDay);
-  const requiredDuration = (modalidad === MODALIDADES.INDIVIDUAL) ? 30 : 90;
+  const diasConSlots = [];
+  let currentDay = normalizarFechaHora_(fecha, "00:00");
+  let diasBuscados = 0;
+  const maxDiasBusqueda = 60; // Límite de seguridad
+  const diasAEncontrar = 7; // Buscamos los 7 próximos días con huecos
 
-  return agendaForDay
-    .filter(slot => {
-      if (slot.type === 'DESCANSO') return false;
-      if (!availabilityService._isSlotCompatible(slot, modalidad, requiredDuration)) return false;
-      return !availabilityService._isSlotOccupied(slot, occupiedSlots);
-    })
-    .map(slot => ({
-      hora: formatearHora_(slot.startDateTime),
-      label: `${formatearHora_(slot.startDateTime)} (${slot.type})`
-    }));
+  const allSessions = availabilityService.sessionRepo.findAll();
+
+  while (diasConSlots.length < diasAEncontrar && diasBuscados < maxDiasBusqueda) {
+    const dateKey = obtenerClaveFecha_(currentDay);
+    const agendaForDay = agendaService.getAgendaForDay(currentDay);
+    
+    const sessionsForDay = allSessions.filter(s => 
+      s.FechaSesion instanceof Date && 
+      obtenerClaveFecha_(s.FechaSesion) === dateKey &&
+      s.EstadoSesion !== ESTADOS_SESION.CANCELADA &&
+      (!cicloId || String(s.CicloID) !== String(cicloId))
+    );
+    
+    const occupiedSlots = availabilityService._getOccupiedSlotsFromSessions(sessionsForDay);
+    const requiredDuration = (modalidad === MODALIDADES.INDIVIDUAL) ? 30 : 90;
+
+    const libres = agendaForDay.filter(slot => {
+        return slot.type !== 'DESCANSO' &&
+               availabilityService._isSlotCompatible(slot, modalidad, requiredDuration) &&
+               !availabilityService._isSlotOccupied(slot, occupiedSlots);
+      }).map(s => ({
+        hora: formatearHora_(s.startDateTime),
+        label: `${formatearHora_(s.startDateTime)} (${s.type})`
+      }));
+
+    if (libres.length > 0) {
+      diasConSlots.push({
+        fechaISO: formatearFechaISOInput_(currentDay),
+        fechaLabel: formatearFecha_(currentDay) + " (" + convertirDiaSemanaATexto_(currentDay) + ")",
+        slots: libres
+      });
+    }
+    
+    currentDay = sumarDiasNaturales_(currentDay, 1);
+    diasBuscados++;
+  }
+
+  return diasConSlots;
 }
 
 function obtenerSesionesPendientesIndividualFormulario(pacienteId) {
