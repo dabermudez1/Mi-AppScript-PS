@@ -81,23 +81,25 @@
               
               <!-- Información del Slot (siempre visible) -->
               <div>
-                <p class="text-[10px] font-bold text-gray-800" x-text="slot.time"></p>
-                <p class="text-[10px] font-semibold" :class="{
+                <p class="text-[10px] font-bold text-gray-800">
+                  <span x-text="slot.time"></span>
+                  <span class="font-semibold" :class="{
                   'text-green-800': slot.templateType.includes('SEGUIMIENTO') || slot.templateType.includes('2.2'),
                   'text-blue-800': slot.templateType.includes('PRIMERA') || slot.templateType.includes('2.1'),
                   'text-purple-800': slot.templateType.includes('GRUPO'),
                   'text-gray-500': slot.status === 'TEMPLATE_REST',
                   'text-red-800': slot.status === 'MISMATCH'
-                }" x-text="slot.templateType"></p>
+                  }" x-text="` ${slot.templateType}`"></span>
+                </p>
               </div>
 
               <!-- Contenido del Slot (Libre u Ocupado) -->
               <div class="flex-grow flex items-center justify-center">
                 <template x-if="slot.status === 'OCCUPIED'">
-                  <div class="text-center">
-                    <p class="text-[11px] text-gray-700 font-bold truncate flex items-center">
-                      <span x-text="getEmojiForStatus(slot.sessionStatus)" class="mr-1"></span>
-                      <span x-text="slot.occupiedBy"></span>
+                  <div class="text-left w-full">
+                    <p class="text-[11px] text-gray-700 font-bold truncate">
+                      <span x-text="getEmojiForStatus(slot.sessionStatus)"></span>
+                      <span x-text="` ${slot.occupiedBy} - ${slot.sessionModality} (${slot.templateType})`"></span>
                     </p>
                     <p class="text-[9px] text-gray-500">
                       <span x-text="`S${slot.sessionNumber || '-'}`"></span>
