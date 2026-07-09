@@ -73,8 +73,9 @@
               <p class="text-xs italic text-gray-400 text-center">Sin plantilla</p>
             </div>
           </template>
-          <template x-for="slot in getProcessedSlots(day.slots)" :key="slot.time">
-            <div class="relative p-1.5 rounded-md border transition-opacity duration-300" 
+          <template x-for="(slot, index) in getProcessedSlots(day.slots)" :key="slot.time">
+            <div x-show="!slot.isHidden" 
+                 class="p-1.5 rounded-md border transition-opacity duration-300" 
                  :class="getSlotClasses(slot)" 
                  :style="`min-height: ${slot.span * 40}px`"
                  :title="getSlotTitle(slot)">
@@ -90,19 +91,24 @@
                   'text-red-800': slot.status === 'MISMATCH'
                 }" x-text="slot.templateType"></p>
 
-                <!-- Renderizar sub-slots ocupados -->
-                <template x-if="slot.status === 'PARTIALLY_OCCUPIED' || slot.status === 'OCCUPIED'">
-                  <template x-for="occupied in slot.occupiedSlots" :key="occupied.time">
-                    <div x-html="renderOccupiedSubSlot(occupied)"></div>
-                  </template>
+                <template x-if="slot.status === 'OCCUPIED'">
+                  <div class="mt-1 flex-grow flex flex-col justify-center">
+                    <p class="text-[11px] text-gray-700 font-bold truncate flex items-center">
+                      <span x-text="getEmojiForStatus(slot.sessionStatus)" class="mr-1"></span>
+                      <span x-text="slot.occupiedBy"></span>
+                    </p>
+                    <p class="text-[9px] text-gray-500 pl-4">
+                      <span x-text="`S${slot.sessionNumber || '-'}`"></span>
+                    </p>
+                  </div>
                 </template>
 
-                <!-- Mostrar 'Libre' solo si no está totalmente ocupado -->
-                <template x-if="slot.status === 'FREE' || slot.status === 'PARTIALLY_OCCUPIED'">
+                <template x-if="slot.status === 'FREE'">
                    <div class="mt-1 flex-grow flex items-center justify-center">
                     <span class="text-xs font-bold text-green-600">Libre</span>
                   </div>
                 </template>
+
               </template>
             </div>
           </template>
@@ -212,56 +218,76 @@
          * Procesa los slots para agruparlos visualmente y calcular expansiones.
          * Esta es la nueva lógica de agrupación.
          */
-        getProcessedSlots(slots) {
-          if (!slots) return [];
-          const processed = JSON.parse(JSON.stringify(slots)); // Deep copy
+         getProcessedSlots(slots) {
+           if (!slots) return [];
+           const baseSlots = JSON.parse(JSON.stringify(slots));
+           const finalSlots = [];
+ 
+           let i = 0;
+           while (i < baseSlots.length) {
+             const currentSlot = baseSlots[i];
+             const type = String(currentSlot.templateType || '').toUpperCase();
+ 
+             let span = 1;
+             let groupType = currentSlot.templateType;
+ 
+             // --- CAPA 1: Identificar el bloque potencial y su tamaño ---
+             if (type.includes('GRUPO') && i + 2 < baseSlots.length &&
+                 String(baseSlots[i + 1].templateType).toUpperCase().includes('GRUPO') &&
+                 String(baseSlots[i + 2].templateType).toUpperCase().includes('GRUPO')) {
+               span = 3;
+               groupType = 'GRUPO (90 min)';
+             } else if ((type === 'PRIMERA' || type === '2.1') && i + 1 < baseSlots.length &&
+                        (String(baseSlots[i + 1].templateType).toUpperCase() === 'PRIMERA' || String(baseSlots[i + 1].templateType).toUpperCase() === '2.1')) {
+               span = 2;
+               groupType = 'PRIMERA (60 min)';
+             }
+ 
+             // --- Crear el bloque maestro ---
+             const masterSlot = {
+               ...currentSlot,
+               span: span,
+               templateType: groupType,
+               occupiedSlots: []
+             };
+ 
+             // --- CAPA 2: Superponer las sesiones ocupadas ---
+             let occupiedCount = 0;
+             for (let j = 0; j < span; j++) {
+               const subSlot = baseSlots[i + j];
+               if (subSlot && subSlot.status === 'OCCUPIED') {
+                 masterSlot.occupiedSlots.push({
+                   ...subSlot,
+                   offset: j
+                 });
+                 occupiedCount++;
+               }
+             }
+ 
+             // Determinar el estado final del bloque maestro
+             if (occupiedCount === 0) masterSlot.status = 'FREE';
+             else if (occupiedCount === span) masterSlot.status = 'OCCUPIED';
+             else masterSlot.status = 'PARTIALLY_OCCUPIED';
+ 
+             finalSlots.push(masterSlot);
+             i += span; // Avanzar el índice por el tamaño del bloque, esté ocupado o no
+           }
+           return finalSlots;
+         },
 
-          for (let i = 0; i < processed.length; i++) {
-            const slot = processed[i];
-            if (slot.isHidden) continue; // Ya fue procesado por una agrupación anterior
-
-            slot.span = 1; // Por defecto, cada slot ocupa 1 bloque
-
-            // Lógica para sesiones OCUPADAS (se expanden según su duración real)
-            if (slot.status === 'OCCUPIED') {
-              const slotsToSpan = Math.ceil((slot.durationMinutes || 30) / 30);
-              if (slotsToSpan > 1) {
-                slot.span = slotsToSpan;
-                for (let j = 1; j < slotsToSpan; j++) if (i + j < processed.length) processed[i + j].isHidden = true;
-              }
-              continue; // Pasar al siguiente slot
-            }
-
-            // Lógica para slots LIBRES (intentamos agruparlos)
-            if (slot.status === 'FREE') {
-              const type = String(slot.templateType || '').toUpperCase();
-
-              // Intentar agrupar para GRUPO (90 min)
-              if (type.includes('GRUPO') && i + 2 < processed.length &&
-                  processed[i + 1].status === 'FREE' && String(processed[i + 1].templateType).toUpperCase().includes('GRUPO') &&
-                  processed[i + 2].status === 'FREE' && String(processed[i + 2].templateType).toUpperCase().includes('GRUPO')) {
-                
-                slot.span = 3;
-                slot.templateType = 'GRUPO (90 min)'; // Etiqueta agrupada
-                processed[i + 1].isHidden = true;
-                processed[i + 2].isHidden = true;
-                i += 2; // Avanzar el índice para saltar los slots ya agrupados
-                continue;
-              }
-
-              // Intentar agrupar para PRIMERA (60 min)
-              if ((type === 'PRIMERA' || type === '2.1') && i + 1 < processed.length &&
-                  processed[i + 1].status === 'FREE' && (String(processed[i + 1].templateType).toUpperCase() === 'PRIMERA' || String(processed[i + 1].templateType).toUpperCase() === '2.1')) {
-                
-                slot.span = 2;
-                slot.templateType = 'PRIMERA (60 min)'; // Etiqueta agrupada
-                processed[i + 1].isHidden = true;
-                i += 1; // Avanzar el índice
-                continue;
-              }
-            }
-          }
-          return processed;
+        // Función para renderizar los sub-slots ocupados dentro de un bloque parcialmente ocupado
+        renderOccupiedSubSlot(subSlot) {
+          return `
+            <div class="absolute w-full bg-gray-200 border border-gray-500 rounded p-1 z-10" 
+                 style="height: 38px; top: ${subSlot.offset * 40 + 1}px;"
+                 title="Ocupado por: ${subSlot.occupiedBy}">
+              <p class="text-[10px] text-gray-700 font-bold truncate flex items-center">
+                <span class="mr-1">${this.getEmojiForStatus(subSlot.sessionStatus)}</span>
+                <span>${subSlot.occupiedBy}</span>
+              </p>
+              <p class="text-[9px] text-gray-500 pl-4">S${subSlot.sessionNumber || '-'}</p>
+            </div>
+          `;
         },
 
         isSlotHighlighted(slot) {
