@@ -126,8 +126,18 @@ class AvailabilityService {
    * @returns {boolean} True si es compatible, false en caso contrario.
    */
   _isSlotCompatible(agendaSlot, sessionType, requiredDurationMinutes) {
+    // --- CORRECCIÓN CRÍTICA ---
+    // El parámetro 'sessionType' a veces recibe una Modalidad ('INDIVIDUAL', 'GRUPO_1') en lugar 
+    // de un Tipo de Sesión ('SEGUIMIENTO', 'GRUPO'). Normalizamos esto primero.
+    let searchType = String(sessionType || '').trim().toUpperCase();
+    if (searchType.startsWith('GRUPO')) {
+      searchType = 'GRUPO';
+    } else if (searchType === 'INDIVIDUAL') {
+      searchType = 'SEGUIMIENTO';
+    }
+
     const normalizedTemplateType = this._normalizeTypeForCompatibility(agendaSlot.type);
-    const normalizedSearchType = this._normalizeTypeForCompatibility(sessionType);
+    const normalizedSearchType = this._normalizeTypeForCompatibility(searchType);
 
     // Reglas de compatibilidad de tipo de slot
     if (normalizedTemplateType === 'DESCANSO' || normalizedTemplateType === '') return false;
