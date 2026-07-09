@@ -402,7 +402,9 @@ class AvailabilityService {
               if (isGroup) {
                 const ciclo = ciclosMap.get(firstSession.CicloID);
                 const capacidad = ciclo ? ciclo.CapacidadMaxima : '?';
-                slotState.occupiedBy = `${firstSession.Modalidad} (${occupyingSessions.length}/${capacidad})`;
+                const numeroCiclo = ciclo ? ciclo.NumeroCiclo : '?';
+                const abrevModalidad = firstSession.Modalidad.replace('GRUPO_', 'G');
+                slotState.occupiedBy = `${abrevModalidad}-Cic${numeroCiclo} (${occupyingSessions.length}/${capacidad})`;
               } else {
                 slotState.occupiedBy = firstSession.NombrePaciente || 'N/A';
               }
