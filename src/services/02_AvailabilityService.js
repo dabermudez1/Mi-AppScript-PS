@@ -12,21 +12,20 @@ class AvailabilityService {
   /**
    * Encuentra el siguiente slot disponible compatible con la modalidad y duración requerida.
    * @param {Date} startSearchDateTime - Fecha y hora a partir de la cual empezar a buscar.
-   * @param {string} modality - Modalidad del paciente (ej. INDIVIDUAL, GRUPO_1).
-   * @param {string} sessionType - Tipo de sesión a buscar (ej. 'PRIMERA', 'SEGUIMIENTO').
+   * @param {string} modality - Modalidad del paciente (ej. INDIVIDUAL, GRUPO_1).   
    * @param {number} [requiredDurationMinutes] - Duración requerida. Si no se pasa, se deduce de la modalidad.
-   * @param {string} [ignoreCicloId] - ID del ciclo cuyas sesiones deben ignorarse (para reprogramación).
+   * @param {string} [sessionType='SEGUIMIENTO'] - El tipo de sesión a buscar ('PRIMERA', 'SEGUIMIENTO').
+   * @param {string} [ignoreSessionId] - ID de la sesión a ignorar en la búsqueda de ocupación.
    * @returns {AgendaSlot|null} El primer slot disponible encontrado, o null si no hay.
    */
-  findNextAvailableSlot(startSearchDateTime, modality, sessionType, requiredDurationMinutes = null, ignoreCicloId = null) {
+  findNextAvailableSlot(startSearchDateTime, modality, sessionType = 'SEGUIMIENTO', requiredDurationMinutes = null, ignoreSessionId = null) {
     // Aseguramos que empezamos a buscar con la hora correcta
     let currentDateTime = new Date(startSearchDateTime.getTime());
 
     // --- NUEVA LÓGICA ---
     // Si no se especifica una duración, la deducimos de la modalidad para evitar errores.
     if (!requiredDurationMinutes) {
-      const tipoModalidad = modality.startsWith('GRUPO') ? 'GRUPO' : 'INDIVIDUAL';
-      requiredDurationMinutes = this.agendaService._getSlotDuration(tipoModalidad === 'GRUPO' ? 'SEGUIMIENTO/GRUPO' : 'SEGUIMIENTO');
+      requiredDurationMinutes = this.agendaService._getSlotDuration(sessionType);
     }
     // --- FIN NUEVA LÓGICA ---
 
@@ -50,9 +49,9 @@ class AvailabilityService {
     const hasTemplate = this.agendaService.getWeeklyTemplate().some(s => {
       // Mapeamos el slot de la plantilla al formato que espera _isSlotCompatible
       return this._isSlotCompatible({
-        type: s.TipoSlot,
+        type: this._normalizeTypeForCompatibility(s.TipoSlot),
         durationMinutes: this.agendaService._getSlotDuration(s.TipoSlot)
-      }, modality, sessionType, requiredDurationMinutes);
+      }, modality, requiredDurationMinutes);
     });
     if (!hasTemplate) throw new Error(`No hay slots de tipo ${modality} configurados en la 'Plantilla de Agenda'.`);
 
@@ -85,7 +84,7 @@ class AvailabilityService {
       
       // Filtramos sesiones del día, ignorando las del ciclo actual si se solicita
       const sessionsForDay = (sessionsMap[obtenerClaveFecha_(currentDateTime)] || []).filter(s => 
-        !ignoreCicloId || String(s.CicloID) !== String(ignoreCicloId)
+        !ignoreSessionId || String(s.SesionID) !== String(ignoreSessionId)
       );
 
       // Obtener slots ocupados por sesiones existentes
@@ -95,7 +94,7 @@ class AvailabilityService {
         // Si el slot de la agenda ya pasó la hora de inicio de búsqueda, o es el mismo slot
         if (agendaSlot.startDateTime.getTime() >= currentDateTime.getTime()) {
           // Verificar si el slot es compatible con la modalidad y duración
-          if (this._isSlotCompatible(agendaSlot, modality, sessionType, requiredDurationMinutes)) {
+          if (this._isSlotCompatible(agendaSlot, sessionType, requiredDurationMinutes)) {
             // Verificar si el slot está ocupado por una sesión existente
             if (!this._isSlotOccupied(agendaSlot, occupiedSlots)) {
               // Verificar si el día está completamente bloqueado (ej. por DIAS_BLOQUEADOS)
@@ -111,14 +110,8 @@ class AvailabilityService {
 
       // Si no se encontró slot en el día actual, avanzar al siguiente día a la primera hora de la plantilla
       currentDateTime = sumarDiasNaturales_(currentDateTime, 1);
-      // Establecer la hora de inicio del día a la primera hora de la plantilla si existe
-      const nextDayTemplate = this.agendaService.getAgendaForDay(currentDateTime);
-      if (nextDayTemplate.length > 0) {
-        currentDateTime = normalizarFechaHora_(currentDateTime, formatearHora_(nextDayTemplate[0].startDateTime));
-      } else {
-        // Si el siguiente día no tiene plantilla, simplemente ir a medianoche
-        currentDateTime = normalizarFechaHora_(currentDateTime, '00:00');
-      }
+      // CORRECCIÓN: Reiniciar siempre a medianoche para escanear el día completo.
+      currentDateTime = normalizarFechaHora_(currentDateTime, '00:00');
     }
 
     return null; // No se encontró ningún slot disponible
@@ -126,35 +119,45 @@ class AvailabilityService {
 
   /**
    * Determina si un slot de la agenda es compatible con una modalidad y duración requerida.
+   * @private
    * @param {AgendaSlot} agendaSlot - El slot de la agenda.
-   * @param {string} modality - La modalidad del paciente.
-   * @param {string} sessionType - El tipo de sesión ('PRIMERA', 'SEGUIMIENTO').
+   * @param {string} sessionType - El tipo de sesión a buscar ('PRIMERA', 'SEGUIMIENTO', 'GRUPO').
    * @param {number} requiredDurationMinutes - Duración requerida.
    * @returns {boolean} True si es compatible, false en caso contrario.
    */
-  _isSlotCompatible(agendaSlot, modality, sessionType, requiredDurationMinutes) {
-    const slotType = String(agendaSlot.type || '').trim().toUpperCase();
-    const mod = String(modality || '').trim().toUpperCase();
-    const sessType = String(sessionType || '').trim().toUpperCase();
+  _isSlotCompatible(agendaSlot, sessionType, requiredDurationMinutes) {
+    const normalizedTemplateType = this._normalizeTypeForCompatibility(agendaSlot.type);
+    const normalizedSearchType = this._normalizeTypeForCompatibility(sessionType);
 
     // Reglas de compatibilidad de tipo de slot
-    if (slotType === 'DESCANSO' || slotType === '') return false;
+    if (normalizedTemplateType === 'DESCANSO' || normalizedTemplateType === '') return false;
 
-    if (mod === 'INDIVIDUAL') {
-      if (sessType === 'PRIMERA') {
-        // Una PRIMERA solo puede ir en un slot de PRIMERA
-        if (slotType !== '2.1' && slotType !== 'PRIMERA') return false;
-      } else { // Por defecto, asumimos SEGUIMIENTO
-        // Un SEGUIMIENTO solo puede ir en un slot de SEGUIMIENTO
-        if (slotType !== '2.2' && slotType !== 'SEGUIMIENTO') return false;
-      }
-    } else if (mod.startsWith('GRUPO')) {
-      // Un ciclo (ej. GRUPO_1) puede usar slots específicos o el genérico 'GRUPO'
-      const tiposValidos = [mod, 'GRUPO', '2.2/GRUPO', 'SEGUIMIENTO/GRUPO'];
-      if (!tiposValidos.includes(slotType)) return false;
-    } else {
-      // Otras modalidades no soportadas por la generación automática
-      return false;
+    switch (searchType) {
+      case 'SEGUIMIENTO':
+        // Una sesión de seguimiento individual puede ir en un slot de SEGUIMIENTO o en uno de PRIMERA.
+        if (normalizedSlotType !== 'SEGUIMIENTO' && normalizedSlotType !== 'PRIMERA') {
+          return false;
+        }
+        break;
+      
+      case 'PRIMERA':
+        // Una primera consulta solo puede ir en un slot de PRIMERA.
+        if (normalizedSlotType !== 'PRIMERA') {
+          return false;
+        }
+        break;
+
+      case 'GRUPO':
+      case 'SEGUIMIENTO/GRUPO':
+        // Una sesión de grupo solo puede ir en un slot de GRUPO.
+        if (normalizedSlotType !== 'SEGUIMIENTO/GRUPO') {
+          return false;
+        }
+        break;
+
+      default:
+        // Tipo de búsqueda no reconocido.
+        return false;
     }
 
     // Reglas de compatibilidad de duración
@@ -163,6 +166,7 @@ class AvailabilityService {
 
   /**
    * Obtiene una lista de rangos de tiempo ocupados por sesiones existentes.
+   * @private
    * @param {Array<Object>} sessions - Lista de objetos de sesión.
    * @returns {Array<{start: Date, end: Date}>} Rangos de tiempo ocupados.
    */
@@ -194,6 +198,7 @@ class AvailabilityService {
 
   /**
    * Verifica si un slot de la agenda se solapa con algún slot ocupado.
+   * @private
    * @param {AgendaSlot} agendaSlot - El slot de la agenda a verificar.
    * @param {Array<{start: Date, end: Date}>} occupiedSlots - Lista de slots ya ocupados.
    * @returns {boolean} True si el slot está ocupado, false en caso contrario.
@@ -287,6 +292,21 @@ class AvailabilityService {
       '2.1/RESERVA': '2.1 (Reservado)' // Nuevo mapeo para reservas 2.1
     };
     return map[type] || type;
+  }
+
+  /**
+   * Normaliza los diferentes alias de tipos de slot a un estándar para la lógica interna.
+   * @private
+   */
+  _normalizeTypeForCompatibility(type) {
+    const t = String(type || '').trim().toUpperCase();
+    switch (t) {
+      case '2.1': case 'PRIMERA': return 'PRIMERA';
+      case '2.2': case 'SEGUIMIENTO': return 'SEGUIMIENTO';
+      case '2.2/GRUPO': case 'SEGUIMIENTO/GRUPO': case 'GRUPO': return 'SEGUIMIENTO/GRUPO';
+      case 'DESCANSO': return 'DESCANSO';
+      default: return t;
+    }
   }
 
   /**

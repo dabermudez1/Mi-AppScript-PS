@@ -372,7 +372,7 @@ function generarSesionesPacienteIndividual_(pacienteId, fechaHoraPrimeraSesion) 
       nextSlot = availabilityService.findNextAvailableSlot(
         currentSearchDateTime,
         paciente.ModalidadSolicitada,
-        'SEGUIMIENTO', // Especificamos que buscamos un slot de SEGUIMIENTO
+        'SEGUIMIENTO', // sessionType
         duracionSlot
       );
     }
