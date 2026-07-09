@@ -27,27 +27,12 @@
         <p class="text-lg font-semibold text-indigo-600" x-text="weekOfMonthLabel"></p>
         <p class="text-sm text-gray-500" x-text="`Semana del ${weekData[0]?.dateLabel || ''} al ${weekData[6]?.dateLabel || ''}`"></p>
       </div>
-      <!-- Navegación por Mes -->
+      <!-- Navegación por Fecha -->
       <div class="flex items-center space-x-2 mr-4">
         <span class="text-sm font-medium text-gray-600">Navegar a:</span>
-        <select x-model="selectedMonth" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Mes">
-          <template x-for="(month, index) in months" :key="index">
-            <option :value="index" x-text="month"></option>
-          </template>
-        </select>
-        <select x-model="selectedWeek" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Semana">
-          <option value="1">Semana 1</option>
-          <option value="2">Semana 2</option>
-          <option value="3">Semana 3</option>
-          <option value="4">Semana 4</option>
-          <option value="5">Semana 5</option>
-        </select>
-        <select x-model="selectedYear" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Año">
-          <template x-for="year in years" :key="year">
-            <option :value="year" x-text="year"></option>
-          </template>
-        </select>
-        <button @click="jumpToDate()" class="px-4 py-1.5 bg-indigo-600 text-white border border-transparent rounded-md shadow-sm text-sm font-medium hover:bg-indigo-700">Ir</button>
+        <input type="date" x-model="jumpDate" @change="jumpToSelectedDate()" 
+               class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+               title="Seleccionar fecha">
       </div>
       <!-- Filtros -->
       <div class="flex items-center space-x-2 mr-4">
@@ -146,21 +131,13 @@
         weekData: [],
         weekOfMonthLabel: '',
         filter: null, // 'INDIVIDUAL', 'GRUPO', o null
-        selectedMonth: 6, // Julio por defecto
-        selectedYear: 2026, // Año 2026 por defecto
-        selectedWeek: 1,
-        months: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
-        years: [],
+        jumpDate: new Date().toISOString().split('T')[0], // Para el input[type=date]
 
         init() {
-          const today = new Date(); // Usamos la fecha actual para pre-seleccionar la semana
-          this.selectedMonth = 6; // Julio
-          this.selectedYear = 2026;
-          // Generamos un rango de años desde 2026 en adelante
-          this.years = Array.from({length: 10}, (_, i) => 2026 + i); 
-          this.selectedWeek = Math.ceil(today.getDate() / 7);
-
           this.loadWeekData();
+        },
+        formatDateForInput(date) {
+            return date.toISOString().split('T')[0];
         },
 
         loadWeekData() {
@@ -169,7 +146,7 @@
           
           google.script.run
             .withSuccessHandler(response => {
-              this.updateCurrentDateFromResponse(response.weekData);
+              this.jumpDate = this.formatDateForInput(this.currentDate);
               this.updateWeekOfMonthLabel(response.weekData);
               this.weekData = response.weekData;
               this.loading = false;
@@ -190,9 +167,9 @@
           this.loadWeekData();
         },
 
-        jumpToDate() {
-          const dayOfMonth = (this.selectedWeek - 1) * 7 + 1;
-          this.currentDate = new Date(this.selectedYear, this.selectedMonth, dayOfMonth);
+        jumpToSelectedDate() {
+          if (!this.jumpDate) return;
+          this.currentDate = new Date(this.jumpDate + 'T00:00:00'); // Asegurar que se interpreta en la zona horaria local
           this.loadWeekData();
         },
 
@@ -299,16 +276,6 @@
           }
         },
 
-        updateCurrentDateFromResponse(weekData) {
-          if (!weekData || weekData.length === 0) return;
-          const firstDayStr = weekData[0].dateLabel; // "DD/MM/YYYY"
-          const parts = firstDayStr.split('/');
-          const date = new Date(parts[2], parts[1] - 1, parts[0]);
-          this.selectedMonth = date.getMonth();
-          this.selectedYear = date.getFullYear();
-          this.selectedWeek = Math.ceil(date.getDate() / 7);
-        },
-
         updateWeekOfMonthLabel(weekData) {
             if (!weekData || weekData.length === 0) {
                 this.weekOfMonthLabel = '';
@@ -318,7 +285,7 @@
             const parts = firstDayStr.split('/');
             const date = new Date(parts[2], parts[1] - 1, parts[0]);
             
-            const weekNumber = Math.ceil(date.getDate() / 7);
+            const weekNumber = Math.ceil((date.getDate() + (date.getDay() === 0 ? 6 : date.getDay() - 1)) / 7);
             const monthName = this.months[date.getMonth()];
             this.weekOfMonthLabel = `Semana ${weekNumber} de ${monthName}`;
         },
