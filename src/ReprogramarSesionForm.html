@@ -197,11 +197,17 @@
     fechaActual.value = '';
     sesionesPendientesIndividual = [];
 
-    if (!pacienteId) return;
+    // --- CORRECCIÓN CLAVE ---
+    // Si no hay pacienteId, debemos ejecutar el callback igualmente para desbloquear la UI.
+    if (!pacienteId) {
+      if (typeof callback === 'function') callback();
+      return;
+    }
 
     google.script.run
       .withSuccessHandler(function(lista) {
         sesionesPendientesIndividual = lista;
+        select.innerHTML = ''; // Limpiar justo antes de renderizar
 
         const placeholder = document.createElement('option');
         placeholder.value = '';
@@ -234,12 +240,18 @@
     fechaActual.value = '';
     sesionesPendientesGrupo = [];
 
-    if (!cicloId) return;
+    // --- CORRECCIÓN CLAVE ---
+    // Si no hay cicloId, debemos ejecutar el callback igualmente para desbloquear la UI.
+    if (!cicloId) {
+      if (typeof callback === 'function') callback();
+      return;
+    }
 
     google.script.run
       .withSuccessHandler(function(lista) {
         sesionesPendientesGrupo = lista;
-
+        select.innerHTML = ''; // Limpiar justo antes de renderizar
+        
         const placeholder = document.createElement('option');
         placeholder.value = '';
         placeholder.textContent = '-- Selecciona una sesión pendiente --';
@@ -333,6 +345,12 @@
 
     notificationArea.className = 'notification success';
     notificationArea.innerHTML = detailHtml;
+
+    // Limpiar campos de selección de nueva fecha/hora para indicar que la acción terminó
+    document.getElementById('fecha').value = '';
+    const selectHora = document.getElementById('hora');
+    selectHora.innerHTML = '<option value="">-- Selecciona una fecha primero --</option>';
+    document.getElementById('statusSlots').textContent = '';
 
     // --- CORRECCIÓN CLAVE ---
     // La reactivación del botón ahora se pasa como un callback que se ejecutará
