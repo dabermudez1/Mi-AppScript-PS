@@ -73,14 +73,14 @@
               <p class="text-xs italic text-gray-400 text-center">Sin plantilla</p>
             </div>
           </template>
-          <template x-for="slot in getProcessedSlots(day.slots)" :key="slot.time">
-            <div class="relative rounded-md border"
+          <!-- --- REFACTOR: Iterar directamente sobre los slots de 30 min, sin procesado --- -->
+          <template x-for="slot in day.slots" :key="slot.time">
+            <div class="h-16 p-1.5 rounded-md border flex flex-col"
                  :class="getSlotClasses(slot)" 
-                 :style="`height: ${slot.span * 40}px`"
                  :title="getSlotTitle(slot)">
               
-              <!-- Header (time and template type) -->
-              <div class="absolute top-0 left-0 right-0 px-1.5 pt-1 z-20">
+              <!-- Información del Slot (siempre visible) -->
+              <div>
                 <p class="text-[10px] font-bold text-gray-800" x-text="slot.time"></p>
                 <p class="text-[10px] font-semibold" :class="{
                   'text-green-800': slot.templateType.includes('SEGUIMIENTO') || slot.templateType.includes('2.2'),
@@ -91,19 +91,21 @@
                 }" x-text="slot.templateType"></p>
               </div>
 
-              <!-- Content Area (starts below the header) -->
-              <div class="absolute top-[28px] bottom-0 left-0 right-0 px-1.5 pb-1.5">
-                <div class="relative h-full w-full">
-                <template x-if="slot.status === 'PARTIALLY_OCCUPIED' || slot.status === 'OCCUPIED'">
-                  <template x-for="occupied in slot.occupiedSlots" :key="occupied.time">
-                    <div x-html="renderOccupiedSubSlot(occupied)"></div>
-                  </template>
-                </template>
-
-                <template x-if="slot.status === 'FREE'">
-                    <div class="h-full flex items-center justify-center">
-                    <span class="text-xs font-bold text-green-600">Libre</span>
+              <!-- Contenido del Slot (Libre u Ocupado) -->
+              <div class="flex-grow flex items-center justify-center">
+                <template x-if="slot.status === 'OCCUPIED'">
+                  <div class="text-center">
+                    <p class="text-[11px] text-gray-700 font-bold truncate flex items-center">
+                      <span x-text="getEmojiForStatus(slot.sessionStatus)" class="mr-1"></span>
+                      <span x-text="slot.occupiedBy"></span>
+                    </p>
+                    <p class="text-[9px] text-gray-500">
+                      <span x-text="`S${slot.sessionNumber || '-'}`"></span>
+                    </p>
                   </div>
+                </template>
+                <template x-if="slot.status === 'FREE'">
+                  <span class="text-xs font-bold text-green-600">Libre</span>
                 </template>
                 </div>
               </div>
@@ -209,82 +211,6 @@
             ...classes,
             'opacity-30': this.filter && !this.isSlotHighlighted(slot)
           };
-        },
-
-        /**
-         * Procesa los slots para agruparlos visualmente y calcular expansiones.
-         * Esta es la nueva lógica de agrupación.
-         */
-         getProcessedSlots(slots) {
-           if (!slots) return [];
-           const baseSlots = JSON.parse(JSON.stringify(slots));
-           const finalSlots = [];
- 
-           let i = 0;
-           while (i < baseSlots.length) {
-             const currentSlot = baseSlots[i];
-             const type = String(currentSlot.templateType || '').toUpperCase();
- 
-             let span = 1;
-             let groupType = currentSlot.templateType;
- 
-             // --- CAPA 1: Identificar el bloque potencial y su tamaño ---
-             if (type.includes('GRUPO') && i + 2 < baseSlots.length &&
-                 String(baseSlots[i + 1].templateType).toUpperCase().includes('GRUPO') &&
-                 String(baseSlots[i + 2].templateType).toUpperCase().includes('GRUPO')) {
-               span = 3;
-               groupType = 'GRUPO (90 min)';
-             } else if ((type === 'PRIMERA' || type === '2.1') && i + 1 < baseSlots.length &&
-                        (String(baseSlots[i + 1].templateType).toUpperCase() === 'PRIMERA' || String(baseSlots[i + 1].templateType).toUpperCase() === '2.1')) {
-               span = 2;
-               groupType = 'PRIMERA (60 min)';
-             }
- 
-             // --- Crear el bloque maestro ---
-             const masterSlot = {
-               ...currentSlot,
-               span: span,
-               templateType: groupType,
-               occupiedSlots: []
-             };
- 
-             // --- CAPA 2: Superponer las sesiones ocupadas ---
-             let occupiedCount = 0;
-             for (let j = 0; j < span; j++) {
-               const subSlot = baseSlots[i + j];
-               if (subSlot && subSlot.status === 'OCCUPIED') {
-                 masterSlot.occupiedSlots.push({
-                   ...subSlot,
-                   offset: j
-                 });
-                 occupiedCount++;
-               }
-             }
- 
-             // Determinar el estado final del bloque maestro
-             if (occupiedCount === 0) masterSlot.status = 'FREE';
-             else if (occupiedCount === span) masterSlot.status = 'OCCUPIED';
-             else masterSlot.status = 'PARTIALLY_OCCUPIED';
- 
-             finalSlots.push(masterSlot);
-             i += span; // Avanzar el índice por el tamaño del bloque, esté ocupado o no
-           }
-           return finalSlots;
-         },
-
-        // Función para renderizar los sub-slots ocupados dentro de un bloque parcialmente ocupado
-        renderOccupiedSubSlot(subSlot) {
-          return `
-            <div class="absolute bg-gray-200 border border-gray-500 rounded p-1"
-                 style="height: 38px; top: ${subSlot.offset * 40}px; left: 0; right: 0; z-index: 10;"
-                 title="Ocupado por: ${subSlot.occupiedBy}">
-              <p class="text-[10px] text-gray-700 font-bold truncate flex items-center">
-                <span class="mr-1">${this.getEmojiForStatus(subSlot.sessionStatus)}</span>
-                <span>${subSlot.occupiedBy}</span>
-              </p>
-              <p class="text-[9px] text-gray-500 pl-4">S${subSlot.sessionNumber || '-'}</p>
-            </div>
-          `;
         },
 
         isSlotHighlighted(slot) {
