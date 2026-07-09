@@ -74,13 +74,13 @@
             </div>
           </template>
           <template x-for="slot in getProcessedSlots(day.slots)" :key="slot.time">
-            <div class="relative flex flex-col rounded-md border transition-opacity duration-300"
+            <div class="relative rounded-md border"
                  :class="getSlotClasses(slot)" 
                  :style="`height: ${slot.span * 40}px`"
                  :title="getSlotTitle(slot)">
               
               <!-- Header (time and template type) -->
-              <div class="flex-shrink-0 px-1.5 pt-1 pb-0.5">
+              <div class="absolute top-0 left-0 right-0 px-1.5 pt-1 z-20">
                 <p class="text-[10px] font-bold text-gray-800" x-text="slot.time"></p>
                 <p class="text-[10px] font-semibold" :class="{
                   'text-green-800': slot.templateType.includes('SEGUIMIENTO') || slot.templateType.includes('2.2'),
@@ -91,20 +91,21 @@
                 }" x-text="slot.templateType"></p>
               </div>
 
-              <!-- Content area for occupied sub-slots and "Libre" text -->
-              <div class="relative flex-grow overflow-hidden px-1.5 pb-1.5"> <!-- Add padding to content area -->
+              <!-- Content Area (starts below the header) -->
+              <div class="absolute top-[28px] bottom-0 left-0 right-0 px-1.5 pb-1.5">
+                <div class="relative h-full w-full">
                 <template x-if="slot.status === 'PARTIALLY_OCCUPIED' || slot.status === 'OCCUPIED'">
                   <template x-for="occupied in slot.occupiedSlots" :key="occupied.time">
                     <div x-html="renderOccupiedSubSlot(occupied)"></div>
                   </template>
                 </template>
 
-                <!-- Mostrar 'Libre' solo si está completamente libre -->
                 <template x-if="slot.status === 'FREE'">
                     <div class="h-full flex items-center justify-center">
                     <span class="text-xs font-bold text-green-600">Libre</span>
                   </div>
                 </template>
+                </div>
               </div>
             </div>
           </template>
@@ -274,8 +275,8 @@
         // Función para renderizar los sub-slots ocupados dentro de un bloque parcialmente ocupado
         renderOccupiedSubSlot(subSlot) {
           return `
-            <div class="absolute bg-gray-200 border border-gray-500 rounded p-1 z-10"
-                 style="height: 38px; top: ${subSlot.offset * 40}px; left: 0; right: 0;"
+            <div class="absolute bg-gray-200 border border-gray-500 rounded p-1"
+                 style="height: 38px; top: ${subSlot.offset * 40}px; left: 0; right: 0; z-index: 10;"
                  title="Ocupado por: ${subSlot.occupiedBy}">
               <p class="text-[10px] text-gray-700 font-bold truncate flex items-center">
                 <span class="mr-1">${this.getEmojiForStatus(subSlot.sessionStatus)}</span>
