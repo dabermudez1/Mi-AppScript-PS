@@ -54,6 +54,8 @@ function guardarReprogramacion(data) {
  * INDIVIDUAL
  ***************/
 function reprogramarSesionIndividual_(data) {
+  const patientRepo = new PatientRepository();
+  const paciente = patientRepo.findById(data.pacienteId);
   const sessionRepo = new SessionRepository();
   const sesionOriginal = sessionRepo.findPendientesByPaciente(data.pacienteId).find(s => Number(s.NumeroSesion) === Number(data.numeroSesion));
   if (!sesionOriginal) throw new Error("No se encontró la sesión original para reprogramar.");
@@ -72,7 +74,7 @@ function reprogramarSesionIndividual_(data) {
     throw new Error(construirMensajeFechaNoOperativa_(nuevaFecha));
   }
 
-  sessionService.rescheduleSession(pacienteId, numeroSesion, nuevaFecha, nuevaHora);
+  const sesionActualizada = sessionService.rescheduleSession(pacienteId, numeroSesion, nuevaFecha, nuevaHora);
 
   new StateService().refreshPatientMetrics(new PatientRepository().findById(pacienteId));
 
@@ -85,13 +87,14 @@ function reprogramarSesionIndividual_(data) {
 
   return {
     mensaje: 'Sesión individual reprogramada correctamente.',
+    pacienteId: pacienteId, // Devolvemos el ID para el refresco
     detalle: {
-      nombre: sesion.NombrePaciente,
-      numeroSesion: sesion.NumeroSesion,
+      nombre: paciente.Nombre,
+      numeroSesion: sesionActualizada.NumeroSesion,
       fechaAnterior: formatearFecha_(sesionOriginal.FechaSesion),
       horaAnterior: formatearHora_(sesionOriginal.HoraInicio),
-      fechaNueva: formatearFecha_(sesion.FechaSesion),
-      horaNueva: formatearHora_(sesion.HoraInicio)
+      fechaNueva: formatearFecha_(sesionActualizada.FechaSesion),
+      horaNueva: formatearHora_(sesionActualizada.HoraInicio)
     }
   };
 }
@@ -221,6 +224,7 @@ function reprogramarSesionGrupo_(data) {
 
   return {
     mensaje: msgResult,
+    cicloId: cicloId, // Devolvemos el ID para el refresco
     detalle: {
       nombre: `Grupo ${ciclo.Modalidad} - Ciclo ${ciclo.NumeroCiclo}`,
       numeroSesion: numeroSesion,

@@ -55,12 +55,12 @@
 
   <div class="field">
     <label>Paciente</label>
-    <select id="paciente" onchange="cargarSesionesPendientesIndividual()"></select>
+    <select id="pacienteId" onchange="cargarSesionesPendientesIndividual(this.value)"></select>
   </div>
 
   <div class="field">
     <label>Sesión pendiente</label>
-    <select id="numeroSesionInd" onchange="mostrarFechaActualIndividual()"></select>
+    <select id="numeroSesion" onchange="mostrarFechaActualIndividual()"></select>
   </div>
 
   <div class="field">
@@ -74,12 +74,12 @@
 
   <div class="field">
     <label>Ciclo</label>
-    <select id="ciclo" onchange="cargarSesionesPendientesGrupo()"></select>
+    <select id="cicloId" onchange="cargarSesionesPendientesGrupo(this.value)"></select>
   </div>
 
   <div class="field">
     <label>Sesión pendiente del grupo</label>
-    <select id="numeroSesionGrp" onchange="mostrarFechaActualGrupo()"></select>
+    <select id="numeroSesion" onchange="mostrarFechaActualGrupo()"></select>
   </div>
 
   <div class="field">
@@ -139,7 +139,7 @@
 
       const pac = document.getElementById('paciente');
       pac.innerHTML = '';
-      data.pacientes.forEach(p => {
+      (data.pacientes || []).forEach(p => {
         let o = document.createElement('option');
         o.value = p.id;
         o.textContent = p.nombre;
@@ -148,7 +148,7 @@
 
       const cic = document.getElementById('ciclo');
       cic.innerHTML = '';
-      data.ciclos.forEach(c => {
+      (data.ciclos || []).forEach(c => {
         let o = document.createElement('option');
         o.value = c.id;
         o.textContent = c.label;
@@ -158,11 +158,11 @@
       cambiarModo();
 
       if (pac.value) {
-        cargarSesionesPendientesIndividual();
+        cargarSesionesPendientesIndividual(pacienteId);
       }
 
       if (cic.value) {
-        cargarSesionesPendientesGrupo();
+        cargarSesionesPendientesGrupo(cicloId);
       }
 
       if (sesionPreseleccionadaId) {
@@ -179,20 +179,20 @@
       document.getElementById('bloqueIndividual').style.display = 'block';
       document.getElementById('bloqueGrupo').style.display = 'none';
       document.getElementById('checkCascada').style.display = 'none';
-      cargarSesionesPendientesIndividual();
+      cargarSesionesPendientesIndividual(document.getElementById('pacienteId').value);
     } else {
       document.getElementById('bloqueIndividual').style.display = 'none';
       document.getElementById('bloqueGrupo').style.display = 'block';
       document.getElementById('checkCascada').style.display = 'block';
-      cargarSesionesPendientesGrupo();
+      cargarSesionesPendientesGrupo(document.getElementById('cicloId').value);
     }
   }
 
-  function cargarSesionesPendientesIndividual() {
-    const pacienteId = document.getElementById('paciente').value;
-    const select = document.getElementById('numeroSesionInd');
+  function cargarSesionesPendientesIndividual(pacienteId) {
+    const select = document.getElementById('numeroSesion');
     const fechaActual = document.getElementById('fechaActualInd');
 
+    // Limpiamos siempre antes de cargar
     select.innerHTML = '';
     fechaActual.value = '';
     sesionesPendientesIndividual = [];
@@ -201,7 +201,7 @@
 
     google.script.run
       .withSuccessHandler(function(lista) {
-        sesionesPendientesIndividual = lista || [];
+        sesionesPendientesIndividual = lista;
 
         const placeholder = document.createElement('option');
         placeholder.value = '';
@@ -223,12 +223,12 @@
       .obtenerSesionesPendientesIndividualFormulario(pacienteId);
   }
 
-  function cargarSesionesPendientesGrupo() {
-    const cicloId = document.getElementById('ciclo').value;
-    const select = document.getElementById('numeroSesionGrp');
+  function cargarSesionesPendientesGrupo(cicloId) {
+    const select = document.getElementById('numeroSesion');
     const fechaActual = document.getElementById('fechaActualGrp');
 
     select.innerHTML = '';
+    // Limpiamos siempre antes de cargar
     fechaActual.value = '';
     sesionesPendientesGrupo = [];
 
@@ -236,7 +236,7 @@
 
     google.script.run
       .withSuccessHandler(function(lista) {
-        sesionesPendientesGrupo = lista || [];
+        sesionesPendientesGrupo = lista;
 
         const placeholder = document.createElement('option');
         placeholder.value = '';
@@ -259,14 +259,14 @@
   }
 
   function mostrarFechaActualIndividual() {
-    const numeroSesion = document.getElementById('numeroSesionInd').value;
+    const numeroSesion = document.getElementById('numeroSesion').value;
     const fechaActual = document.getElementById('fechaActualInd');
 
     const sesion = sesionesPendientesIndividual.find(s => String(s.numeroSesion) === String(numeroSesion));
     fechaActual.value = sesion ? (sesion.fechaActual + (sesion.horaActual ? ' ' + sesion.horaActual : '')) : '';
   }
 
-  function mostrarFechaActualGrupo() {
+  function mostrarFechaActualGrupo(numeroSesion) {
     const numeroSesion = document.getElementById('numeroSesionGrp').value;
     const fechaActual = document.getElementById('fechaActualGrp');
 
@@ -333,15 +333,11 @@
     // Refrescar la lista de sesiones pendientes
     const modalidad = document.getElementById('modalidad').value;
     if (modalidad === 'INDIVIDUAL') {
-      const pacienteId = document.getElementById('paciente').value;
-      if (pacienteId) {
-        cargarSesionesPendientesIndividual();
-      }
+      // Usamos el ID que se envió, es más seguro
+      cargarSesionesPendientesIndividual(response.pacienteId);
     } else {
-      const cicloId = document.getElementById('ciclo').value;
-      if (cicloId) {
-        cargarSesionesPendientesGrupo();
-      }
+      // Usamos el ID que se envió, es más seguro
+      cargarSesionesPendientesGrupo(response.cicloId);
     }
     
     // Habilitar el botón de guardar de nuevo
@@ -366,9 +362,7 @@
     const modalidad = document.getElementById('modalidad').value;
 
     const numeroSesion =
-      modalidad === 'INDIVIDUAL'
-        ? document.getElementById('numeroSesionInd').value
-        : document.getElementById('numeroSesionGrp').value;
+      document.getElementById('numeroSesion').value;
 
     const fecha = document.getElementById('fecha').value;
     const hora = document.getElementById('hora').value;
@@ -395,8 +389,8 @@
 
     const data = {
       modalidad: modalidad,
-      pacienteId: document.getElementById('paciente').value,
-      cicloId: document.getElementById('ciclo').value,
+      pacienteId: document.getElementById('pacienteId').value,
+      cicloId: document.getElementById('cicloId').value,
       numeroSesion: numeroSesion,
       fecha: fecha.split('-').reverse().join('/'),
       hora: hora,
@@ -465,13 +459,13 @@
         cambiarModo();
 
         if (detalle.modalidad === 'INDIVIDUAL') {
-          document.getElementById('paciente').value = detalle.pacienteId;
-          document.getElementById('paciente').disabled = true;
+          document.getElementById('pacienteId').value = detalle.pacienteId;
+          document.getElementById('pacienteId').disabled = true;
 
           google.script.run
             .withSuccessHandler(function(lista) {
               sesionesPendientesIndividual = lista || [];
-              renderSesionesIndividual(lista);
+              renderSesiones(lista);
 
               document.getElementById('numeroSesionInd').value = String(detalle.numeroSesion);
               document.getElementById('numeroSesionInd').disabled = true;
@@ -482,13 +476,13 @@
             })
             .obtenerSesionesPendientesIndividualFormulario(detalle.pacienteId);
         } else {
-          document.getElementById('ciclo').value = detalle.cicloId;
-          document.getElementById('ciclo').disabled = true;
+          document.getElementById('cicloId').value = detalle.cicloId;
+          document.getElementById('cicloId').disabled = true;
 
           google.script.run
             .withSuccessHandler(function(lista) {
               sesionesPendientesGrupo = lista || [];
-              renderSesionesGrupo(lista);
+              renderSesiones(lista);
 
               document.getElementById('numeroSesionGrp').value = String(detalle.numeroSesion);
               document.getElementById('numeroSesionGrp').disabled = true;
@@ -519,25 +513,8 @@
     return partes[2] + '-' + partes[1].padStart(2, '0') + '-' + partes[0].padStart(2, '0');
   }
 
-  function renderSesionesIndividual(lista) {
-    const select = document.getElementById('numeroSesionInd');
-    select.innerHTML = '';
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = '-- Selecciona sesión --';
-    select.appendChild(placeholder);
-
-    (lista || []).forEach(function(s) {
-      const option = document.createElement('option');
-      option.value = String(s.numeroSesion);
-      option.textContent = s.label;
-      select.appendChild(option);
-    });
-  }
-
-  function renderSesionesGrupo(lista) {
-    const select = document.getElementById('numeroSesionGrp');
+  function renderSesiones(lista) {
+    const select = document.getElementById('numeroSesion');
     select.innerHTML = '';
 
     const placeholder = document.createElement('option');
@@ -557,7 +534,7 @@
     document.getElementById('modalidad').disabled = false;
     document.getElementById('modalidad').selectedIndex = 0;
 
-    document.getElementById('paciente').disabled = false;
+    document.getElementById('pacienteId').disabled = false;
     document.getElementById('ciclo').disabled = false;
     document.getElementById('numeroSesionInd').disabled = false;
     document.getElementById('numeroSesionGrp').disabled = false;
