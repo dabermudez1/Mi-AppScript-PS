@@ -367,19 +367,23 @@
       : document.getElementById('numeroSesionGrp').value;
 
     const fecha = document.getElementById('fecha').value;
-    const hora = document.getElementById('hora').value;
+    const selectedSlot = document.getElementById('hora').value;
 
     if (!modalidad) {
       alert('Debes seleccionar una modalidad.');
       return;
     }
 
+    // --- CORRECCIÓN: Extraer la fecha y la hora del valor combinado ---
+    const slotParts = selectedSlot ? selectedSlot.split('|') : [];
+    const nuevaHora = slotParts.length > 1 ? slotParts[1] : null;
+
     if (!numeroSesion) {
       alert('Debes seleccionar una sesión pendiente.');
       return;
     }
 
-    if (!hora) {
+    if (!nuevaHora) {
       alert('Debes seleccionar un slot de hora disponible.');
       return;
     }
@@ -395,8 +399,8 @@
       cicloId: document.getElementById('cicloId').value,
       numeroSesion: numeroSesion,
       // --- CORRECCIÓN: La fecha ahora viene del valor del slot seleccionado ---
-      fecha: document.getElementById('hora').value.split('|')[0].split('-').reverse().join('/'),
-      hora: hora,
+      fecha: slotParts[0].split('-').reverse().join('/'),
+      hora: nuevaHora,
       cascada: document.getElementById('cascada').checked
     };
     
