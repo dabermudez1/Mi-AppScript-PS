@@ -398,6 +398,7 @@ class AvailabilityService {
               // La duración de la sesión ocupada debe basarse en su MODALIDAD, no en la plantilla.
               // Esto evita que una sesión individual de 30min se "estire" si cae en un slot de grupo de 90min.
               slotState.durationMinutes = this._getSlotDuration(occupyingSession.Modalidad);
+              slotState.sessionModality = occupyingSession.Modalidad; // NUEVO: Enviamos la modalidad real
               slotState.sessionStatus = occupyingSession.EstadoSesion || null;
             }
           } else {
