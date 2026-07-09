@@ -197,31 +197,15 @@
     fechaActual.value = '';
     sesionesPendientesIndividual = [];
 
-    // --- CORRECCIÓN CLAVE ---
-    // Si no hay pacienteId, debemos ejecutar el callback igualmente para desbloquear la UI.
     if (!pacienteId) {
+      select.innerHTML = '<option value="">-- Selecciona un paciente --</option>';
       if (typeof callback === 'function') callback();
       return;
     }
 
     google.script.run
       .withSuccessHandler(function(lista) {
-        sesionesPendientesIndividual = lista || [];
-        select.innerHTML = ''; // Limpiar siempre antes de renderizar
-
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = sesionesPendientesIndividual.length > 0 ? '-- Selecciona una sesión pendiente --' : 'No hay sesiones pendientes';
-        select.appendChild(placeholder);
-
-        if (sesionesPendientesIndividual.length > 0) {
-          sesionesPendientesIndividual.forEach(function(s) {
-            const option = document.createElement('option');
-            option.value = s.numeroSesion;
-            option.textContent = s.label + (s.horaActual ? ' (' + s.horaActual + ')' : '');
-            select.appendChild(option);
-          });
-        }
+        renderSesiones(lista, 'INDIVIDUAL');
 
         mostrarFechaActualIndividual();
         if (typeof callback === 'function') callback(); // Ejecutar callback al final
@@ -242,31 +226,15 @@
     fechaActual.value = '';
     sesionesPendientesGrupo = [];
 
-    // --- CORRECCIÓN CLAVE ---
-    // Si no hay cicloId, debemos ejecutar el callback igualmente para desbloquear la UI.
     if (!cicloId) {
+      select.innerHTML = '<option value="">-- Selecciona un ciclo --</option>';
       if (typeof callback === 'function') callback();
       return;
     }
 
     google.script.run
       .withSuccessHandler(function(lista) {
-        sesionesPendientesGrupo = lista || [];
-        select.innerHTML = ''; // Limpiar siempre antes de renderizar
-        
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = sesionesPendientesGrupo.length > 0 ? '-- Selecciona una sesión pendiente --' : 'No hay sesiones pendientes';
-        select.appendChild(placeholder);
-
-        if (sesionesPendientesGrupo.length > 0) {
-          sesionesPendientesGrupo.forEach(function(s) {
-            const option = document.createElement('option');
-            option.value = s.numeroSesion;
-            option.textContent = s.label + (s.horaActual ? ' (' + s.horaActual + ')' : '');
-            select.appendChild(option);
-          });
-        }
+        renderSesiones(lista, 'GRUPO');
 
         mostrarFechaActualGrupo();
         if (typeof callback === 'function') callback(); // Ejecutar callback al final
@@ -340,38 +308,31 @@
     let detailHtml = `<strong>${response.mensaje}</strong>`;
     if (response.detalle) {
       const d = response.detalle;
+      let refreshCall = '';
       if (d.fechaAnterior) { // Repro individual
         detailHtml += `<br><small>Movida sesión ${d.numeroSesion} de ${d.nombre} del ${d.fechaAnterior} a las ${d.horaAnterior} al <strong>${d.fechaNueva} a las ${d.horaNueva}</strong>.</small>`;
+        refreshCall = `cargarSesionesPendientesIndividual('${response.pacienteId}')`;
       } else { // Repro grupal
         detailHtml += `<br><small>Movida sesión ${d.numeroSesion} de ${d.nombre} a la nueva fecha <strong>${d.fechaNueva} a las ${d.horaNueva}</strong>.</small>`;
+        refreshCall = `cargarSesionesPendientesGrupo('${response.cicloId}')`;
       }
+      // --- NUEVO: Añadimos un enlace para refrescar manualmente ---
+      detailHtml += ` <a href="#" onclick="${refreshCall}; this.style.display='none'; return false;">(Refrescar lista)</a>`;
     }
 
     notificationArea.className = 'notification success';
     notificationArea.innerHTML = detailHtml;
 
-    // Limpiar campos de selección de nueva fecha/hora para indicar que la acción terminó
+    // Limpiar campos de acción para indicar que la operación terminó
     document.getElementById('fecha').value = '';
     const selectHora = document.getElementById('hora');
     selectHora.innerHTML = '<option value="">-- Selecciona una fecha primero --</option>';
     document.getElementById('statusSlots').textContent = '';
 
-    // --- CORRECCIÓN CLAVE ---
-    // La reactivación del botón ahora se pasa como un callback que se ejecutará
-    // DESPUÉS de que la lista de sesiones se haya recargado.
-    const onRefreshComplete = function() {
-      const btnGuardar = document.getElementById('btnGuardar');
-      btnGuardar.disabled = false;
-      btnGuardar.innerText = 'Guardar Reprogramación';
-    };
-
-    // Refrescar la lista de sesiones pendientes
-    const modalidad = document.getElementById('modalidad').value;
-    if (modalidad === 'INDIVIDUAL') {
-      cargarSesionesPendientesIndividual(document.getElementById('pacienteId').value, onRefreshComplete);
-    } else {
-      cargarSesionesPendientesGrupo(document.getElementById('cicloId').value, onRefreshComplete);
-    }
+    // Reactivar el botón inmediatamente
+    const btnGuardar = document.getElementById('btnGuardar');
+    btnGuardar.disabled = false;
+    btnGuardar.innerText = 'Guardar Reprogramación';
   }
 
   /**
@@ -542,11 +503,11 @@
     return partes[2] + '-' + partes[1].padStart(2, '0') + '-' + partes[0].padStart(2, '0');
   }
 
-  function renderSesiones(lista) {
-    const modalidad = document.getElementById('modalidad').value;
+  function renderSesiones(lista, modalidad) {
     const select = (modalidad === 'INDIVIDUAL') ? document.getElementById('numeroSesionInd') : document.getElementById('numeroSesionGrp');
+    const dataStore = (modalidad === 'INDIVIDUAL') ? 'sesionesPendientesIndividual' : 'sesionesPendientesGrupo';
 
-    select.innerHTML = '';
+    window[dataStore] = lista || [];
 
     const placeholder = document.createElement('option');
     placeholder.value = '';
