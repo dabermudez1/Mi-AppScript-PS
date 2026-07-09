@@ -20,8 +20,12 @@ class SessionService {
       sesion.FechaOriginal = sesion.FechaSesion;
     }
 
-    sesion.FechaSesion = normalizarFecha_(nuevaFecha);
-    sesion.HoraInicio = nuevaHora || formatearHora_(sesion.HoraInicio);
+    // --- CORRECCIÓN CLAVE ---
+    // Combinamos la nueva fecha y la nueva hora en un único objeto Date.
+    const nuevaFechaHora = normalizarFechaHora_(nuevaFecha, nuevaHora);
+
+    sesion.FechaSesion = normalizarFecha_(nuevaFechaHora); // Extraemos solo la fecha
+    sesion.HoraInicio = formatearHora_(nuevaFechaHora);   // Extraemos solo la hora
     sesion.ModificadaManual = true;
     sesion.EstadoSesion = ESTADOS_SESION.REPROGRAMADA;
 
