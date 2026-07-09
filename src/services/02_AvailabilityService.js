@@ -331,6 +331,9 @@ class AvailabilityService {
     // Carga masiva de datos para toda la semana
     const allSessions = this.sessionRepo.findAll();
     const blockedDaysMap = obtenerMapaDiasBloqueados_();
+    // OPTIMIZACIÓN: Cargar ciclos una sola vez para obtener su capacidad
+    const cicloRepo = new CicloRepository();
+    const ciclosMap = new Map(cicloRepo.findAll().map(c => [c.CicloID, c]));
 
     for (let i = 0; i < 7; i++) {
       const currentDate = sumarDiasNaturales_(startOfWeek, i);
@@ -385,21 +388,29 @@ class AvailabilityService {
           const isOccupied = this._isSlotOccupied(agendaSlot, occupiedSlots);
           if (isOccupied) {
             slotState.status = 'OCCUPIED';
-            // Encontrar qué sesión ocupa este slot
-            const occupyingSession = sessionsForDay.find(s => {
+            // Encontrar TODAS las sesiones que ocupan este slot
+            const occupyingSessions = sessionsForDay.filter(s => {
                 const start = normalizarFechaHora_(s.FechaSesion, s.HoraInicio);
                 const end = sumarMinutos_(start, Number(s.Duracion || 30));
                 return agendaSlot.startDateTime < end && sumarMinutos_(agendaSlot.startDateTime, agendaSlot.durationMinutes) > start;
             });
-            if (occupyingSession) {
-              slotState.occupiedBy = occupyingSession.NombrePaciente || 'N/A';
-              slotState.sessionNumber = occupyingSession.NumeroSesion || null;
-              // --- CORRECCIÓN CLAVE ---
-              // La duración de la sesión ocupada debe basarse en su MODALIDAD, no en la plantilla.
-              // Esto evita que una sesión individual de 30min se "estire" si cae en un slot de grupo de 90min.
-              slotState.durationMinutes = this.agendaService._getSlotDuration(occupyingSession.Modalidad);
-              slotState.sessionModality = occupyingSession.Modalidad; // NUEVO: Enviamos la modalidad real
-              slotState.sessionStatus = occupyingSession.EstadoSesion || null;
+
+            if (occupyingSessions.length > 0) {
+              const firstSession = occupyingSessions[0];
+              const isGroup = firstSession.Modalidad !== 'INDIVIDUAL';
+
+              if (isGroup) {
+                const ciclo = ciclosMap.get(firstSession.CicloID);
+                const capacidad = ciclo ? ciclo.CapacidadMaxima : '?';
+                slotState.occupiedBy = `${firstSession.Modalidad} (${occupyingSessions.length}/${capacidad})`;
+              } else {
+                slotState.occupiedBy = firstSession.NombrePaciente || 'N/A';
+              }
+
+              slotState.sessionNumber = firstSession.NumeroSesion || null;
+              slotState.durationMinutes = this.agendaService._getSlotDuration(firstSession.Modalidad);
+              slotState.sessionModality = firstSession.Modalidad;
+              slotState.sessionStatus = firstSession.EstadoSesion || null;
             }
           } else {
             slotState.status = 'FREE';
