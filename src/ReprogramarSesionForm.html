@@ -206,20 +206,22 @@
 
     google.script.run
       .withSuccessHandler(function(lista) {
-        sesionesPendientesIndividual = lista;
-        select.innerHTML = ''; // Limpiar justo antes de renderizar
+        sesionesPendientesIndividual = lista || [];
+        select.innerHTML = ''; // Limpiar siempre antes de renderizar
 
         const placeholder = document.createElement('option');
         placeholder.value = '';
-        placeholder.textContent = '-- Selecciona una sesión pendiente --';
+        placeholder.textContent = sesionesPendientesIndividual.length > 0 ? '-- Selecciona una sesión pendiente --' : 'No hay sesiones pendientes';
         select.appendChild(placeholder);
 
-        sesionesPendientesIndividual.forEach(function(s) {
-          const option = document.createElement('option');
-          option.value = s.numeroSesion;
-          option.textContent = s.label + (s.horaActual ? ' (' + s.horaActual + ')' : '');
-          select.appendChild(option);
-        });
+        if (sesionesPendientesIndividual.length > 0) {
+          sesionesPendientesIndividual.forEach(function(s) {
+            const option = document.createElement('option');
+            option.value = s.numeroSesion;
+            option.textContent = s.label + (s.horaActual ? ' (' + s.horaActual + ')' : '');
+            select.appendChild(option);
+          });
+        }
 
         mostrarFechaActualIndividual();
         if (typeof callback === 'function') callback(); // Ejecutar callback al final
@@ -249,20 +251,22 @@
 
     google.script.run
       .withSuccessHandler(function(lista) {
-        sesionesPendientesGrupo = lista;
-        select.innerHTML = ''; // Limpiar justo antes de renderizar
+        sesionesPendientesGrupo = lista || [];
+        select.innerHTML = ''; // Limpiar siempre antes de renderizar
         
         const placeholder = document.createElement('option');
         placeholder.value = '';
-        placeholder.textContent = '-- Selecciona una sesión pendiente --';
+        placeholder.textContent = sesionesPendientesGrupo.length > 0 ? '-- Selecciona una sesión pendiente --' : 'No hay sesiones pendientes';
         select.appendChild(placeholder);
 
-        sesionesPendientesGrupo.forEach(function(s) {
-          const option = document.createElement('option');
-          option.value = s.numeroSesion;
-          option.textContent = s.label + (s.horaActual ? ' (' + s.horaActual + ')' : '');
-          select.appendChild(option);
-        });
+        if (sesionesPendientesGrupo.length > 0) {
+          sesionesPendientesGrupo.forEach(function(s) {
+            const option = document.createElement('option');
+            option.value = s.numeroSesion;
+            option.textContent = s.label + (s.horaActual ? ' (' + s.horaActual + ')' : '');
+            select.appendChild(option);
+          });
+        }
 
         mostrarFechaActualGrupo();
         if (typeof callback === 'function') callback(); // Ejecutar callback al final
