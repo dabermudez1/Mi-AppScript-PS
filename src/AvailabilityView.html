@@ -131,6 +131,8 @@
         weekData: [],
         weekOfMonthLabel: '',
         filter: null, // 'INDIVIDUAL', 'GRUPO', o null
+        // --- CORRECCIÓN: Restaurar la lista de meses, necesaria para las etiquetas ---
+        months: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
         jumpDate: new Date().toISOString().split('T')[0], // Para el input[type=date]
 
         init() {
