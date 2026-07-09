@@ -59,6 +59,12 @@ function reprogramarSesionIndividual_(data) {
   const sessionRepo = new SessionRepository();
   const sesionOriginal = sessionRepo.findPendientesByPaciente(data.pacienteId).find(s => Number(s.NumeroSesion) === Number(data.numeroSesion));
   if (!sesionOriginal) throw new Error("No se encontró la sesión original para reprogramar.");
+
+  // --- CORRECCIÓN CLAVE: Clonar los datos ANTES de la modificación ---
+  const datosOriginales = {
+    fecha: sesionOriginal.FechaSesion,
+    hora: sesionOriginal.HoraInicio
+  };
   const sessionService = new SessionService();
 
   const pacienteId = data.pacienteId;
@@ -92,8 +98,8 @@ function reprogramarSesionIndividual_(data) {
       // --- CORRECCIÓN: Usar datos de la sesión ANTES de la modificación ---
       nombre: sesionOriginal.NombrePaciente,
       numeroSesion: sesionOriginal.NumeroSesion,
-      fechaAnterior: formatearFecha_(sesionOriginal.FechaSesion),
-      horaAnterior: formatearHora_(sesionOriginal.HoraInicio),
+      fechaAnterior: formatearFecha_(datosOriginales.fecha),
+      horaAnterior: formatearHora_(datosOriginales.hora),
       // --- Usar datos de la sesión DESPUÉS de la modificación ---
       fechaNueva: formatearFecha_(sesionActualizada.FechaSesion),
       horaNueva: formatearHora_(sesionActualizada.HoraInicio)
