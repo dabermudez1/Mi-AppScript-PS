@@ -361,7 +361,14 @@
         btnGuardar.disabled = false;
         btnVolver.disabled = false;
         btnCerrar.disabled = false;
-        setStatus(res.mensaje, 'success');
+
+        // --- MEJORA: Construir mensaje de éxito detallado ---
+        let successMessage = res.mensaje;
+        if (res.detalle && res.detalle.fechaAnterior) {
+          const d = res.detalle;
+          successMessage = `✅ Reprogramada S${d.numeroSesion} de ${d.nombre}: ${d.fechaAnterior} ${d.horaAnterior} ➔ ${d.fechaNueva} ${d.horaNueva}`;
+        }
+        setStatus(successMessage, 'success');
 
         // Limpiar y refrescar para la siguiente operación
         document.getElementById('fecha').value = '';

@@ -92,7 +92,7 @@ function reprogramarSesionIndividual_(data) {
   }
 
   return {
-    mensaje: 'Sesión individual reprogramada correctamente.',
+    mensaje: 'Sesión individual reprogramada.',
     pacienteId: pacienteId, // Devolvemos el ID para el refresco
     detalle: {
       // --- CORRECCIÓN: Usar datos de la sesión ANTES de la modificación ---
