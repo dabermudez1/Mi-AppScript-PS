@@ -19,27 +19,22 @@
     .secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; }
     .secondary:hover { background-color: #f3f4f6; }
     
-    /* --- NUEVO: Estilos para el área de notificación --- */
-    .notification {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 4px;
-      font-size: 0.9em;
-      display: none; /* Oculto por defecto */
+    #status {
+      margin-top: 12px;
+      font-size: 0.875rem;
+      min-height: 1.25rem;
+      font-style: italic;
+      text-align: center;
+      color: #6b7280;
     }
-    .notification.success {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-      display: block;
+    .error {
+      color: #dc2626;
+      font-weight: bold;
     }
-    .notification.error {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-      display: block;
+    .success {
+      color: #16a34a;
+      font-weight: bold;
     }
-    /* --- FIN NUEVO --- */
   </style>
 </head>
 <body>
@@ -115,8 +110,7 @@
   <button id="btnCerrar" class="secondary" onclick="google.script.host.close()">Cerrar</button>
 </div>
 
-<!-- --- NUEVO: Área de notificaciones --- -->
-<div id="notification-area" class="notification"></div>
+<div id="status"></div>
 
 <script>
   let sesionesPendientesIndividual = [];
@@ -124,6 +118,12 @@
   const sesionPreseleccionadaId = '<?= typeof sesionPreseleccionadaId !== "undefined" ? sesionPreseleccionadaId : "" ?>';
   const origenPantalla = '<?= typeof origenPantalla !== "undefined" ? origenPantalla : "" ?>';
   let detalleSesionPreseleccionada = null;
+
+  function setStatus(message, type) {
+    const el = document.getElementById('status');
+    el.textContent = message || '';
+    el.className = 'status ' + (type || '');
+  }
 
   function cargarDatos() {
     google.script.run.withSuccessHandler(function(data) {
@@ -305,60 +305,6 @@
       .obtenerMultiplesSlotsDisponibles(fecha, modalidad, cicloId);
   }
 
-  /**
-   * --- NUEVO: Manejador de éxito para las llamadas al servidor. ---
-   * Muestra el resultado en el área de notificaciones y refresca los datos.
-   */
-  function onSuccess(response) {
-    // --- ROBUST CONFIRMATION ---
-    // We will build a detailed message and use a blocking alert() to guarantee the user sees it.
-    // This is the most reliable way to handle the confirmation request.
-    let confirmationMessage = response.mensaje || 'Operación completada con éxito.';
-    
-    if (response.detalle) {
-      const d = response.detalle;
-      if (d.fechaAnterior) { // Repro individual
-        // For individual sessions, the backend message is simple, so we build a more detailed one.
-        confirmationMessage += `\n\nDetalles:\n- Sesión: ${d.numeroSesion} de ${d.nombre}\n- Movida de: ${d.fechaAnterior} a las ${d.horaAnterior}\n- A la nueva fecha: ${d.fechaNueva} a las ${d.horaNueva}`;
-      }
-    }
-
-    // The alert() function blocks everything until the user clicks "OK".
-    alert(confirmationMessage);
-
-    // After the user confirms, we proceed with cleaning and refreshing the UI.
-    document.getElementById('fecha').value = '';
-    const selectHora = document.getElementById('hora');
-    selectHora.innerHTML = '<option value="">-- Selecciona una fecha primero --</option>';
-    document.getElementById('statusSlots').textContent = '';
-    document.getElementById('notification-area').style.display = 'none';
-
-    // Refresh the pending sessions list
-    const modalidad = document.getElementById('modalidad').value;
-    if (modalidad === 'INDIVIDUAL') {
-      cargarSesionesPendientesIndividual(document.getElementById('pacienteId').value);
-    } else {
-      cargarSesionesPendientesGrupo(document.getElementById('cicloId').value);
-    }
-
-    // Reactivar el botón inmediatamente
-    const btnGuardar = document.getElementById('btnGuardar');
-    btnGuardar.disabled = false;
-    btnGuardar.innerText = 'Guardar Reprogramación';
-  }
-
-  /**
-   * --- NUEVO: Manejador de errores. ---
-   * Muestra el error en el área de notificaciones.
-   */
-  function onFailure(error) {
-    const notificationArea = document.getElementById('notification-area');
-    notificationArea.className = 'notification error';
-    notificationArea.innerHTML = `<strong>Error:</strong> ${error.message}`;
-    document.getElementById('btnGuardar').disabled = false;
-    document.getElementById('btnGuardar').innerText = 'Guardar Reprogramación';
-  }
-
   function guardar() {
     const modalidad = document.getElementById('modalidad').value;
 
@@ -366,7 +312,6 @@
       ? document.getElementById('numeroSesionInd').value
       : document.getElementById('numeroSesionGrp').value;
 
-    const fecha = document.getElementById('fecha').value;
     const selectedSlot = document.getElementById('hora').value;
 
     if (!modalidad) {
@@ -374,22 +319,18 @@
       return;
     }
 
-    // --- CORRECCIÓN: Extraer la fecha y la hora del valor combinado ---
+    // --- CORRECCIÓN CLAVE: Extraer la fecha y la hora del valor combinado del slot ---
     const slotParts = selectedSlot ? selectedSlot.split('|') : [];
-    const nuevaHora = slotParts.length > 1 ? slotParts[1] : null;
+    const fechaNuevaISO = slotParts.length > 1 ? slotParts[0] : null;
+    const horaNueva = slotParts.length > 1 ? slotParts[1] : null;
 
     if (!numeroSesion) {
       alert('Debes seleccionar una sesión pendiente.');
       return;
     }
 
-    if (!nuevaHora) {
+    if (!horaNueva || !fechaNuevaISO) {
       alert('Debes seleccionar un slot de hora disponible.');
-      return;
-    }
-
-    if (!fecha) {
-      alert('Debes seleccionar la nueva fecha.');
       return;
     }
 
@@ -398,23 +339,48 @@
       pacienteId: document.getElementById('pacienteId').value,
       cicloId: document.getElementById('cicloId').value,
       numeroSesion: numeroSesion,
-      // --- CORRECCIÓN: La fecha ahora viene del valor del slot seleccionado ---
-      fecha: slotParts[0].split('-').reverse().join('/'),
-      hora: nuevaHora,
+      fecha: fechaNuevaISO.split('-').reverse().join('/'), // Convertir YYYY-MM-DD a DD/MM/YYYY para el backend
+      hora: horaNueva,
       cascada: document.getElementById('cascada').checked
     };
     
     const btnGuardar = document.getElementById('btnGuardar');
-    const notificationArea = document.getElementById('notification-area');
+    const btnVolver = document.getElementById('btnVolver');
+    const btnCerrar = document.getElementById('btnCerrar');
     
     // Bloquear UI
     btnGuardar.disabled = true;
+    btnVolver.disabled = true;
+    btnCerrar.disabled = true;
     btnGuardar.innerText = 'Procesando...';
-    notificationArea.style.display = 'none'; // Ocultar notificaciones viejas
+    setStatus('⏳ Guardando reprogramación...', '');
 
     google.script.run
-      .withSuccessHandler(onSuccess)
-      .withFailureHandler(onFailure)
+      .withSuccessHandler(function(res) {
+        btnGuardar.innerText = 'Guardar Reprogramación';
+        btnGuardar.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
+        setStatus(res.mensaje, 'success');
+
+        // Limpiar y refrescar para la siguiente operación
+        document.getElementById('fecha').value = '';
+        document.getElementById('hora').innerHTML = '<option value="">-- Selecciona una fecha primero --</option>';
+        document.getElementById('statusSlots').textContent = '';
+
+        if (modalidad === 'INDIVIDUAL') {
+          cargarSesionesPendientesIndividual(document.getElementById('pacienteId').value);
+        } else {
+          cargarSesionesPendientesGrupo(document.getElementById('cicloId').value);
+        }
+      })
+      .withFailureHandler(function(err) {
+        btnGuardar.innerText = 'Guardar Reprogramación';
+        btnGuardar.disabled = false;
+        btnVolver.disabled = false;
+        btnCerrar.disabled = false;
+        setStatus(err.message, 'error');
+      })
       .guardarReprogramacion(data); // La función de guardado no necesita cambios
   }
 

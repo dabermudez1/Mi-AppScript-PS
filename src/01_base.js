@@ -791,13 +791,16 @@ function sumarDiasNaturales_(fecha, dias) {
  */
 function normalizarFechaHora_(date, timeString) {
   let d;
-  // --- CORRECCIÓN CRÍTICA DE TIMEZONE ---
-  // Si 'date' es un string (ej: "2026-10-20" de un input), new Date(date) lo interpreta como UTC.
-  // Esto causa el bug de "un día antes" en zonas horarias positivas.
-  // La solución es parsear el string manualmente para construir la fecha en la zona horaria del script.
+  // --- CORRECCIÓN CRÍTICA DE TIMEZONE (H-03) ---
+  // Si 'date' es un string (ej: "2026-10-20" de un input[type=date]), new Date(date) lo interpreta como UTC midnight.
+  // Esto causa el bug de "un día antes" en zonas horarias con offset positivo (ej. Europa).
+  // La solución es parsear el string manualmente para construir la fecha en la zona horaria del script,
+  // evitando la interpretación UTC implícita.
   if (typeof date === 'string' && date.includes('-')) {
     const parts = date.split('T')[0].split('-');
-    d = new Date(parts[0], parts[1] - 1, parts[2]);
+    if (parts.length === 3) {
+      d = new Date(parts[0], parts[1] - 1, parts[2]);
+    }
   } else {
     d = (date instanceof Date) ? new Date(date.getTime()) : new Date(date);
   }
