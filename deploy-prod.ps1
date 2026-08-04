@@ -11,7 +11,8 @@ $clinicas = @(
     @{ Name = "Moana";      Config = ".clasp.prod.moana.json" },
     @{ Name = "Navia";      Config = ".clasp.prod.navia.json" },
     @{ Name = "Olimpia";    Config = ".clasp.prod.olimpia.json" },
-    @{ Name = "Ponteareas"; Config = ".clasp.prod.ponteareas.json" }
+    @{ Name = "Ponteareas"; Config = ".clasp.prod.ponteareas.json" },
+    @{ Name = "Redondela";  Config = ".clasp.prod.redondela.json" }
 )
 
 $globalAuth = "$env:USERPROFILE\.clasprc.json"
