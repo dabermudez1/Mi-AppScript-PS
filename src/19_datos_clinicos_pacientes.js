@@ -447,6 +447,7 @@ function sincronizarFichasClinicasPacientes() {
   const cIdx = indexByHeader_(cData[0]);
   const sIdx = indexByHeader_(sData[0]);
 
+  // 0. Mapa de pacientes en la hoja PACIENTES para búsqueda rápida
   // 1. Mapa de sesiones completadas por paciente (Batch Load)
   const sMap = {};
   for (let i = 1; i < sData.length; i++) {
@@ -461,58 +462,100 @@ function sincronizarFichasClinicasPacientes() {
     }
   }
 
-  // 2. Mapa de filas clínicas existentes (PacienteID -> índice en cData)
-  const cMap = {};
-  for (let i = 1; i < cData.length; i++) {
-    cMap[String(cData[i][cIdx.PacienteID])] = i;
+  // 2. Mapa de pacientes en la hoja PACIENTES (PacienteID -> fila de pData)
+  const pMap = {};
+  for (let i = 1; i < pData.length; i++) {
+    const pid = String(pData[i][pIdx.PacienteID]);
+    if (pid) pMap[pid] = pData[i];
   }
+
+  // Array para construir los nuevos datos de la hoja clínica
+  const finalCData = [cData[0]]; // Mantener los encabezados originales
+  const processedPids = new Set(); // Para rastrear qué pacientes de pMap ya hemos procesado
 
   let procesados = 0;
   let nuevos = 0;
 
-  // 3. Procesar todos los pacientes (Batch Process)
-  for (let i = 1; i < pData.length; i++) {
-    const pid = String(pData[i][pIdx.PacienteID]);
-    if (!pid) continue;
+  // 3. Procesar filas existentes en DATOS_CLINICOS_PACIENTES
+  for (let i = 1; i < cData.length; i++) {
+    const cRow = [...cData[i]]; // Copia la fila existente para modificarla
+    const pid = String(cRow[cIdx.PacienteID]);
 
-    const p = pData[i];
-    let cRowIdx = cMap[pid];
-    let row;
+    if (pMap[pid]) { // Si el paciente todavía existe en la hoja PACIENTES
+      const p = pMap[pid];
 
-    if (cRowIdx !== undefined) {
-      row = cData[cRowIdx];
-    } else {
-      row = new Array(cData[0].length).fill('');
-      row[cIdx.PacienteID] = pid;
-      cData.push(row);
-      cRowIdx = cData.length - 1;
-      nuevos++;
+      // Actualizar campos derivados de PACIENTES o SESIONES
+      cRow[cIdx.Nombre] = p[pIdx.Nombre] || '';
+      cRow[cIdx.NHC] = p[pIdx.NHC] || cRow[cIdx.NHC] || ''; // Mantener NHC si ya existe y no viene de PACIENTES
+      cRow[cIdx.SexoGenero] = p[pIdx.SexoGenero] || '';
+      cRow[cIdx.MotivoConsultaDiagnostico] = p[pIdx.MotivoConsultaDiagnostico] || '';
+      cRow[cIdx.MotivoConsultaOtros] = p[pIdx.MotivoConsultaOtros] || '';
+      cRow[cIdx.FechaAltaPrograma] = p[pIdx.FechaAlta] || '';
+      cRow[cIdx.FechaPrimeraConsulta] = p[pIdx.FechaPrimeraConsulta] || '';
+      cRow[cIdx.FechaAltaEfectiva] = p[pIdx.FechaAltaEfectiva] || p[pIdx.FechaCierre] || '';
+      cRow[cIdx.EstadoPacienteActual] = p[pIdx.EstadoPaciente] || '';
+      cRow[cIdx.TipoIntervencionPrincipal] = p[pIdx.ModalidadSolicitada] === MODALIDADES.INDIVIDUAL ? 'Individual' : 'Grupal';
+      cRow[cIdx.FinTratamientoCodigo] = p[pIdx.EstadoPaciente] === ESTADOS_PACIENTE.ALTA ? p[pIdx.MotivoAltaCodigo] : 7;
+      cRow[cIdx.FinTratamientoTexto] = p[pIdx.EstadoPaciente] === ESTADOS_PACIENTE.ALTA ? p[pIdx.MotivoAltaTexto] : 'Activo en el programa';
+      cRow[cIdx.NumeroSesionesTotal] = (p[pIdx.FechaPrimeraConsulta] instanceof Date ? 1 : 0) + (sMap[pid] || 0);
+      
+      if (p[pIdx.FechaPrimeraConsulta] instanceof Date && p[pIdx.FechaPrimeraSesionReal] instanceof Date) {
+        cRow[cIdx.TiempoEsperaHastaPrimeraConsultaDias] = diferenciaDiasFechas_(p[pIdx.FechaPrimeraConsulta], p[pIdx.FechaPrimeraSesionReal]);
+      } else {
+        cRow[cIdx.TiempoEsperaHastaPrimeraConsultaDias] = ''; // Clear if conditions not met
+      }
+
+      finalCData.push(cRow);
+      processedPids.add(pid);
+      procesados++;
     }
-
-    // Actualizar campos calculados/mapeados
-    row[cIdx.Nombre] = p[pIdx.Nombre] || '';
-    row[cIdx.NHC] = p[pIdx.NHC] || row[cIdx.NHC] || '';
-    row[cIdx.SexoGenero] = p[pIdx.SexoGenero] || '';
-    row[cIdx.MotivoConsultaDiagnostico] = p[pIdx.MotivoConsultaDiagnostico] || '';
-    row[cIdx.MotivoConsultaOtros] = p[pIdx.MotivoConsultaOtros] || '';
-    row[cIdx.FechaAltaPrograma] = p[pIdx.FechaAlta] || '';
-    row[cIdx.FechaPrimeraConsulta] = p[pIdx.FechaPrimeraConsulta] || '';
-    row[cIdx.FechaAltaEfectiva] = p[pIdx.FechaAltaEfectiva] || p[pIdx.FechaCierre] || '';
-    row[cIdx.EstadoPacienteActual] = p[pIdx.EstadoPaciente] || '';
-    row[cIdx.TipoIntervencionPrincipal] = p[pIdx.ModalidadSolicitada] === MODALIDADES.INDIVIDUAL ? 'Individual' : 'Grupal';
-    row[cIdx.FinTratamientoCodigo] = p[pIdx.EstadoPaciente] === ESTADOS_PACIENTE.ALTA ? p[pIdx.MotivoAltaCodigo] : 7;
-    row[cIdx.FinTratamientoTexto] = p[pIdx.EstadoPaciente] === ESTADOS_PACIENTE.ALTA ? p[pIdx.MotivoAltaTexto] : 'Activo en el programa';
-    row[cIdx.NumeroSesionesTotal] = (p[pIdx.FechaPrimeraConsulta] instanceof Date ? 1 : 0) + (sMap[pid] || 0);
-    
-    if (p[pIdx.FechaPrimeraConsulta] instanceof Date && p[pIdx.FechaPrimeraSesionReal] instanceof Date) {
-      row[cIdx.TiempoEsperaHastaPrimeraConsultaDias] = diferenciaDiasFechas_(p[pIdx.FechaPrimeraConsulta], p[pIdx.FechaPrimeraSesionReal]);
-    }
-
-    procesados++;
+    // Si el paciente no está en pMap, se omite, eliminándolo de DATOS_CLINICOS_PACIENTES
   }
 
-  // 4. Volcado masivo a la hoja clínica
-  cSheet.getRange(1, 1, cData.length, cData[0].length).setValues(cData);
+  // 4. Añadir pacientes de PACIENTES que no estaban en DATOS_CLINICOS_PACIENTES
+  for (const pid in pMap) {
+    if (!processedPids.has(pid)) {
+      const p = pMap[pid];
+      const newCRow = new Array(cData[0].length).fill('');
+      newCRow[cIdx.PacienteID] = pid;
+      // Rellenar solo los campos derivados para el nuevo paciente
+      newCRow[cIdx.Nombre] = p[pIdx.Nombre] || '';
+      newCRow[cIdx.NHC] = p[pIdx.NHC] || '';
+      newCRow[cIdx.SexoGenero] = p[pIdx.SexoGenero] || '';
+      newCRow[cIdx.MotivoConsultaDiagnostico] = p[pIdx.MotivoConsultaDiagnostico] || '';
+      newCRow[cIdx.MotivoConsultaOtros] = p[pIdx.MotivoConsultaOtros] || '';
+      newCRow[cIdx.FechaAltaPrograma] = p[pIdx.FechaAlta] || '';
+      newCRow[cIdx.FechaPrimeraConsulta] = p[pIdx.FechaPrimeraConsulta] || '';
+      newCRow[cIdx.FechaAltaEfectiva] = p[pIdx.FechaAltaEfectiva] || p[pIdx.FechaCierre] || '';
+      newCRow[cIdx.EstadoPacienteActual] = p[pIdx.EstadoPaciente] || '';
+      newCRow[cIdx.TipoIntervencionPrincipal] = p[pIdx.ModalidadSolicitada] === MODALIDADES.INDIVIDUAL ? 'Individual' : 'Grupal';
+      newCRow[cIdx.FinTratamientoCodigo] = p[pIdx.EstadoPaciente] === ESTADOS_PACIENTE.ALTA ? p[pIdx.MotivoAltaCodigo] : 7;
+      newCRow[cIdx.FinTratamientoTexto] = p[pIdx.EstadoPaciente] === ESTADOS_PACIENTE.ALTA ? p[pIdx.MotivoAltaTexto] : 'Activo en el programa';
+      newCRow[cIdx.NumeroSesionesTotal] = (p[pIdx.FechaPrimeraConsulta] instanceof Date ? 1 : 0) + (sMap[pid] || 0);
+      
+      if (p[pIdx.FechaPrimeraConsulta] instanceof Date && p[pIdx.FechaPrimeraSesionReal] instanceof Date) {
+        newCRow[cIdx.TiempoEsperaHastaPrimeraConsultaDias] = diferenciaDiasFechas_(p[pIdx.FechaPrimeraConsulta], p[pIdx.FechaPrimeraSesionReal]);
+      } else {
+        newCRow[cIdx.TiempoEsperaHastaPrimeraConsultaDias] = '';
+      }
+
+      finalCData.push(newCRow);
+      nuevos++;
+      procesados++;
+    }
+  }
+
+  // 5. Volcado masivo a la hoja clínica
+  // Asegurarse de que la hoja tenga suficientes filas y columnas antes de setValues
+  if (cSheet.getLastRow() > 1) {
+    cSheet.getRange(2, 1, cSheet.getLastRow() - 1, cSheet.getLastColumn()).clearContent();
+  }
+  if (finalCData.length > 1) { // Si hay datos además de los encabezados
+    cSheet.getRange(1, 1, finalCData.length, finalCData[0].length).setValues(finalCData);
+  } else { // Si solo hay encabezados, asegurarse de que se escriban
+    cSheet.getRange(1, 1, 1, finalCData[0].length).setValues([finalCData[0]]);
+  }
+
   return { mensaje: `Sincronización completada. Procesados: ${procesados} (${nuevos} nuevos).` };
 }
 
