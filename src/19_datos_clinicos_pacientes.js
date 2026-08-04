@@ -315,7 +315,7 @@ function _obtenerDatosEstadisticasFichas() {
   // Helper para media
   const media = (arr) => {
     const vals = arr.filter(v => v !== null && !isNaN(v)); // Filtrar también NaN
-    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : 0;
+    return vals.length ? (vals.reduce((a, b) => a + Number(b), 0) / vals.length).toFixed(1) : 0;
   };
 
   return {
