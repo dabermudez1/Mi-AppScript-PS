@@ -247,7 +247,7 @@ function asegurarFilaFichaClinicaPaciente_(pacienteId) {
  * Obtiene todos los datos para el formulario de estadísticas, 
  * forzando una sincronización previa de los estados de alta.
  */
-function obtenerDatosEstadisticasFichasFormulario() {
+function _obtenerDatosEstadisticasFichas() {
   // 1. Invalida caché de ejecución para leer datos reales
   if (typeof __EXECUTION_CACHE__ !== 'undefined') {
     Object.keys(__EXECUTION_CACHE__).forEach(key => __EXECUTION_CACHE__[key] = null);

@@ -18,5 +18,5 @@ function estadisticasFichasPacientes() {
  */
 function obtenerDatosEstadisticasFichasFormulario() {
   // Redirigimos la llamada a la función correcta y centralizada.
-  return obtenerDatosEstadisticasFichasFormulario();
+  return _obtenerDatosEstadisticasFichas();
 }
