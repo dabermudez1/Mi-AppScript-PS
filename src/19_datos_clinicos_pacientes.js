@@ -264,14 +264,14 @@ function _obtenerDatosEstadisticasFichas() {
   const idx = indexByHeader_(data[0]);
   const filas = data.slice(1).map(row => {
     // Cálculos de mejora (Delta)
-    const deltaGad = (row[idx.GAD7_POST] !== '' && row[idx.GAD7_PRE] !== '') ? row[idx.GAD7_POST] - row[idx.GAD7_PRE] : null;
-    const deltaPhq = (row[idx.PHQ9_POST] !== '' && row[idx.PHQ9_PRE] !== '') ? row[idx.PHQ9_POST] - row[idx.PHQ9_PRE] : null;
+    const deltaGad = (convertirNumeroFicha_(row[idx.GAD7_POST]) !== null && convertirNumeroFicha_(row[idx.GAD7_PRE]) !== null) ? convertirNumeroFicha_(row[idx.GAD7_POST]) - convertirNumeroFicha_(row[idx.GAD7_PRE]) : null;
+    const deltaPhq = (convertirNumeroFicha_(row[idx.PHQ9_POST]) !== null && convertirNumeroFicha_(row[idx.PHQ9_PRE]) !== null) ? convertirNumeroFicha_(row[idx.PHQ9_POST]) - convertirNumeroFicha_(row[idx.PHQ9_PRE]) : null;
     
     // Deltas por dominio WHOQOL
-    const deltaFisico = (row[idx.WHOQOLBREF_FISICO_POST] !== '' && row[idx.WHOQOLBREF_FISICO_PRE] !== '') ? row[idx.WHOQOLBREF_FISICO_POST] - row[idx.WHOQOLBREF_FISICO_PRE] : null;
-    const deltaPsico = (row[idx.WHOQOLBREF_PSICO_POST] !== '' && row[idx.WHOQOLBREF_PSICO_PRE] !== '') ? row[idx.WHOQOLBREF_PSICO_POST] - row[idx.WHOQOLBREF_PSICO_PRE] : null;
-    const deltaSocial = (row[idx.WHOQOLBREF_SOCIAL_POST] !== '' && row[idx.WHOQOLBREF_SOCIAL_PRE] !== '') ? row[idx.WHOQOLBREF_SOCIAL_POST] - row[idx.WHOQOLBREF_SOCIAL_PRE] : null;
-    const deltaAmbiente = (row[idx.WHOQOLBREF_AMBIENTE_POST] !== '' && row[idx.WHOQOLBREF_AMBIENTE_PRE] !== '') ? row[idx.WHOQOLBREF_AMBIENTE_POST] - row[idx.WHOQOLBREF_AMBIENTE_PRE] : null;
+    const deltaFisico = (convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_POST]) !== null && convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_PRE]) !== null) ? convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_POST]) - convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_PRE]) : null;
+    const deltaPsico = (convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_POST]) !== null && convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_PRE]) !== null) ? convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_POST]) - convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_PRE]) : null;
+    const deltaSocial = (convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_POST]) !== null && convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_PRE]) !== null) ? convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_POST]) - convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_PRE]) : null;
+    const deltaAmbiente = (convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_POST]) !== null && convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_PRE]) !== null) ? convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_POST]) - convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_PRE]) : null;
 
 
     return {
@@ -281,29 +281,29 @@ function _obtenerDatosEstadisticasFichas() {
       estadoPacienteActual: row[idx.EstadoPacienteActual],
       tipoIntervencionPrincipal: row[idx.TipoIntervencionPrincipal],
       finTratamientoTexto: row[idx.FinTratamientoTexto],
-      sexoGenero: row[idx.SexoGenero],
-      edad: row[idx.Edad],
+      sexoGenero: String(row[idx.SexoGenero] || ''),
+      edad: convertirNumeroFicha_(row[idx.Edad]),
       motivoConsultaDiagnostico: row[idx.MotivoConsultaDiagnostico],
-      numeroSesionesTotal: row[idx.NumeroSesionesTotal],
-      tiempoEsperaHastaPrimeraConsultaDias: row[idx.TiempoEsperaHastaPrimeraConsultaDias],
-      gad7Pre: row[idx.GAD7_PRE],
-      gad7Post: row[idx.GAD7_POST],
+      numeroSesionesTotal: convertirNumeroFicha_(row[idx.NumeroSesionesTotal]),
+      tiempoEsperaHastaPrimeraConsultaDias: convertirNumeroFicha_(row[idx.TiempoEsperaHastaPrimeraConsultaDias]),
+      gad7Pre: convertirNumeroFicha_(row[idx.GAD7_PRE]),
+      gad7Post: convertirNumeroFicha_(row[idx.GAD7_POST]),
       deltaGad7: deltaGad,
-      phq9Pre: row[idx.PHQ9_PRE],
-      phq9Post: row[idx.PHQ9_POST],
+      phq9Pre: convertirNumeroFicha_(row[idx.PHQ9_PRE]),
+      phq9Post: convertirNumeroFicha_(row[idx.PHQ9_POST]),
       deltaPhq9: deltaPhq,      
       // Granularidad WHOQOL para el listado
-      whoqolFisicoPre: row[idx.WHOQOLBREF_FISICO_PRE],
-      whoqolFisicoPost: row[idx.WHOQOLBREF_FISICO_POST],
+      whoqolFisicoPre: convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_PRE]),
+      whoqolFisicoPost: convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_POST]),
       deltaFisico: deltaFisico,
-      whoqolPsicoPre: row[idx.WHOQOLBREF_PSICO_PRE],
-      whoqolPsicoPost: row[idx.WHOQOLBREF_PSICO_POST],
+      whoqolPsicoPre: convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_PRE]),
+      whoqolPsicoPost: convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_POST]),
       deltaPsico: deltaPsico,
-      whoqolSocialPre: row[idx.WHOQOLBREF_SOCIAL_PRE],
-      whoqolSocialPost: row[idx.WHOQOLBREF_SOCIAL_POST],
+      whoqolSocialPre: convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_PRE]),
+      whoqolSocialPost: convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_POST]),
       deltaSocial: deltaSocial,
-      whoqolAmbientePre: row[idx.WHOQOLBREF_AMBIENTE_PRE],
-      whoqolAmbientePost: row[idx.WHOQOLBREF_AMBIENTE_POST],
+      whoqolAmbientePre: convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_PRE]),
+      whoqolAmbientePost: convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_POST]),
       deltaAmbiente: deltaAmbiente
     };
   });
@@ -311,10 +311,10 @@ function _obtenerDatosEstadisticasFichas() {
   const total = filas.length;
   const conPre = filas.filter(f => f.gad7Pre !== '' || f.phq9Pre !== '' || f.whoqolFisicoPre !== '').length;
   const conPost = filas.filter(f => f.gad7Post !== '' || f.phq9Post !== '' || f.whoqolFisicoPost !== '').length;
-  
+
   // Helper para media
   const media = (arr) => {
-    const vals = arr.filter(v => v !== null && v !== '').map(Number);
+    const vals = arr.filter(v => v !== null && !isNaN(v)); // Filtrar también NaN
     return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : 0;
   };
 
@@ -557,6 +557,15 @@ function sincronizarFichasClinicasPacientes() {
   }
 
   return { mensaje: `Sincronización completada. Procesados: ${procesados} (${nuevos} nuevos).` };
+}
+
+/**
+ * Convierte un valor a número, devolviendo null si no es un número válido.
+ */
+function convertirNumeroFicha_(valor) {
+  if (valor === '' || valor === null || valor === undefined) return null;
+  const n = Number(valor);
+  return isNaN(n) ? null : n;
 }
 
 function ejecutarSincronizarFichasClinicasPacientes() {
