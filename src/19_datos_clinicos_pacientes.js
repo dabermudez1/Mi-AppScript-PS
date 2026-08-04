@@ -452,7 +452,11 @@ function sincronizarFichasClinicasPacientes() {
   for (let i = 1; i < sData.length; i++) {
     const pid = String(sData[i][sIdx.PacienteID]);
     const estado = sData[i][sIdx.EstadoSesion];
-    if (estado === ESTADOS_SESION.COMPLETADA_AUTO || estado === ESTADOS_SESION.COMPLETADA_MANUAL) {
+    if (
+      estado === ESTADOS_SESION.COMPLETADA_AUTO ||
+      estado === ESTADOS_SESION.COMPLETADA_MANUAL ||
+      estado === ESTADOS_SESION.REPROGRAMADA
+    ) {
       sMap[pid] = (sMap[pid] || 0) + 1;
     }
   }
