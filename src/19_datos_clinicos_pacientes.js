@@ -312,6 +312,7 @@ function _obtenerDatosEstadisticasFichas() {
   const conPre = filas.filter(f => f.gad7Pre !== '' || f.phq9Pre !== '' || f.whoqolFisicoPre !== '').length;
   const conPost = filas.filter(f => f.gad7Post !== '' || f.phq9Post !== '' || f.whoqolFisicoPost !== '').length;
 
+
 /**
  * Helper para formatear números a 1 decimal o devolver null si no es un número válido.
  * Declarado globalmente para evitar ReferenceError.
@@ -319,6 +320,7 @@ function _obtenerDatosEstadisticasFichas() {
 const _formatNumberToFixed1 = (num) => {
   return (typeof num === 'number' && !isNaN(num)) ? num.toFixed(1) : null;
 };
+
 
   // Helper para media
   const media = (arr) => {
@@ -571,8 +573,21 @@ function sincronizarFichasClinicasPacientes() {
  * Convierte un valor a número, devolviendo null si no es un número válido.
  */
 function convertirNumeroFicha_(valor) {
-  if (valor === '' || valor === null || valor === undefined) return null;
-  const n = Number(valor);
+  if (valor === '' || valor === null || valor === undefined) return null; // Valores vacíos o nulos
+  if (typeof valor === 'number') return valor; // Si ya es número, no hacer nada
+
+  let strValor = String(valor).trim();
+
+  // Reemplazar el separador de miles (punto) y el separador decimal (coma)
+  // Esto asume que si ambos están presentes, el punto es miles y la coma es decimal.
+  // Si solo hay coma, es decimal. Si solo hay punto, es decimal (comportamiento estándar JS).
+  if (strValor.includes(',') && strValor.includes('.')) {
+    strValor = strValor.replace(/\./g, '').replace(/,/g, '.');
+  } else if (strValor.includes(',')) {
+    strValor = strValor.replace(/,/g, '.');
+  }
+
+  const n = Number(strValor);
   return isNaN(n) ? null : n;
 }
 
