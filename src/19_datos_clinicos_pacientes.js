@@ -283,34 +283,39 @@ function _obtenerDatosEstadisticasFichas() {
       finTratamientoTexto: row[idx.FinTratamientoTexto],
       sexoGenero: String(row[idx.SexoGenero] || ''),
       edad: convertirNumeroFicha_(row[idx.Edad]),
-      motivoConsultaDiagnostico: row[idx.MotivoConsultaDiagnostico],
-      numeroSesionesTotal: convertirNumeroFicha_(row[idx.NumeroSesionesTotal]),
-      tiempoEsperaHastaPrimeraConsultaDias: convertirNumeroFicha_(row[idx.TiempoEsperaHastaPrimeraConsultaDias]),
-      gad7Pre: convertirNumeroFicha_(row[idx.GAD7_PRE]),
-      gad7Post: convertirNumeroFicha_(row[idx.GAD7_POST]),
-      deltaGad7: deltaGad,
-      phq9Pre: convertirNumeroFicha_(row[idx.PHQ9_PRE]),
-      phq9Post: convertirNumeroFicha_(row[idx.PHQ9_POST]),
-      deltaPhq9: deltaPhq,      
+      motivoConsultaDiagnostico: row[idx.MotivoConsultaDiagnostico] || '',
+      numeroSesionesTotal: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.NumeroSesionesTotal])),
+      tiempoEsperaHastaPrimeraConsultaDias: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.TiempoEsperaHastaPrimeraConsultaDias])),
+      gad7Pre: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.GAD7_PRE])),
+      gad7Post: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.GAD7_POST])),
+      deltaGad7: _formatNumberToFixed1(deltaGad),
+      phq9Pre: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.PHQ9_PRE])),
+      phq9Post: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.PHQ9_POST])),
+      deltaPhq9: _formatNumberToFixed1(deltaPhq),      
       // Granularidad WHOQOL para el listado
-      whoqolFisicoPre: convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_PRE]),
-      whoqolFisicoPost: convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_POST]),
-      deltaFisico: deltaFisico,
-      whoqolPsicoPre: convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_PRE]),
-      whoqolPsicoPost: convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_POST]),
-      deltaPsico: deltaPsico,
-      whoqolSocialPre: convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_PRE]),
-      whoqolSocialPost: convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_POST]),
-      deltaSocial: deltaSocial,
-      whoqolAmbientePre: convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_PRE]),
-      whoqolAmbientePost: convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_POST]),
-      deltaAmbiente: deltaAmbiente
+      whoqolFisicoPre: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_PRE])),
+      whoqolFisicoPost: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.WHOQOLBREF_FISICO_POST])),
+      deltaFisico: _formatNumberToFixed1(deltaFisico),
+      whoqolPsicoPre: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_PRE])),
+      whoqolPsicoPost: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.WHOQOLBREF_PSICO_POST])),
+      deltaPsico: _formatNumberToFixed1(deltaPsico),
+      whoqolSocialPre: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_PRE])),
+      whoqolSocialPost: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.WHOQOLBREF_SOCIAL_POST])),
+      deltaSocial: _formatNumberToFixed1(deltaSocial),
+      whoqolAmbientePre: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_PRE])),
+      whoqolAmbientePost: _formatNumberToFixed1(convertirNumeroFicha_(row[idx.WHOQOLBREF_AMBIENTE_POST])),
+      deltaAmbiente: _formatNumberToFixed1(deltaAmbiente)
     };
   });
 
   const total = filas.length;
   const conPre = filas.filter(f => f.gad7Pre !== '' || f.phq9Pre !== '' || f.whoqolFisicoPre !== '').length;
   const conPost = filas.filter(f => f.gad7Post !== '' || f.phq9Post !== '' || f.whoqolFisicoPost !== '').length;
+
+  // Helper para formatear números a 1 decimal o devolver null si no es un número válido
+  const _formatNumberToFixed1 = (num) => {
+    return (typeof num === 'number' && !isNaN(num)) ? num.toFixed(1) : null;
+  };
 
   // Helper para media
   const media = (arr) => {
@@ -563,8 +568,20 @@ function sincronizarFichasClinicasPacientes() {
  * Convierte un valor a número, devolviendo null si no es un número válido.
  */
 function convertirNumeroFicha_(valor) {
-  if (valor === '' || valor === null || valor === undefined) return null;
-  const n = Number(valor);
+  if (valor === '' || valor === null || valor === undefined) return null; // Valores vacíos o nulos
+
+  let strValor = String(valor).trim();
+
+  // Reemplazar el separador de miles (punto) y el separador decimal (coma)
+  // Esto asume que si ambos están presentes, el punto es miles y la coma es decimal.
+  // Si solo hay coma, es decimal. Si solo hay punto, es decimal (comportamiento estándar JS).
+  if (strValor.includes(',') && strValor.includes('.')) {
+    strValor = strValor.replace(/\./g, '').replace(/,/g, '.');
+  } else if (strValor.includes(',')) {
+    strValor = strValor.replace(/,/g, '.');
+  }
+
+  const n = Number(strValor);
   return isNaN(n) ? null : n;
 }
 
