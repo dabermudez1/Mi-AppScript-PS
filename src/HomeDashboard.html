@@ -469,7 +469,7 @@
               })
               .withFailureHandler(err => {
                 this.showToast("Error al cancelar: " + err.message, true);
-              })fn;
+              })[fn]();
             return; // Salir después de manejar la cancelación.
           }
 
