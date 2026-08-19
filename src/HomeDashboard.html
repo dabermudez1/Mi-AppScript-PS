@@ -445,28 +445,40 @@
           const backgroundTasks = {
             'homeSincronizarGoogleCalendar': 'syncCalendar',
             'homeActualizarEstadosAutomaticos': 'updateStates',
-            'generarSesionesFaltantes': 'generateSessions',
-            'cancelarSincronizacionManualmente': 'syncCalendar' // Afecta a la misma tarea
+            'generarSesionesFaltantes': 'generateSessions'
           };
           const uiActions = [
             'homeNuevoPaciente', 'homeEditarPaciente', 'homeFichaClinicaPaciente',
             'homeAltaPaciente', 'homeEliminarPacientePorError', 'homeEliminarCicloPorError',
             'homeCrearCicloGrupo', 'homeEditarCiclo', 'homeGestionEsperaYCicloPaciente', 'homeAbrirPantallaPacientes',
             'homeAbrirPantallaCiclos', 'homeAbrirPantallaSesiones', 'gestionarAgenda',
-            'homeGestionarConfigModalidades', 'homeGestionarCatalogos', 'homeGestionarDiasBloqueados',
-            'homeAbrirReprogramarSesion', 'homeVerIncidenciasCalendario', 'cancelarSincronizacionManualmente',
+            'homeGestionarConfigModalidades', 'homeGestionarCatalogos', 'homeGestionarDiasBloqueados', 'homeAbrirReprogramarSesion',
+            'homeVerIncidenciasCalendario',
             'reservarPrimeraConsulta', 'editarEliminarReserva21'
           ];
           const taskKey = backgroundTasks[fn];
           const isUiAction = uiActions.includes(fn);
 
+          // Manejo especial para la cancelación: siempre debe poder ejecutarse
           if (fn === 'cancelarSincronizacionManualmente') {
             this.showToast("Enviando orden de cancelación...");
-            // No cambiamos el estado visual aquí, esperamos a que el polling lo confirme
+            google.script.run
+              .withSuccessHandler(() => {
+                this.load(true); // Forzar un refresco inmediato tras la cancelación exitosa
+                this.showToast("Proceso de sincronización cancelado.");
+              })
+              .withFailureHandler(err => {
+                this.showToast("Error al cancelar: " + err.message, true);
+              })fn;
+            return; // Salir después de manejar la cancelación
           }
 
-          if (taskKey && this.data.taskStatus[taskKey].running) return;
-
+          // Para otras tareas en segundo plano, evitar re-lanzar si ya están en curso
+          if (taskKey && this.data.taskStatus[taskKey].running) {
+            this.showToast("La tarea ya está en curso. Por favor, espera o cancela manualmente.", true);
+            return;
+          }
+          
           if (taskKey) {
             this.data.taskStatus[taskKey].running = true;
             this.data.taskStatus[taskKey].progress = 0;
@@ -477,11 +489,7 @@
 
           google.script.run
             .withSuccessHandler(() => {
-              if (fn === 'cancelarSincronizacionManualmente') {
-                // Forzar un refresco inmediato tras la cancelación exitosa
-                this.load(true);
-                this.showToast("Proceso de sincronización cancelado.");
-              } else if (taskKey) {
+              if (taskKey) { // Esto aplica a iniciar-sync, actualizar-estados, generar-sesiones
                 this.startPolling();
               } else if (!isUiAction) {
                 this.load();

@@ -1126,38 +1126,3 @@ function eliminarTriggerGuardianSync() {
   });
   SpreadsheetApp.getUi().alert(`Se ha desactivado el guardián de sincronización (${count} triggers eliminados).`);
 }
-
-/**
- * Crea un trigger para la función guardián que limpia sincronizaciones colgadas.
- */
-function crearTriggerGuardianSync() {
-  const ui = SpreadsheetApp.getUi();
-  const handlers = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
-  
-  if (handlers.includes('checkSyncTimeout')) {
-    ui.alert('El guardián de sincronización ya está activo.');
-    return;
-  }
-
-  ScriptApp.newTrigger('checkSyncTimeout')
-    .timeBased()
-    .everyMinutes(10) // Comprobar cada 10 minutos es un buen equilibrio
-    .create();
-
-  ui.alert('✅ Éxito: El guardián de sincronización está ahora activo. Limpiará procesos colgados automáticamente.');
-}
-
-/**
- * Elimina el trigger del guardián de sincronización.
- */
-function eliminarTriggerGuardianSync() {
-  const triggers = ScriptApp.getProjectTriggers();
-  let count = 0;
-  triggers.forEach(t => {
-    if (t.getHandlerFunction() === 'checkSyncTimeout') {
-      ScriptApp.deleteTrigger(t);
-      count++;
-    }
-  });
-  SpreadsheetApp.getUi().alert(`Se ha desactivado el guardián de sincronización (${count} triggers eliminados).`);
-}
