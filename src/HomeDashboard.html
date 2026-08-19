@@ -470,7 +470,7 @@
               .withFailureHandler(err => {
                 this.showToast("Error al cancelar: " + err.message, true);
               })fn;
-            return; // Salir después de manejar la cancelación
+            return; // Salir después de manejar la cancelación.
           }
 
           // Para otras tareas en segundo plano, evitar re-lanzar si ya están en curso
