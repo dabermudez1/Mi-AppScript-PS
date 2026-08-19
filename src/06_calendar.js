@@ -22,6 +22,7 @@ function sincronizarSesionesAGoogleCalendar(calendarParam) {
   props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '0');
   props.deleteProperty('TASK_SYNC_CALENDAR_INDEX');
   props.deleteProperty('TASK_SYNC_CALENDAR_MODIFIED');
+  props.setProperty('SYNC_START_TIMESTAMP', new Date().getTime()); // <-- AÑADIR HEARTBEAT
   props.deleteProperty('TASK_SYNC_CALENDAR_DELETED');
   
   limpiarTriggersSyncCalendar_();
@@ -81,6 +82,7 @@ function continuarSincronizacionCalendarLote() {
   let currentIndex = startIndex;
 
   for (; currentIndex < sesionesDeseadas.length; currentIndex++) {
+    // --- INICIO DE CAMBIO: TRY-CATCH GRANULAR POR SESIÓN ---
     const sesion = sesionesDeseadas[currentIndex];
 
     // Lógica para sesiones canceladas: eliminar el evento del calendario.
@@ -105,6 +107,7 @@ function continuarSincronizacionCalendarLote() {
       }
       continue; // Pasar a la siguiente sesión
     }
+
     const currentHash = generarHashSesionCalendar_(sesion);
 
     // OPTIMIZACIÓN CLAVE: Si el hash coincide, ya tiene ID y no está en ERROR, saltamos.
@@ -115,6 +118,7 @@ function continuarSincronizacionCalendarLote() {
       continue;
     }
 
+    // Este try-catch asegura que una sesión corrupta no detenga todo el lote.
     try {
       const titulo = construirTituloEventoSesion_(sesion);
       const desc = construirDescripcionEventoSesion_(sesion);
@@ -160,6 +164,7 @@ function continuarSincronizacionCalendarLote() {
       sesion.CalendarLastSync = new Date();
       sesionesModificadas.push(sesion);
     }
+    // --- FIN DE CAMBIO ---
 
     if (currentIndex % 10 === 0) {
       const prg = Math.max(1, Math.round((currentIndex / sesionesDeseadas.length) * 100));
@@ -185,12 +190,18 @@ function continuarSincronizacionCalendarLote() {
     props.setProperty('TASK_SYNC_CALENDAR_MODIFIED', totalActualizadosGlobales.toString());
     props.setProperty('TASK_SYNC_CALENDAR_DELETED', totalEliminadosGlobales.toString());
     
-    ScriptApp.newTrigger('continuarSincronizacionCalendarLote')
-      .timeBased()
-      .after(1000) // Reanudar lo antes posible (1 segundo)
-      .create();
+    // --- INICIO DE CAMBIO: CREACIÓN DE TRIGGER SEGURA ---
+    try {
+      ScriptApp.newTrigger('continuarSincronizacionCalendarLote')
+        .timeBased()
+        .after(1000) // Reanudar lo antes posible (1 segundo)
+        .create();
+    } catch (e) {
+      console.error(`CRÍTICO: No se pudo crear el siguiente trigger de sincronización. Finalizando proceso. Error: ${e.message}`);
+      finalizarSyncCalendar_(props, totalActualizadosGlobales, totalEliminadosGlobales, `ERROR: ${e.message}`);
+    }
+    // --- FIN DE CAMBIO ---
   } else {
-    // Fin de la iteración. Procedemos a limpiar huérfanos.
     props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '95');
     
     let eliminadosHuerfanos = 0;
@@ -210,15 +221,65 @@ function continuarSincronizacionCalendarLote() {
   }
 }
 
-function finalizarSyncCalendar_(props, actualizados, eliminados) {
+function finalizarSyncCalendar_(props, actualizados, eliminados, errorMsg = null) {
   limpiarTriggersSyncCalendar_();
-  const resultMsg = `Sincronización completada: ${actualizados} actualizados, ${eliminados} eliminados.`;
+  
+  let resultMsg;
+  if (errorMsg) {
+    resultMsg = `Proceso finalizado con error: ${errorMsg}`;
+  } else {
+    resultMsg = `Sincronización completada: ${actualizados} actualizados, ${eliminados} eliminados.`;
+  }
+
   props.setProperty('TASK_SYNC_CALENDAR_PROGRESS', '100');
   props.setProperty('TASK_SYNC_CALENDAR_RESULT', resultMsg);
   props.setProperty('TASK_SYNC_CALENDAR_RUNNING', 'false');
   props.deleteProperty('TASK_SYNC_CALENDAR_INDEX');
   props.deleteProperty('TASK_SYNC_CALENDAR_MODIFIED');
   props.deleteProperty('TASK_SYNC_CALENDAR_DELETED');
+  props.deleteProperty('SYNC_START_TIMESTAMP'); // Limpiar Heartbeat
+}
+
+/**
+ * Permite al usuario abortar manualmente una sincronización bloqueada.
+ * Se llamará desde el botón "Cancelar" en la UI.
+ */
+function cancelarSincronizacionManualmente() {
+  try {
+    const props = PropertiesService.getUserProperties();
+    finalizarSyncCalendar_(props, 0, 0, "Cancelado manualmente por el usuario.");
+    return { success: true, message: "Sincronización cancelada." };
+  } catch (e) {
+    return { success: false, message: `Error al cancelar: ${e.message}` };
+  }
+}
+
+/**
+ * Función guardián que detecta y limpia sincronizaciones "muertas".
+ */
+function checkSyncTimeout() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return; // No esperar si otra instancia está corriendo
+
+  try {
+    const props = PropertiesService.getUserProperties();
+    const isRunning = props.getProperty('TASK_SYNC_CALENDAR_RUNNING') === 'true';
+    const startTime = Number(props.getProperty('SYNC_START_TIMESTAMP') || 0);
+
+    if (!isRunning || !startTime) {
+      return; // No hay nada que hacer
+    }
+
+    const TIMEOUT_LIMIT_MS = 15 * 60 * 1000; // 15 minutos
+    const elapsedTime = new Date().getTime() - startTime;
+
+    if (elapsedTime > TIMEOUT_LIMIT_MS) {
+      console.error(`GUARDIÁN: Sincronización de calendario excedió el tiempo límite de ${TIMEOUT_LIMIT_MS / 60000} minutos. Forzando finalización.`);
+      finalizarSyncCalendar_(props, 0, 0, "Timeout detectado por el guardián del sistema.");
+    }
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /***************
