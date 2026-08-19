@@ -38,6 +38,10 @@
             <div class="flex flex-col items-end">
               <span class="text-xs font-bold text-indigo-600 animate-pulse">Sincronizando Calendar (<span x-text="data.taskStatus.syncCalendar.progress"></span>%)</span>
               <div class="w-32 bg-gray-200 h-1.5 rounded-full mt-1"><div class="bg-indigo-600 h-full rounded-full transition-all" :style="'width:' + data.taskStatus.syncCalendar.progress + '%'"></div></div>
+              <!-- BOTÓN DE CANCELAR -->
+              <button @click="callAction('cancelarSincronizacionManualmente')" class="mt-2 text-[10px] text-red-500 hover:text-red-700 font-bold">
+                Cancelar
+              </button>
             </div>
           </template>
           <template x-if="data.taskStatus?.updateStates?.running">
@@ -441,7 +445,8 @@
           const backgroundTasks = {
             'homeSincronizarGoogleCalendar': 'syncCalendar',
             'homeActualizarEstadosAutomaticos': 'updateStates',
-            'generarSesionesFaltantes': 'generateSessions'
+            'generarSesionesFaltantes': 'generateSessions',
+            'cancelarSincronizacionManualmente': 'syncCalendar' // Afecta a la misma tarea
           };
           const uiActions = [
             'homeNuevoPaciente', 'homeEditarPaciente', 'homeFichaClinicaPaciente',
@@ -449,11 +454,16 @@
             'homeCrearCicloGrupo', 'homeEditarCiclo', 'homeGestionEsperaYCicloPaciente', 'homeAbrirPantallaPacientes',
             'homeAbrirPantallaCiclos', 'homeAbrirPantallaSesiones', 'gestionarAgenda',
             'homeGestionarConfigModalidades', 'homeGestionarCatalogos', 'homeGestionarDiasBloqueados',
-            'homeAbrirReprogramarSesion', 'homeVerIncidenciasCalendario',
+            'homeAbrirReprogramarSesion', 'homeVerIncidenciasCalendario', 'cancelarSincronizacionManualmente',
             'reservarPrimeraConsulta', 'editarEliminarReserva21'
           ];
           const taskKey = backgroundTasks[fn];
           const isUiAction = uiActions.includes(fn);
+
+          if (fn === 'cancelarSincronizacionManualmente') {
+            this.showToast("Enviando orden de cancelación...");
+            // No cambiamos el estado visual aquí, esperamos a que el polling lo confirme
+          }
 
           if (taskKey && this.data.taskStatus[taskKey].running) return;
 
@@ -467,7 +477,11 @@
 
           google.script.run
             .withSuccessHandler(() => {
-              if (taskKey) {
+              if (fn === 'cancelarSincronizacionManualmente') {
+                // Forzar un refresco inmediato tras la cancelación exitosa
+                this.load(true);
+                this.showToast("Proceso de sincronización cancelado.");
+              } else if (taskKey) {
                 this.startPolling();
               } else if (!isUiAction) {
                 this.load();
